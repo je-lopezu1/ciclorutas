@@ -1,4 +1,7 @@
 import tkinter as tk
+from tkinter import filedialog
+import pandas as pd
+import networkx as nx
 from tkinter import ttk, messagebox
 import threading
 import time
@@ -34,6 +37,9 @@ class InterfazSimulacion:
         # Inicializar simulación
         self.simulador.inicializar_simulacion()
         self.actualizar_visualizacion()
+
+        # Posiciones del grafo
+        self.pos_grafo = None
         
     def configurar_estilo(self):
         """Configura el estilo visual de la interfaz"""
@@ -90,27 +96,25 @@ class InterfazSimulacion:
         vel_max_spin = ttk.Spinbox(control_frame, from_=1.0, to=30.0, increment=0.5, textvariable=self.vel_max_var, width=10)
         vel_max_spin.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
-        # Distancia A
-        ttk.Label(control_frame, text="Distancia A (m):", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.dist_a_var = tk.DoubleVar(value=self.config.distancia_a)
-        dist_a_spin = ttk.Spinbox(control_frame, from_=20.0, to=100.0, increment=5.0, textvariable=self.dist_a_var, width=10)
-        dist_a_spin.grid(row=3, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # # Distancia A
+        # ttk.Label(control_frame, text="Distancia A (m):", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
+        # dist_a_spin = ttk.Spinbox(control_frame, from_=20.0, to=100.0, increment=5.0, textvariable=self.dist_a_var, width=10)
+        # dist_a_spin.grid(row=3, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
-        # Distancia B
-        ttk.Label(control_frame, text="Distancia B (m):", font=('Segoe UI', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, pady=5)
-        self.dist_b_var = tk.DoubleVar(value=self.config.distancia_b)
-        dist_b_spin = ttk.Spinbox(control_frame, from_=15.0, to=80.0, increment=5.0, textvariable=self.dist_b_var, width=10)
-        dist_b_spin.grid(row=4, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # # Distancia B
+        # ttk.Label(control_frame, text="Distancia B (m):", font=('Segoe UI', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, pady=5)
+        # dist_b_spin = ttk.Spinbox(control_frame, from_=15.0, to=80.0, increment=5.0, textvariable=self.dist_b_var, width=10)
+        # dist_b_spin.grid(row=4, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
-        # Distancia C
-        ttk.Label(control_frame, text="Distancia C (m):", font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky=tk.W, pady=5)
-        self.dist_c_var = tk.DoubleVar(value=self.config.distancia_c)
-        dist_c_spin = ttk.Spinbox(control_frame, from_=15.0, to=80.0, increment=5.0, textvariable=self.dist_c_var, width=10)
-        dist_c_spin.grid(row=5, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # # Distancia C
+        # ttk.Label(control_frame, text="Distancia C (m):", font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky=tk.W, pady=5)
+        # dist_c_spin = ttk.Spinbox(control_frame, from_=15.0, to=80.0, increment=5.0, textvariable=self.dist_c_var, width=10)
+        # dist_c_spin.grid(row=5, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
         # Separador
         ttk.Separator(control_frame, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
+        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         # Botones de control
         ttk.Button(control_frame, text="🔄 NUEVA SIMULACIÓN", command=self.nueva_simulacion, 
                   style='Accent.TButton').grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
@@ -152,7 +156,7 @@ class InterfazSimulacion:
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Configurar el gráfico
-        self.configurar_grafico()
+        self.cargar_grafo()
         
     def crear_panel_estadisticas(self, parent):
         """Crea el panel de estadísticas"""
@@ -190,69 +194,53 @@ class InterfazSimulacion:
         row2 = ttk.Frame(stats_inner)
         row2.pack(fill=tk.X, pady=5)
         
-        ttk.Label(row2, text="Distancia A:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['distancia_a'] = ttk.Label(row2, text="0.0 m", font=('Segoe UI', 10))
-        self.stats_labels['distancia_a'].pack(side=tk.LEFT, padx=(0, 20))
+        # ttk.Label(row2, text="Distancia A:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
         
-        ttk.Label(row2, text="Distancia B:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['distancia_b'] = ttk.Label(row2, text="0.0 m", font=('Segoe UI', 10))
-        self.stats_labels['distancia_b'].pack(side=tk.LEFT, padx=(0, 20))
+        # ttk.Label(row2, text="Distancia B:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
         
-        ttk.Label(row2, text="Distancia C:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['distancia_c'] = ttk.Label(row2, text="0.0 m", font=('Segoe UI', 10))
-        self.stats_labels['distancia_c'].pack(side=tk.LEFT)
+        # ttk.Label(row2, text="Distancia C:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
         
-    def configurar_grafico(self):
-        """Configura el gráfico de matplotlib"""
-        self.ax.clear()
+    # def configurar_grafico(self):
+    #     """Configura el gráfico de matplotlib"""
+    #     self.ax.clear()
         
-        # Dibujar carreteras en forma de Y con mejor diseño
-        # Tramo principal A->X
-        self.ax.plot([0, self.config.distancia_a], [0, 0], color='#495057', linewidth=6, alpha=0.6, 
-                    solid_capstyle='round', label='Tramo Principal A→X', zorder=1)
+    #     # Dibujar carreteras en forma de Y con mejor diseño
+    #     # Tramo principal A->X
+    #     solid_capstyle='round', label='Tramo Principal A→X', zorder=1)
 
-        # Tramo X->B con sombra y mejor color
-        self.ax.plot([self.config.distancia_a, self.config.distancia_a + self.config.distancia_b], 
-                    [0, self.config.distancia_b * 0.5], color='#FF6B35', linewidth=6, alpha=0.6, 
-                    solid_capstyle='round', label='Tramo X→B', zorder=1)
+    #     # Tramo X->B con sombra y mejor color
+    #     solid_capstyle='round', label='Tramo X→B', zorder=1)
 
-        # Tramo X->C con sombra y mejor color
-        self.ax.plot([self.config.distancia_a, self.config.distancia_a + self.config.distancia_c], 
-                    [0, -self.config.distancia_c * 0.5], color='#FF1744', linewidth=6, alpha=0.6, 
-                    solid_capstyle='round', label='Tramo X→C', zorder=1)
+    #     # Tramo X->C con sombra y mejor color
+    #     solid_capstyle='round', label='Tramo X→C', zorder=1)
         
-        # Marcadores de puntos
-        self.ax.plot(0, 0, 'ko', markersize=8, label='Punto A', zorder=3)
-        self.ax.plot(self.config.distancia_a, 0, 'ko', markersize=8, label='Bifurcación X', zorder=3)
-        self.ax.plot(self.config.distancia_a + self.config.distancia_b, self.config.distancia_b * 0.5, 
-                    color='#FF6B35', marker='o', markersize=8, label='Punto B', zorder=3)
-        self.ax.plot(self.config.distancia_a + self.config.distancia_c, -self.config.distancia_c * 0.5, 
-                    color='#FF1744', marker='o', markersize=8, label='Punto C', zorder=3)
+    #     # Marcadores de puntos
+    #     self.ax.plot(0, 0, 'ko', markersize=8, label='Punto A', zorder=3)
+    #     color='#FF6B35', marker='o', markersize=8, label='Punto B', zorder=3)
+    #     color='#FF1744', marker='o', markersize=8, label='Punto C', zorder=3)
         
-        # Configuración del gráfico
-        self.ax.set_xlim(-10, self.config.distancia_a + max(self.config.distancia_b, self.config.distancia_c) + 10)
-        self.ax.set_ylim(-max(self.config.distancia_c, self.config.distancia_b) - 8, max(self.config.distancia_c, self.config.distancia_b) + 8)
-        self.ax.set_title("CICLORRUTA EN FORMA DE Y - SIMULACION EN TIEMPO REAL", 
-                         fontsize=14, fontweight='bold', color='#212529', pad=15)
-        self.ax.set_xlabel("Distancia (metros)", fontsize=12, fontweight='bold', color='#495057')
-        self.ax.set_ylabel("Desviación (metros)", fontsize=12, fontweight='bold', color='#495057')
+    #     # Configuración del gráfico
+    #     self.ax.set_title("CICLORRUTA EN FORMA DE Y - SIMULACION EN TIEMPO REAL", 
+    #                      fontsize=14, fontweight='bold', color='#212529', pad=15)
+    #     self.ax.set_xlabel("Distancia (metros)", fontsize=12, fontweight='bold', color='#495057')
+    #     self.ax.set_ylabel("Desviación (metros)", fontsize=12, fontweight='bold', color='#495057')
         
-        # Crear leyenda sin zorder para compatibilidad
-        legend = self.ax.legend(fontsize=10, frameon=True, fancybox=True, shadow=True)
-        legend.set_zorder(4)  # Establecer zorder después de crear la leyenda
+    #     # Crear leyenda sin zorder para compatibilidad
+    #     legend = self.ax.legend(fontsize=10, frameon=True, fancybox=True, shadow=True)
+    #     legend.set_zorder(4)  # Establecer zorder después de crear la leyenda
         
-        self.ax.grid(True, alpha=0.3, color='#adb5bd', linestyle='-', linewidth=0.5, zorder=1)
+    #     self.ax.grid(True, alpha=0.3, color='#adb5bd', linestyle='-', linewidth=0.5, zorder=1)
         
-        # Ejes elegantes
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['left'].set_color('#6c757d')
-        self.ax.spines['bottom'].set_color('#6c757d')
+    #     # Ejes elegantes
+    #     self.ax.spines['top'].set_visible(False)
+    #     self.ax.spines['right'].set_visible(False)
+    #     self.ax.spines['left'].set_color('#6c757d')
+    #     self.ax.spines['bottom'].set_color('#6c757d')
         
-        # Scatter plot para ciclistas - CON ZORDER ALTO para estar por encima
-        self.scatter = self.ax.scatter([], [], s=100, alpha=0.9, edgecolors='none', linewidth=0, zorder=5)
+    #     # Scatter plot para ciclistas - CON ZORDER ALTO para estar por encima
+    #     self.scatter = self.ax.scatter([], [], s=100, alpha=0.9, edgecolors='none', linewidth=0, zorder=5)
         
-        self.canvas.draw()
+    #     self.canvas.draw()
         
     def actualizar_visualizacion(self):
         """Actualiza la visualización con los datos actuales"""
@@ -282,9 +270,6 @@ class InterfazSimulacion:
             self.config.num_ciclistas = self.num_ciclistas_var.get()
             self.config.velocidad_min = self.vel_min_var.get()
             self.config.velocidad_max = self.vel_max_var.get()
-            self.config.distancia_a = self.dist_a_var.get()
-            self.config.distancia_b = self.dist_b_var.get()
-            self.config.distancia_c = self.dist_c_var.get()
             
             # Crear nuevo simulador
             self.simulador = SimuladorCiclorutas(self.config)
@@ -433,10 +418,33 @@ class InterfazSimulacion:
         self.stats_labels['velocidad_promedio'].config(text=f"{stats['velocidad_promedio']:.1f} m/s")
         self.stats_labels['velocidad_min'].config(text=f"{stats['velocidad_minima']:.1f} m/s")
         self.stats_labels['velocidad_max'].config(text=f"{stats['velocidad_maxima']:.1f} m/s")
-        self.stats_labels['distancia_a'].config(text=f"{stats['distancia_total_a']:.1f} m")
-        self.stats_labels['distancia_b'].config(text=f"{stats['distancia_total_b']:.1f} m")
-        self.stats_labels['distancia_c'].config(text=f"{stats['distancia_total_c']:.1f} m")
 
+
+    def cargar_grafo(self):
+        archivo = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+        if not archivo:
+            return
+        try:
+            nodos_df = pd.read_excel(archivo, sheet_name="NODOS", engine="openpyxl")
+            arcos_df = pd.read_excel(archivo, sheet_name="ARCOS", engine="openpyxl")
+            G = nx.Graph()
+            for nodo in nodos_df.iloc[:, 0]:
+                print(nodo)
+                G.add_node(nodo)
+            for _,fila in arcos_df.iterrows():
+                print(fila)
+                origen, destino, longitud = fila[0], fila[1], fila[2]
+                G.add_edge(origen, destino, weight=longitud)
+            self.ax.clear()
+            pos = nx.spring_layout(G, seed=42)
+            self.pos_grafo = pos
+            nx.draw(G, pos, ax=self.ax, with_labels=True, node_color="#2E86AB", edge_color="#AAB7B8",
+                    node_size=800, font_size=10, font_color="white")
+            etiquetas = nx.get_edge_attributes(G, 'weight')
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=etiquetas, ax=self.ax)
+            self.canvas.draw()
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar el archivo: {str(e)}")
 def main():
     """Función principal para ejecutar la interfaz"""
     root = tk.Tk()
