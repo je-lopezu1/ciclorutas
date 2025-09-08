@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.patches import Circle
 import numpy as np
+from typing import Dict
 
 class InterfazSimulacion:
     """Interfaz gráfica para controlar la simulación de ciclorutas"""
@@ -66,10 +67,14 @@ class InterfazSimulacion:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(2, weight=2)  # Panel de visualización más grande
         main_frame.rowconfigure(1, weight=1)
         
         # Panel de control izquierdo
         self.crear_panel_control(main_frame)
+        
+        # Panel de distribuciones (nuevo)
+        self.crear_panel_distribuciones(main_frame)
         
         # Panel de visualización derecha
         self.crear_panel_visualizacion(main_frame)
@@ -80,7 +85,7 @@ class InterfazSimulacion:
     def crear_panel_control(self, parent):
         """Crea el panel de control de parámetros"""
         control_frame = ttk.LabelFrame(parent, text="⚙️ CONFIGURACIÓN DE SIMULACIÓN", padding="10")
-        control_frame.grid(row=0, column=0, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        control_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
         
         # Número de ciclistas
         ttk.Label(control_frame, text="Número de Ciclistas:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
@@ -100,20 +105,10 @@ class InterfazSimulacion:
         vel_max_spin = ttk.Spinbox(control_frame, from_=1.0, to=30.0, increment=0.5, textvariable=self.vel_max_var, width=10)
         vel_max_spin.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
-        # # Distancia A
-        # ttk.Label(control_frame, text="Distancia A (m):", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=5)
-        # dist_a_spin = ttk.Spinbox(control_frame, from_=20.0, to=100.0, increment=5.0, textvariable=self.dist_a_var, width=10)
-        # dist_a_spin.grid(row=3, column=1, sticky=tk.W, pady=5, padx=(10, 0))
-        
-        # # Distancia B
-        # ttk.Label(control_frame, text="Distancia B (m):", font=('Segoe UI', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, pady=5)
-        # dist_b_spin = ttk.Spinbox(control_frame, from_=15.0, to=80.0, increment=5.0, textvariable=self.dist_b_var, width=10)
-        # dist_b_spin.grid(row=4, column=1, sticky=tk.W, pady=5, padx=(10, 0))
-        
-        # # Distancia C
-        # ttk.Label(control_frame, text="Distancia C (m):", font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky=tk.W, pady=5)
-        # dist_c_spin = ttk.Spinbox(control_frame, from_=15.0, to=80.0, increment=5.0, textvariable=self.dist_c_var, width=10)
-        # dist_c_spin.grid(row=5, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # Información sobre el grafo
+        ttk.Label(control_frame, text="📊 Configuración de Red:", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        self.info_grafo_label = ttk.Label(control_frame, text="Sin grafo cargado", font=('Segoe UI', 9), foreground='#6c757d')
+        self.info_grafo_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=2)
         
         # Separador
         ttk.Separator(control_frame, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
@@ -148,11 +143,174 @@ class InterfazSimulacion:
         ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 10, 'bold')).grid(row=14, column=0, sticky=tk.W, pady=5)
         self.tiempo_label = ttk.Label(control_frame, text="0.0s", font=('Segoe UI', 10))
         self.tiempo_label.grid(row=14, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+    
+    def crear_panel_distribuciones(self, parent):
+        """Crea el panel de configuración de distribuciones por nodo"""
+        dist_frame = ttk.LabelFrame(parent, text="📊 DISTRIBUCIONES DE ARRIBO", padding="10")
+        dist_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 5))
+        
+        # Frame para scroll
+        canvas = tk.Canvas(dist_frame, height=400)
+        scrollbar = ttk.Scrollbar(dist_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Variables para almacenar controles de distribuciones
+        self.controles_distribuciones = {}
+        
+        # Mensaje inicial
+        self.mensaje_distribuciones = ttk.Label(scrollable_frame, 
+                                              text="📂 Carga un grafo para configurar distribuciones",
+                                              font=('Segoe UI', 10), foreground='#6c757d')
+        self.mensaje_distribuciones.pack(pady=20)
+        
+        # Empaquetar canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Guardar referencias
+        self.canvas_distribuciones = canvas
+        self.frame_distribuciones = scrollable_frame
+    
+    def actualizar_panel_distribuciones(self):
+        """Actualiza el panel de distribuciones con los nodos del grafo"""
+        # Limpiar controles existentes
+        for widget in self.frame_distribuciones.winfo_children():
+            widget.destroy()
+        
+        self.controles_distribuciones = {}
+        
+        if not self.grafo_actual:
+            # Mostrar mensaje si no hay grafo
+            self.mensaje_distribuciones = ttk.Label(self.frame_distribuciones, 
+                                                  text="📂 Carga un grafo para configurar distribuciones",
+                                                  font=('Segoe UI', 10), foreground='#6c757d')
+            self.mensaje_distribuciones.pack(pady=20)
+            return
+        
+        # Obtener distribuciones actuales
+        distribuciones = self.simulador.obtener_distribuciones_nodos()
+        
+        # Crear controles para cada nodo
+        for i, nodo_id in enumerate(self.grafo_actual.nodes()):
+            self._crear_controles_nodo(self.frame_distribuciones, nodo_id, i, distribuciones.get(nodo_id, {}))
+    
+    def _crear_controles_nodo(self, parent, nodo_id: str, index: int, config_actual: Dict[str, any]):
+        """Crea los controles para configurar la distribución de un nodo"""
+        # Frame para el nodo
+        nodo_frame = ttk.LabelFrame(parent, text=f"📍 Nodo: {nodo_id}", padding="8")
+        nodo_frame.pack(fill=tk.X, pady=5, padx=5)
+        
+        # Variables para este nodo
+        tipo_var = tk.StringVar(value=config_actual.get('tipo', 'exponencial'))
+        lambda_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('lambda', 0.5))
+        min_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('min', 1.0))
+        max_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('max', 5.0))
+        
+        # Guardar referencias
+        self.controles_distribuciones[nodo_id] = {
+            'tipo': tipo_var,
+            'lambda': lambda_var,
+            'min': min_var,
+            'max': max_var
+        }
+        
+        # Selector de tipo de distribución
+        ttk.Label(nodo_frame, text="Tipo:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=2)
+        tipo_combo = ttk.Combobox(nodo_frame, textvariable=tipo_var, 
+                                 values=['exponencial', 'poisson', 'uniforme'],
+                                 state='readonly', width=12)
+        tipo_combo.grid(row=0, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        
+        # Parámetro Lambda (para exponencial y poisson)
+        ttk.Label(nodo_frame, text="λ (Lambda):", font=('Segoe UI', 9, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=2)
+        lambda_spin = ttk.Spinbox(nodo_frame, from_=0.1, to=10.0, increment=0.1, 
+                                 textvariable=lambda_var, width=10)
+        lambda_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        
+        # Parámetros Min y Max (para uniforme)
+        ttk.Label(nodo_frame, text="Min (s):", font=('Segoe UI', 9, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=2)
+        min_spin = ttk.Spinbox(nodo_frame, from_=0.1, to=20.0, increment=0.1, 
+                              textvariable=min_var, width=10)
+        min_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        
+        ttk.Label(nodo_frame, text="Max (s):", font=('Segoe UI', 9, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=2)
+        max_spin = ttk.Spinbox(nodo_frame, from_=0.1, to=20.0, increment=0.1, 
+                              textvariable=max_var, width=10)
+        max_spin.grid(row=3, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        
+        # Botón para aplicar cambios
+        aplicar_btn = ttk.Button(nodo_frame, text="✅ Aplicar", 
+                               command=lambda: self._aplicar_distribucion_nodo(nodo_id))
+        aplicar_btn.grid(row=4, column=0, columnspan=2, pady=5)
+        
+        # Descripción actual
+        descripcion = config_actual.get('descripcion', 'Exponencial (λ=0.50)')
+        desc_label = ttk.Label(nodo_frame, text=f"Actual: {descripcion}", 
+                              font=('Segoe UI', 8), foreground='#6c757d')
+        desc_label.grid(row=5, column=0, columnspan=2, pady=2)
+        
+        # Guardar referencia a la descripción para actualizarla
+        self.controles_distribuciones[nodo_id]['descripcion'] = desc_label
+    
+    def _aplicar_distribucion_nodo(self, nodo_id: str):
+        """Aplica la distribución configurada para un nodo específico"""
+        try:
+            controles = self.controles_distribuciones[nodo_id]
+            tipo = controles['tipo'].get()
+            
+            # Preparar parámetros según el tipo
+            if tipo in ['exponencial', 'poisson']:
+                parametros = {'lambda': controles['lambda'].get()}
+            elif tipo == 'uniforme':
+                parametros = {
+                    'min': controles['min'].get(),
+                    'max': controles['max'].get()
+                }
+            else:
+                parametros = {}
+            
+            # Aplicar al simulador
+            self.simulador.actualizar_distribucion_nodo(nodo_id, tipo, parametros)
+            
+            # Actualizar descripción
+            distribucion = self.simulador.distribuciones_nodos[nodo_id]
+            nueva_descripcion = distribucion.obtener_descripcion()
+            controles['descripcion'].config(text=f"Actual: {nueva_descripcion}")
+            
+            # Mostrar mensaje de confirmación
+            messagebox.showinfo("Distribución Aplicada", 
+                              f"✅ Distribución {tipo} aplicada al nodo {nodo_id}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar distribución: {str(e)}")
+    
+    def actualizar_info_grafo(self):
+        """Actualiza la información del grafo en el panel de control"""
+        if self.grafo_actual:
+            num_nodos = len(self.grafo_actual.nodes())
+            num_arcos = len(self.grafo_actual.edges())
+            self.info_grafo_label.config(
+                text=f"Grafo: {num_nodos} nodos, {num_arcos} arcos",
+                foreground='#28a745'
+            )
+        else:
+            self.info_grafo_label.config(
+                text="Sin grafo cargado",
+                foreground='#6c757d'
+            )
         
     def crear_panel_visualizacion(self, parent):
         """Crea el panel de visualización de la simulación"""
         viz_frame = ttk.LabelFrame(parent, text="📊 VISUALIZACIÓN EN TIEMPO REAL", padding="10")
-        viz_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 10))
+        viz_frame.grid(row=0, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0))
         
         # Crear figura de matplotlib
         self.fig, self.ax = plt.subplots(figsize=(10, 6))
@@ -210,6 +368,18 @@ class InterfazSimulacion:
         self.stats_labels['modo_simulacion'] = ttk.Label(row2, text="Original", font=('Segoe UI', 10))
         self.stats_labels['modo_simulacion'].pack(side=tk.LEFT)
         
+        # Tercera fila - Estadísticas de distribuciones
+        row3 = ttk.Frame(stats_inner)
+        row3.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(row3, text="Distribuciones:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        self.stats_labels['distribuciones_configuradas'] = ttk.Label(row3, text="0", font=('Segoe UI', 10))
+        self.stats_labels['distribuciones_configuradas'].pack(side=tk.LEFT, padx=(0, 20))
+        
+        ttk.Label(row3, text="Tasa Promedio:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        self.stats_labels['tasa_arribo_promedio'] = ttk.Label(row3, text="0.0", font=('Segoe UI', 10))
+        self.stats_labels['tasa_arribo_promedio'].pack(side=tk.LEFT)
+        
     def configurar_grafico_inicial(self):
         """Configura el gráfico inicial sin grafo cargado"""
         self.ax.clear()
@@ -229,8 +399,11 @@ class InterfazSimulacion:
         self.scatter = self.ax.scatter([], [], s=100, alpha=0.9, edgecolors='none', linewidth=0, zorder=5)
         
         # Mensaje inicial
-        self.ax.text(0.5, 0.5, '📂 Carga un grafo para comenzar la simulación', 
-                    transform=self.ax.transAxes, fontsize=12, ha='center', va='center',
+        self.ax.text(0.5, 0.5, '📂 Carga un grafo Excel para comenzar la simulación\n\n' +
+                    'El grafo debe tener:\n' +
+                    '• Hoja "NODOS" con lista de nodos\n' +
+                    '• Hoja "ARCOS" con origen, destino y peso', 
+                    transform=self.ax.transAxes, fontsize=11, ha='center', va='center',
                     bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.7))
         
         self.canvas.draw()
@@ -372,6 +545,11 @@ class InterfazSimulacion:
             self.config.velocidad_min = self.vel_min_var.get()
             self.config.velocidad_max = self.vel_max_var.get()
             
+            # Validar velocidades
+            if self.config.velocidad_min >= self.config.velocidad_max:
+                messagebox.showerror("Error", "La velocidad mínima debe ser menor que la máxima")
+                return
+            
             # Crear nuevo simulador
             self.simulador = SimuladorCiclorutas(self.config)
             
@@ -384,10 +562,12 @@ class InterfazSimulacion:
             # Actualizar interfaz
             if self.grafo_actual:
                 self.configurar_grafico_con_grafo()
+                self.actualizar_panel_distribuciones()
             else:
                 self.configurar_grafico_inicial()
             self.actualizar_visualizacion()
             self.actualizar_estadisticas()
+            self.actualizar_info_grafo()
             self.estado_label.config(text="LISTO", foreground='#28a745')
             self.tiempo_label.config(text="0.0s")
             
@@ -491,10 +671,12 @@ class InterfazSimulacion:
             # Actualizar visualización
             if self.grafo_actual:
                 self.configurar_grafico_con_grafo()
+                self.actualizar_panel_distribuciones()
             else:
                 self.configurar_grafico_inicial()
             self.actualizar_visualizacion()
             self.actualizar_estadisticas()
+            self.actualizar_info_grafo()
             
             # Resetear botón de pausa
             self.resetear_boton_pausa()
@@ -537,10 +719,17 @@ class InterfazSimulacion:
             self.stats_labels['grafo_nodos'].config(text=str(stats.get('grafo_nodos', 0)))
             self.stats_labels['grafo_arcos'].config(text=str(stats.get('grafo_arcos', 0)))
             self.stats_labels['modo_simulacion'].config(text="Grafo Real", foreground='#28a745')
+            
+            # Estadísticas de distribuciones
+            self.stats_labels['distribuciones_configuradas'].config(text=str(stats.get('distribuciones_configuradas', 0)))
+            tasa_promedio = stats.get('tasa_arribo_promedio', 0)
+            self.stats_labels['tasa_arribo_promedio'].config(text=f"{tasa_promedio:.2f}")
         else:
             self.stats_labels['grafo_nodos'].config(text="0")
             self.stats_labels['grafo_arcos'].config(text="0")
             self.stats_labels['modo_simulacion'].config(text="Sistema Original", foreground='#6c757d')
+            self.stats_labels['distribuciones_configuradas'].config(text="0")
+            self.stats_labels['tasa_arribo_promedio'].config(text="0.0")
 
 
     def cargar_grafo(self):
@@ -594,6 +783,12 @@ class InterfazSimulacion:
             self.simulador.inicializar_simulacion()
             self.actualizar_visualizacion()
             self.actualizar_estadisticas()
+            
+            # Actualizar panel de distribuciones
+            self.actualizar_panel_distribuciones()
+            
+            # Actualizar información del grafo en el panel de control
+            self.actualizar_info_grafo()
             
             # Mostrar mensaje de éxito
             num_nodos = len(G.nodes())
