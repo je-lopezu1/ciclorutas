@@ -24,6 +24,10 @@ class InterfazSimulacion:
         self.config = ConfiguracionSimulacion()
         self.simulador = SimuladorCiclorutas(self.config)
         
+        # Variables para el grafo
+        self.grafo_actual = None
+        self.pos_grafo_actual = None
+        
         # Variables de control
         self.simulacion_activa = False
         self.hilo_simulacion = None
@@ -155,8 +159,8 @@ class InterfazSimulacion:
         self.canvas = FigureCanvasTkAgg(self.fig, viz_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
-        # Configurar el gráfico
-        self.cargar_grafo()
+        # Configurar el gráfico inicial
+        self.configurar_grafico_inicial()
         
     def crear_panel_estadisticas(self, parent):
         """Crea el panel de estadísticas"""
@@ -190,15 +194,81 @@ class InterfazSimulacion:
         self.stats_labels['velocidad_max'] = ttk.Label(row1, text="0.0 m/s", font=('Segoe UI', 10))
         self.stats_labels['velocidad_max'].pack(side=tk.LEFT)
         
-        # Segunda fila
+        # Segunda fila - Estadísticas del grafo
         row2 = ttk.Frame(stats_inner)
         row2.pack(fill=tk.X, pady=5)
         
-        # ttk.Label(row2, text="Distancia A:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(row2, text="Nodos del Grafo:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        self.stats_labels['grafo_nodos'] = ttk.Label(row2, text="0", font=('Segoe UI', 10))
+        self.stats_labels['grafo_nodos'].pack(side=tk.LEFT, padx=(0, 20))
         
-        # ttk.Label(row2, text="Distancia B:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(row2, text="Arcos del Grafo:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        self.stats_labels['grafo_arcos'] = ttk.Label(row2, text="0", font=('Segoe UI', 10))
+        self.stats_labels['grafo_arcos'].pack(side=tk.LEFT, padx=(0, 20))
         
-        # ttk.Label(row2, text="Distancia C:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(row2, text="Modo:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
+        self.stats_labels['modo_simulacion'] = ttk.Label(row2, text="Original", font=('Segoe UI', 10))
+        self.stats_labels['modo_simulacion'].pack(side=tk.LEFT)
+        
+    def configurar_grafico_inicial(self):
+        """Configura el gráfico inicial sin grafo cargado"""
+        self.ax.clear()
+        self.ax.set_title("🚴 SIMULADOR DE CICLORUTAS", 
+                         fontsize=14, fontweight='bold', color='#212529', pad=15)
+        self.ax.set_xlabel("Distancia (metros)", fontsize=12, fontweight='bold', color='#495057')
+        self.ax.set_ylabel("Desviación (metros)", fontsize=12, fontweight='bold', color='#495057')
+        self.ax.grid(True, alpha=0.3, color='#adb5bd', linestyle='-', linewidth=0.5)
+        
+        # Configurar ejes elegantes
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['left'].set_color('#6c757d')
+        self.ax.spines['bottom'].set_color('#6c757d')
+        
+        # Scatter plot para ciclistas
+        self.scatter = self.ax.scatter([], [], s=100, alpha=0.9, edgecolors='none', linewidth=0, zorder=5)
+        
+        # Mensaje inicial
+        self.ax.text(0.5, 0.5, '📂 Carga un grafo para comenzar la simulación', 
+                    transform=self.ax.transAxes, fontsize=12, ha='center', va='center',
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.7))
+        
+        self.canvas.draw()
+        
+    def configurar_grafico_con_grafo(self):
+        """Configura el gráfico cuando hay un grafo cargado"""
+        if not self.grafo_actual or not self.pos_grafo_actual:
+            return
+            
+        self.ax.clear()
+        
+        # Dibujar el grafo NetworkX
+        nx.draw(self.grafo_actual, self.pos_grafo_actual, ax=self.ax, 
+                with_labels=True, node_color="#2E86AB", edge_color="#AAB7B8",
+                node_size=800, font_size=10, font_color="white", font_weight='bold')
+        
+        # Agregar etiquetas de peso en los arcos
+        etiquetas = nx.get_edge_attributes(self.grafo_actual, 'weight')
+        nx.draw_networkx_edge_labels(self.grafo_actual, self.pos_grafo_actual, 
+                                   edge_labels=etiquetas, ax=self.ax, font_size=8)
+        
+        # Configurar el gráfico
+        self.ax.set_title("🚴 SIMULACIÓN SOBRE GRAFO REAL", 
+                         fontsize=14, fontweight='bold', color='#212529', pad=15)
+        self.ax.set_xlabel("Coordenada X", fontsize=12, fontweight='bold', color='#495057')
+        self.ax.set_ylabel("Coordenada Y", fontsize=12, fontweight='bold', color='#495057')
+        
+        # Configurar ejes elegantes
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['left'].set_color('#6c757d')
+        self.ax.spines['bottom'].set_color('#6c757d')
+        
+        # Scatter plot para ciclistas con zorder alto para estar por encima del grafo
+        self.scatter = self.ax.scatter([], [], s=120, alpha=0.95, edgecolors='white', 
+                                     linewidth=2, zorder=10)
+        
+        self.canvas.draw()
         
     # def configurar_grafico(self):
     #     """Configura el gráfico de matplotlib"""
@@ -244,19 +314,50 @@ class InterfazSimulacion:
         
     def actualizar_visualizacion(self):
         """Actualiza la visualización con los datos actuales"""
-        if hasattr(self, 'scatter'):
+        if not hasattr(self, 'scatter'):
+            return
+            
+        try:
             estado = self.simulador.obtener_estado_actual()
-            x, y = zip(*estado['coordenadas']) if estado['coordenadas'] else ([], [])
-            self.scatter.set_offsets(list(zip(x, y)) if x and y else [])
+            
+            if not estado['coordenadas']:
+                # No hay ciclistas para mostrar
+                self.scatter.set_offsets([])
+                self.canvas.draw()
+                return
+            
+            # Extraer coordenadas
+            x, y = zip(*estado['coordenadas'])
+            
+            # Actualizar posiciones de los ciclistas
+            self.scatter.set_offsets(list(zip(x, y)))
             self.scatter.set_color(estado['colores'])
             
-            # Mejorar la visibilidad de los ciclistas
-            self.scatter.set_sizes([120] * len(estado['coordenadas']) if estado['coordenadas'] else [])
+            # Configurar apariencia de los ciclistas
+            num_ciclistas = len(estado['coordenadas'])
+            self.scatter.set_sizes([120] * num_ciclistas)
             self.scatter.set_alpha(0.95)
-            self.scatter.set_edgecolors('none')
-            self.scatter.set_linewidth(0)
             
+            # Configurar bordes según si hay grafo o no
+            if self.grafo_actual:
+                # Con grafo: bordes blancos para contraste
+                self.scatter.set_edgecolors('white')
+                self.scatter.set_linewidth(2)
+            else:
+                # Sin grafo: sin bordes
+                self.scatter.set_edgecolors('none')
+                self.scatter.set_linewidth(0)
+            
+            # Actualizar canvas
             self.canvas.draw()
+            
+        except Exception as e:
+            print(f"⚠️ Error actualizando visualización: {e}")
+            # En caso de error, intentar redibujar el gráfico
+            if self.grafo_actual:
+                self.configurar_grafico_con_grafo()
+            else:
+                self.configurar_grafico_inicial()
             
     def nueva_simulacion(self):
         """Crea una nueva simulación con los parámetros actuales"""
@@ -273,10 +374,18 @@ class InterfazSimulacion:
             
             # Crear nuevo simulador
             self.simulador = SimuladorCiclorutas(self.config)
+            
+            # Si hay un grafo cargado, configurarlo en el nuevo simulador
+            if self.grafo_actual and self.pos_grafo_actual:
+                self.simulador.configurar_grafo(self.grafo_actual, self.pos_grafo_actual)
+            
             self.simulador.inicializar_simulacion()
             
             # Actualizar interfaz
-            self.configurar_grafico()
+            if self.grafo_actual:
+                self.configurar_grafico_con_grafo()
+            else:
+                self.configurar_grafico_inicial()
             self.actualizar_visualizacion()
             self.actualizar_estadisticas()
             self.estado_label.config(text="LISTO", foreground='#28a745')
@@ -380,7 +489,10 @@ class InterfazSimulacion:
             self.tiempo_label.config(text="0.0s")
             
             # Actualizar visualización
-            self.configurar_grafico()
+            if self.grafo_actual:
+                self.configurar_grafico_con_grafo()
+            else:
+                self.configurar_grafico_inicial()
             self.actualizar_visualizacion()
             self.actualizar_estadisticas()
             
@@ -414,35 +526,90 @@ class InterfazSimulacion:
         """Actualiza las estadísticas mostradas"""
         stats = self.simulador.obtener_estadisticas()
         
+        # Estadísticas básicas
         self.stats_labels['total_ciclistas'].config(text=str(stats['total_ciclistas']))
         self.stats_labels['velocidad_promedio'].config(text=f"{stats['velocidad_promedio']:.1f} m/s")
         self.stats_labels['velocidad_min'].config(text=f"{stats['velocidad_minima']:.1f} m/s")
         self.stats_labels['velocidad_max'].config(text=f"{stats['velocidad_maxima']:.1f} m/s")
+        
+        # Estadísticas del grafo
+        if stats.get('usando_grafo_real', False):
+            self.stats_labels['grafo_nodos'].config(text=str(stats.get('grafo_nodos', 0)))
+            self.stats_labels['grafo_arcos'].config(text=str(stats.get('grafo_arcos', 0)))
+            self.stats_labels['modo_simulacion'].config(text="Grafo Real", foreground='#28a745')
+        else:
+            self.stats_labels['grafo_nodos'].config(text="0")
+            self.stats_labels['grafo_arcos'].config(text="0")
+            self.stats_labels['modo_simulacion'].config(text="Sistema Original", foreground='#6c757d')
 
 
     def cargar_grafo(self):
-        archivo = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+        """Carga un grafo desde archivo Excel y lo integra con la simulación"""
+        archivo = filedialog.askopenfilename(
+            title="Seleccionar archivo de grafo",
+            filetypes=[("Excel files", "*.xlsx"), ("Excel files", "*.xls")]
+        )
+        
         if not archivo:
             return
+            
         try:
+            # Leer datos del Excel
             nodos_df = pd.read_excel(archivo, sheet_name="NODOS", engine="openpyxl")
             arcos_df = pd.read_excel(archivo, sheet_name="ARCOS", engine="openpyxl")
+            
+            # Crear grafo NetworkX
             G = nx.Graph()
+            
+            # Agregar nodos
             for nodo in nodos_df.iloc[:, 0]:
-                print(nodo)
                 G.add_node(nodo)
-            for _,fila in arcos_df.iterrows():
-                print(fila)
+                print(f"✅ Nodo agregado: {nodo}")
+            
+            # Agregar arcos con pesos
+            for _, fila in arcos_df.iterrows():
                 origen, destino, longitud = fila[0], fila[1], fila[2]
                 G.add_edge(origen, destino, weight=longitud)
-            self.ax.clear()
-            pos = nx.spring_layout(G, seed=42)
-            self.pos_grafo = pos
-            nx.draw(G, pos, ax=self.ax, with_labels=True, node_color="#2E86AB", edge_color="#AAB7B8",
-                    node_size=800, font_size=10, font_color="white")
-            etiquetas = nx.get_edge_attributes(G, 'weight')
-            nx.draw_networkx_edge_labels(G, pos, edge_labels=etiquetas, ax=self.ax)
-            self.canvas.draw()
+                print(f"✅ Arco agregado: {origen} -> {destino} (distancia: {longitud})")
+            
+            # Verificar que el grafo tenga al menos 3 nodos
+            if len(G.nodes()) < 3:
+                messagebox.showerror("Error", "El grafo debe tener al menos 3 nodos para la simulación")
+                return
+            
+            # Calcular posiciones del grafo
+            pos = nx.spring_layout(G, seed=42, k=2, iterations=50)
+            
+            # Guardar grafo y posiciones
+            self.grafo_actual = G
+            self.pos_grafo_actual = pos
+            
+            # Configurar el simulador con el nuevo grafo
+            self.simulador.configurar_grafo(G, pos)
+            
+            # Actualizar visualización
+            self.configurar_grafico_con_grafo()
+            
+            # Reinicializar simulación con el nuevo grafo
+            self.simulador.inicializar_simulacion()
+            self.actualizar_visualizacion()
+            self.actualizar_estadisticas()
+            
+            # Mostrar mensaje de éxito
+            num_nodos = len(G.nodes())
+            num_arcos = len(G.edges())
+            messagebox.showinfo("Grafo Cargado", 
+                              f"✅ Grafo cargado exitosamente!\n\n"
+                              f"📊 Estadísticas:\n"
+                              f"• Nodos: {num_nodos}\n"
+                              f"• Arcos: {num_arcos}\n\n"
+                              f"🚴 La simulación ahora usará las coordenadas reales del grafo")
+            
+        except FileNotFoundError:
+            messagebox.showerror("Error", "No se encontró el archivo especificado")
+        except KeyError as e:
+            messagebox.showerror("Error", f"Error en la estructura del archivo Excel: {str(e)}\n\n"
+                                        "Asegúrate de que el archivo tenga las hojas 'NODOS' y 'ARCOS'")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar el archivo: {str(e)}")
 def main():
