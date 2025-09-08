@@ -66,32 +66,33 @@ class InterfazSimulacion:
         # Configurar grid
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.columnconfigure(2, weight=2)  # Panel de visualización más grande
-        main_frame.rowconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(0, weight=1)
+        main_frame.rowconfigure(1, weight=0)  # Estadísticas no expanden verticalmente
+        
+        # Crear PanedWindow para paneles redimensionables
+        self.paned_main = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
+        self.paned_main.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         
         # Panel de control izquierdo
-        self.crear_panel_control(main_frame)
+        self.crear_panel_control(self.paned_main)
         
-        # Panel de distribuciones (nuevo)
-        self.crear_panel_distribuciones(main_frame)
+        # Panel de distribuciones (centro)
+        self.crear_panel_distribuciones(self.paned_main)
         
-        # Panel de visualización derecha
-        self.crear_panel_visualizacion(main_frame)
+        # Panel de visualización (derecha)
+        self.crear_panel_visualizacion(self.paned_main)
         
-        # Panel de estadísticas inferior
+        # Panel de estadísticas (abajo) - fuera del PanedWindow para ancho completo
         self.crear_panel_estadisticas(main_frame)
         
     def crear_panel_control(self, parent):
         """Crea el panel de control de parámetros"""
         control_frame = ttk.LabelFrame(parent, text="⚙️ CONFIGURACIÓN DE SIMULACIÓN", padding="10")
-        control_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        parent.add(control_frame, weight=1)
         
-        # Número de ciclistas
-        ttk.Label(control_frame, text="Número de Ciclistas:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.num_ciclistas_var = tk.IntVar(value=self.config.num_ciclistas)
-        num_ciclistas_spin = ttk.Spinbox(control_frame, from_=5, to=100, textvariable=self.num_ciclistas_var, width=10)
-        num_ciclistas_spin.grid(row=0, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        # Configuración de velocidades
+        ttk.Label(control_frame, text="⚡ CONFIGURACIÓN DE VELOCIDADES", font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
         
         # Velocidad mínima
         ttk.Label(control_frame, text="Velocidad Mínima (m/s):", font=('Segoe UI', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -111,53 +112,78 @@ class InterfazSimulacion:
         self.info_grafo_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=2)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
-        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        # Botones de control
-        ttk.Button(control_frame, text="🔄 NUEVA SIMULACIÓN", command=self.nueva_simulacion, 
-                  style='Accent.TButton').grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # Sección de carga de grafo
+        ttk.Label(control_frame, text="📂 GESTIÓN DE GRAFO", font=('Segoe UI', 10, 'bold')).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        
+        # Separador
+        ttk.Separator(control_frame, orient='horizontal').grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        
+        # Sección de control de simulación
+        ttk.Label(control_frame, text="🎮 CONTROL DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        
+        # Botones principales en dos columnas
+        ttk.Button(control_frame, text="🔄 NUEVA", command=self.nueva_simulacion, 
+                  style='Accent.TButton').grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
         ttk.Button(control_frame, text="▶️ INICIAR", command=self.iniciar_simulacion, 
-                  style='Accent.TButton').grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+                  style='Accent.TButton').grid(row=11, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
         
         ttk.Button(control_frame, text="⏸️ PAUSAR", command=self.pausar_simulacion, 
-                  style='Accent.TButton').grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+                  style='Accent.TButton').grid(row=11, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
         
         ttk.Button(control_frame, text="⏹️ DETENER", command=self.detener_simulacion, 
-                  style='Accent.TButton').grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+                  style='Accent.TButton').grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
         
         ttk.Button(control_frame, text="⏭️ ADELANTAR", command=self.adelantar_simulacion, 
-                  style='Accent.TButton').grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+                  style='Accent.TButton').grid(row=12, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
         
-        # Botón para reiniciar simulación
         ttk.Button(control_frame, text="🔄 REPRODUCIR", command=self.reiniciar_simulacion, 
-                  style='Accent.TButton').grid(row=12, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+                  style='Accent.TButton').grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+        
+        # Separador
+        ttk.Separator(control_frame, orient='horizontal').grid(row=14, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        
+        # Sección de estado
+        ttk.Label(control_frame, text="📊 ESTADO DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=15, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
         
         # Estado de la simulación
-        ttk.Label(control_frame, text="Estado:", font=('Segoe UI', 10, 'bold')).grid(row=13, column=0, sticky=tk.W, pady=(15, 5))
-        self.estado_label = ttk.Label(control_frame, text="DETENIDO", font=('Segoe UI', 10), foreground='#dc3545')
-        self.estado_label.grid(row=13, column=1, sticky=tk.W, pady=(15, 5), padx=(10, 0))
+        ttk.Label(control_frame, text="Estado:", font=('Segoe UI', 9, 'bold')).grid(row=16, column=0, sticky=tk.W, pady=2)
+        self.estado_label = ttk.Label(control_frame, text="DETENIDO", font=('Segoe UI', 9), foreground='#dc3545')
+        self.estado_label.grid(row=16, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
         # Tiempo actual
-        ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 10, 'bold')).grid(row=14, column=0, sticky=tk.W, pady=5)
-        self.tiempo_label = ttk.Label(control_frame, text="0.0s", font=('Segoe UI', 10))
-        self.tiempo_label.grid(row=14, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 9, 'bold')).grid(row=17, column=0, sticky=tk.W, pady=2)
+        self.tiempo_label = ttk.Label(control_frame, text="0.0s", font=('Segoe UI', 9))
+        self.tiempo_label.grid(row=17, column=1, sticky=tk.W, pady=2, padx=(5, 0))
     
     def crear_panel_distribuciones(self, parent):
         """Crea el panel de configuración de distribuciones por nodo"""
         dist_frame = ttk.LabelFrame(parent, text="📊 DISTRIBUCIONES DE ARRIBO", padding="10")
-        dist_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 5))
+        parent.add(dist_frame, weight=1)
         
-        # Frame para scroll
-        canvas = tk.Canvas(dist_frame, height=400)
+        # Frame para scroll - se ajusta al contenido
+        canvas = tk.Canvas(dist_frame, highlightthickness=0)
         scrollbar = ttk.Scrollbar(dist_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # Función para actualizar el scroll y ajustar el tamaño
+        def actualizar_scroll(event=None):
+            # Actualizar región de scroll
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            
+            # Ajustar el tamaño del canvas al contenido si es necesario
+            scrollable_frame.update_idletasks()
+            frame_height = scrollable_frame.winfo_reqheight()
+            canvas_height = canvas.winfo_height()
+            
+            # Si el contenido es menor que el canvas, ajustar el canvas
+            if frame_height < canvas_height and frame_height > 0:
+                canvas.configure(height=frame_height)
+        
+        scrollable_frame.bind("<Configure>", actualizar_scroll)
         
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
@@ -175,9 +201,42 @@ class InterfazSimulacion:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
+        # Configurar scroll con mouse wheel
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
         # Guardar referencias
         self.canvas_distribuciones = canvas
         self.frame_distribuciones = scrollable_frame
+        
+        # Función para ajustar el tamaño del panel
+        def ajustar_tamano_panel():
+            """Ajusta el tamaño del panel al contenido"""
+            self.frame_distribuciones.update_idletasks()
+            contenido_height = self.frame_distribuciones.winfo_reqheight()
+            
+            # Calcular altura basada en el número de nodos
+            num_nodos = len(self.grafo_actual.nodes()) if self.grafo_actual else 0
+            
+            if num_nodos == 0:
+                # Solo mensaje - altura mínima
+                altura_optima = 150
+            elif num_nodos <= 2:
+                # Pocos nodos - altura pequeña
+                altura_optima = 250
+            elif num_nodos <= 4:
+                # Nodos moderados - altura media
+                altura_optima = 400
+            else:
+                # Muchos nodos - altura máxima con scroll
+                altura_optima = 600
+            
+            # Aplicar la altura
+            self.canvas_distribuciones.configure(height=altura_optima)
+        
+        # Guardar referencia a la función
+        self.ajustar_tamano_panel = ajustar_tamano_panel
     
     def actualizar_panel_distribuciones(self):
         """Actualiza el panel de distribuciones con los nodos del grafo"""
@@ -193,6 +252,9 @@ class InterfazSimulacion:
                                                   text="📂 Carga un grafo para configurar distribuciones",
                                                   font=('Segoe UI', 10), foreground='#6c757d')
             self.mensaje_distribuciones.pack(pady=20)
+            
+            # Ajustar el tamaño del panel para el mensaje
+            self.ajustar_tamano_panel()
             return
         
         # Obtener distribuciones actuales
@@ -201,6 +263,13 @@ class InterfazSimulacion:
         # Crear controles para cada nodo
         for i, nodo_id in enumerate(self.grafo_actual.nodes()):
             self._crear_controles_nodo(self.frame_distribuciones, nodo_id, i, distribuciones.get(nodo_id, {}))
+        
+        # Actualizar el scroll y ajustar el tamaño después de crear todos los controles
+        self.frame_distribuciones.update_idletasks()
+        self.canvas_distribuciones.configure(scrollregion=self.canvas_distribuciones.bbox("all"))
+        
+        # Ajustar el tamaño del panel al contenido
+        self.ajustar_tamano_panel()
     
     def _crear_controles_nodo(self, parent, nodo_id: str, index: int, config_actual: Dict[str, any]):
         """Crea los controles para configurar la distribución de un nodo"""
@@ -210,6 +279,7 @@ class InterfazSimulacion:
         
         # Variables para este nodo
         tipo_var = tk.StringVar(value=config_actual.get('tipo', 'exponencial'))
+        unidades_var = tk.StringVar(value=config_actual.get('unidades', 'segundos'))
         lambda_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('lambda', 0.5))
         min_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('min', 1.0))
         max_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('max', 5.0))
@@ -217,6 +287,7 @@ class InterfazSimulacion:
         # Guardar referencias
         self.controles_distribuciones[nodo_id] = {
             'tipo': tipo_var,
+            'unidades': unidades_var,
             'lambda': lambda_var,
             'min': min_var,
             'max': max_var
@@ -229,22 +300,119 @@ class InterfazSimulacion:
                                  state='readonly', width=12)
         tipo_combo.grid(row=0, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
-        # Parámetro Lambda (para exponencial y poisson)
-        ttk.Label(nodo_frame, text="λ (Lambda):", font=('Segoe UI', 9, 'bold')).grid(row=1, column=0, sticky=tk.W, pady=2)
-        lambda_spin = ttk.Spinbox(nodo_frame, from_=0.1, to=10.0, increment=0.1, 
-                                 textvariable=lambda_var, width=10)
-        lambda_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        # Selector de unidades de tiempo
+        ttk.Label(nodo_frame, text="Unidades:", font=('Segoe UI', 9, 'bold')).grid(row=0, column=2, sticky=tk.W, pady=2, padx=(10, 0))
+        unidades_combo = ttk.Combobox(nodo_frame, textvariable=unidades_var,
+                                     values=['segundos', 'minutos', 'horas'],
+                                     state='readonly', width=10)
+        unidades_combo.grid(row=0, column=3, sticky=tk.W, pady=2, padx=(5, 0))
         
-        # Parámetros Min y Max (para uniforme)
-        ttk.Label(nodo_frame, text="Min (s):", font=('Segoe UI', 9, 'bold')).grid(row=2, column=0, sticky=tk.W, pady=2)
-        min_spin = ttk.Spinbox(nodo_frame, from_=0.1, to=20.0, increment=0.1, 
-                              textvariable=min_var, width=10)
-        min_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        # Función para obtener factor de conversión a segundos
+        def obtener_factor_conversion(unidades):
+            if unidades == 'segundos':
+                return 1.0
+            elif unidades == 'minutos':
+                return 60.0
+            elif unidades == 'horas':
+                return 3600.0
+            return 1.0
         
-        ttk.Label(nodo_frame, text="Max (s):", font=('Segoe UI', 9, 'bold')).grid(row=3, column=0, sticky=tk.W, pady=2)
-        max_spin = ttk.Spinbox(nodo_frame, from_=0.1, to=20.0, increment=0.1, 
-                              textvariable=max_var, width=10)
-        max_spin.grid(row=3, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        # Función para actualizar parámetros según el tipo y unidades
+        def actualizar_parametros(*args):
+            tipo = tipo_var.get()
+            unidades = unidades_var.get()
+            factor = obtener_factor_conversion(unidades)
+            
+            # Actualizar etiquetas con unidades
+            if tipo == 'exponencial':
+                lambda_label.config(text=f"λ (1/{unidades}):")
+                # Mostrar solo Lambda
+                lambda_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                lambda_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                min_label.grid_remove()
+                min_spin.grid_remove()
+                max_label.grid_remove()
+                max_spin.grid_remove()
+                # Ajustar valores por defecto según unidades
+                if unidades == 'segundos':
+                    lambda_var.set(0.5)
+                elif unidades == 'minutos':
+                    lambda_var.set(0.008)  # ~0.5/60
+                elif unidades == 'horas':
+                    lambda_var.set(0.00014)  # ~0.5/3600
+            elif tipo == 'poisson':
+                lambda_label.config(text=f"λ (eventos/{unidades}):")
+                # Mostrar solo Lambda (tasa de eventos)
+                lambda_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                lambda_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                min_label.grid_remove()
+                min_spin.grid_remove()
+                max_label.grid_remove()
+                max_spin.grid_remove()
+                # Ajustar valores por defecto según unidades
+                if unidades == 'segundos':
+                    lambda_var.set(2.0)
+                elif unidades == 'minutos':
+                    lambda_var.set(0.033)  # ~2/60
+                elif unidades == 'horas':
+                    lambda_var.set(0.00056)  # ~2/3600
+            elif tipo == 'uniforme':
+                min_label.config(text=f"Min ({unidades}):")
+                max_label.config(text=f"Max ({unidades}):")
+                # Mostrar Min y Max
+                lambda_label.grid_remove()
+                lambda_spin.grid_remove()
+                min_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                min_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                max_label.grid(row=2, column=0, sticky=tk.W, pady=2)
+                max_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                # Ajustar valores por defecto según unidades
+                if unidades == 'segundos':
+                    min_var.set(1.0)
+                    max_var.set(5.0)
+                elif unidades == 'minutos':
+                    min_var.set(0.017)  # ~1/60
+                    max_var.set(0.083)  # ~5/60
+                elif unidades == 'horas':
+                    min_var.set(0.00028)  # ~1/3600
+                    max_var.set(0.00139)  # ~5/3600
+        
+        # Vincular cambio de tipo y unidades con actualización de parámetros
+        tipo_var.trace('w', actualizar_parametros)
+        unidades_var.trace('w', actualizar_parametros)
+        
+        # Función para obtener rangos según unidades
+        def obtener_rangos_spinbox(unidades):
+            if unidades == 'segundos':
+                return {'from_': 0.1, 'to': 10.0, 'increment': 0.1}
+            elif unidades == 'minutos':
+                return {'from_': 0.001, 'to': 1.0, 'increment': 0.001}
+            elif unidades == 'horas':
+                return {'from_': 0.0001, 'to': 0.1, 'increment': 0.0001}
+            return {'from_': 0.1, 'to': 10.0, 'increment': 0.1}
+        
+        # Crear controles de parámetros con rangos dinámicos
+        lambda_label = ttk.Label(nodo_frame, text="λ (Lambda):", font=('Segoe UI', 9, 'bold'))
+        lambda_spin = ttk.Spinbox(nodo_frame, textvariable=lambda_var, width=10)
+        
+        min_label = ttk.Label(nodo_frame, text="Min (s):", font=('Segoe UI', 9, 'bold'))
+        min_spin = ttk.Spinbox(nodo_frame, textvariable=min_var, width=10)
+        
+        max_label = ttk.Label(nodo_frame, text="Max (s):", font=('Segoe UI', 9, 'bold'))
+        max_spin = ttk.Spinbox(nodo_frame, textvariable=max_var, width=10)
+        
+        # Función para actualizar rangos de spinboxes
+        def actualizar_rangos_spinbox():
+            rangos = obtener_rangos_spinbox(unidades_var.get())
+            lambda_spin.config(from_=rangos['from_'], to=rangos['to'], increment=rangos['increment'])
+            min_spin.config(from_=rangos['from_'], to=rangos['to'], increment=rangos['increment'])
+            max_spin.config(from_=rangos['from_'], to=rangos['to'], increment=rangos['increment'])
+        
+        # Vincular cambio de unidades con actualización de rangos
+        unidades_var.trace('w', lambda *args: actualizar_rangos_spinbox())
+        
+        # Inicializar con parámetros por defecto
+        actualizar_parametros()
         
         # Botón para aplicar cambios
         aplicar_btn = ttk.Button(nodo_frame, text="✅ Aplicar", 
@@ -265,24 +433,64 @@ class InterfazSimulacion:
         try:
             controles = self.controles_distribuciones[nodo_id]
             tipo = controles['tipo'].get()
+            unidades = controles['unidades'].get()
             
-            # Preparar parámetros según el tipo
+            # Función para convertir a segundos
+            def convertir_a_segundos(valor, unidades):
+                if unidades == 'segundos':
+                    return valor
+                elif unidades == 'minutos':
+                    return valor * 60.0
+                elif unidades == 'horas':
+                    return valor * 3600.0
+                return valor
+            
+            # Validar y preparar parámetros según el tipo
             if tipo in ['exponencial', 'poisson']:
-                parametros = {'lambda': controles['lambda'].get()}
+                lambda_val = controles['lambda'].get()
+                if lambda_val <= 0:
+                    messagebox.showerror("Error", f"❌ El parámetro λ debe ser mayor que 0 para {tipo}")
+                    return
+                # Convertir lambda a segundos
+                lambda_segundos = convertir_a_segundos(lambda_val, unidades)
+                parametros = {'lambda': lambda_segundos}
             elif tipo == 'uniforme':
+                min_val = controles['min'].get()
+                max_val = controles['max'].get()
+                if min_val >= max_val:
+                    messagebox.showerror("Error", "❌ El valor mínimo debe ser menor que el máximo")
+                    return
+                if min_val < 0:
+                    messagebox.showerror("Error", "❌ Los valores no pueden ser negativos")
+                    return
+                # Convertir a segundos
+                min_segundos = convertir_a_segundos(min_val, unidades)
+                max_segundos = convertir_a_segundos(max_val, unidades)
                 parametros = {
-                    'min': controles['min'].get(),
-                    'max': controles['max'].get()
+                    'min': min_segundos,
+                    'max': max_segundos
                 }
             else:
-                parametros = {}
+                messagebox.showerror("Error", f"❌ Tipo de distribución no válido: {tipo}")
+                return
             
             # Aplicar al simulador
             self.simulador.actualizar_distribucion_nodo(nodo_id, tipo, parametros)
             
-            # Actualizar descripción
-            distribucion = self.simulador.distribuciones_nodos[nodo_id]
-            nueva_descripcion = distribucion.obtener_descripcion()
+            # Actualizar descripción con formato específico por tipo y unidades
+            if tipo == 'exponencial':
+                lambda_val = controles['lambda'].get()
+                nueva_descripcion = f"Exponencial (λ={lambda_val:.3f}/{unidades})"
+            elif tipo == 'poisson':
+                lambda_val = controles['lambda'].get()
+                nueva_descripcion = f"Poisson (λ={lambda_val:.3f} eventos/{unidades})"
+            elif tipo == 'uniforme':
+                min_val = controles['min'].get()
+                max_val = controles['max'].get()
+                nueva_descripcion = f"Uniforme ({min_val:.3f}-{max_val:.3f} {unidades})"
+            else:
+                nueva_descripcion = "Desconocida"
+            
             controles['descripcion'].config(text=f"Actual: {nueva_descripcion}")
             
             # Mostrar mensaje de confirmación
@@ -310,7 +518,7 @@ class InterfazSimulacion:
     def crear_panel_visualizacion(self, parent):
         """Crea el panel de visualización de la simulación"""
         viz_frame = ttk.LabelFrame(parent, text="📊 VISUALIZACIÓN EN TIEMPO REAL", padding="10")
-        viz_frame.grid(row=0, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0))
+        parent.add(viz_frame, weight=2)  # Panel visual más grande
         
         # Crear figura de matplotlib
         self.fig, self.ax = plt.subplots(figsize=(10, 6))
@@ -323,62 +531,61 @@ class InterfazSimulacion:
     def crear_panel_estadisticas(self, parent):
         """Crea el panel de estadísticas"""
         stats_frame = ttk.LabelFrame(parent, text="📈 ESTADÍSTICAS DE SIMULACIÓN", padding="10")
-        stats_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
+        stats_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
         
-        # Frame para estadísticas
+        # Frame para estadísticas con grid para mejor distribución
         stats_inner = ttk.Frame(stats_frame)
         stats_inner.pack(fill=tk.BOTH, expand=True)
+        
+        # Configurar grid para distribución uniforme
+        for i in range(10):  # 10 columnas para distribuir uniformemente
+            stats_inner.columnconfigure(i, weight=1)
         
         # Estadísticas principales
         self.stats_labels = {}
         
-        # Primera fila
-        row1 = ttk.Frame(stats_inner)
-        row1.pack(fill=tk.X, pady=5)
+        # Primera fila - Estadísticas básicas
+        ttk.Label(stats_inner, text="Ciclistas Activos:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, padx=5)
+        self.stats_labels['total_ciclistas'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['total_ciclistas'].grid(row=0, column=1, sticky=tk.W, padx=(0, 20))
         
-        ttk.Label(row1, text="Total Ciclistas:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['total_ciclistas'] = ttk.Label(row1, text="0", font=('Segoe UI', 10))
-        self.stats_labels['total_ciclistas'].pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Label(stats_inner, text="Velocidad Promedio:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=2, sticky=tk.W, padx=5)
+        self.stats_labels['velocidad_promedio'] = ttk.Label(stats_inner, text="0.0 m/s", font=('Segoe UI', 10))
+        self.stats_labels['velocidad_promedio'].grid(row=0, column=3, sticky=tk.W, padx=(0, 20))
         
-        ttk.Label(row1, text="Velocidad Promedio:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['velocidad_promedio'] = ttk.Label(row1, text="0.0 m/s", font=('Segoe UI', 10))
-        self.stats_labels['velocidad_promedio'].pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Label(stats_inner, text="Velocidad Mín:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=4, sticky=tk.W, padx=5)
+        self.stats_labels['velocidad_min'] = ttk.Label(stats_inner, text="0.0 m/s", font=('Segoe UI', 10))
+        self.stats_labels['velocidad_min'].grid(row=0, column=5, sticky=tk.W, padx=(0, 20))
         
-        ttk.Label(row1, text="Velocidad Mín:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['velocidad_min'] = ttk.Label(row1, text="0.0 m/s", font=('Segoe UI', 10))
-        self.stats_labels['velocidad_min'].pack(side=tk.LEFT, padx=(0, 20))
-        
-        ttk.Label(row1, text="Velocidad Máx:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['velocidad_max'] = ttk.Label(row1, text="0.0 m/s", font=('Segoe UI', 10))
-        self.stats_labels['velocidad_max'].pack(side=tk.LEFT)
+        ttk.Label(stats_inner, text="Velocidad Máx:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=6, sticky=tk.W, padx=5)
+        self.stats_labels['velocidad_max'] = ttk.Label(stats_inner, text="0.0 m/s", font=('Segoe UI', 10))
+        self.stats_labels['velocidad_max'].grid(row=0, column=7, sticky=tk.W, padx=(0, 20))
         
         # Segunda fila - Estadísticas del grafo
-        row2 = ttk.Frame(stats_inner)
-        row2.pack(fill=tk.X, pady=5)
+        ttk.Label(stats_inner, text="Nodos del Grafo:", font=('Segoe UI', 10, 'bold')).grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['grafo_nodos'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['grafo_nodos'].grid(row=1, column=1, sticky=tk.W, padx=(0, 20), pady=5)
         
-        ttk.Label(row2, text="Nodos del Grafo:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['grafo_nodos'] = ttk.Label(row2, text="0", font=('Segoe UI', 10))
-        self.stats_labels['grafo_nodos'].pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Label(stats_inner, text="Arcos del Grafo:", font=('Segoe UI', 10, 'bold')).grid(row=1, column=2, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['grafo_arcos'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['grafo_arcos'].grid(row=1, column=3, sticky=tk.W, padx=(0, 20), pady=5)
         
-        ttk.Label(row2, text="Arcos del Grafo:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['grafo_arcos'] = ttk.Label(row2, text="0", font=('Segoe UI', 10))
-        self.stats_labels['grafo_arcos'].pack(side=tk.LEFT, padx=(0, 20))
-        
-        ttk.Label(row2, text="Modo:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['modo_simulacion'] = ttk.Label(row2, text="Original", font=('Segoe UI', 10))
-        self.stats_labels['modo_simulacion'].pack(side=tk.LEFT)
+        ttk.Label(stats_inner, text="Modo:", font=('Segoe UI', 10, 'bold')).grid(row=1, column=4, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['modo_simulacion'] = ttk.Label(stats_inner, text="Original", font=('Segoe UI', 10))
+        self.stats_labels['modo_simulacion'].grid(row=1, column=5, sticky=tk.W, padx=(0, 20), pady=5)
         
         # Tercera fila - Estadísticas de distribuciones
-        row3 = ttk.Frame(stats_inner)
-        row3.pack(fill=tk.X, pady=5)
+        ttk.Label(stats_inner, text="Distribuciones:", font=('Segoe UI', 10, 'bold')).grid(row=2, column=0, sticky=tk.W, padx=5)
+        self.stats_labels['distribuciones_configuradas'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['distribuciones_configuradas'].grid(row=2, column=1, sticky=tk.W, padx=(0, 20))
         
-        ttk.Label(row3, text="Distribuciones:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['distribuciones_configuradas'] = ttk.Label(row3, text="0", font=('Segoe UI', 10))
-        self.stats_labels['distribuciones_configuradas'].pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Label(stats_inner, text="Tasa Promedio:", font=('Segoe UI', 10, 'bold')).grid(row=2, column=2, sticky=tk.W, padx=5)
+        self.stats_labels['tasa_arribo_promedio'] = ttk.Label(stats_inner, text="0.0", font=('Segoe UI', 10))
+        self.stats_labels['tasa_arribo_promedio'].grid(row=2, column=3, sticky=tk.W, padx=(0, 20))
         
-        ttk.Label(row3, text="Tasa Promedio:", font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 5))
-        self.stats_labels['tasa_arribo_promedio'] = ttk.Label(row3, text="0.0", font=('Segoe UI', 10))
-        self.stats_labels['tasa_arribo_promedio'].pack(side=tk.LEFT)
+        ttk.Label(stats_inner, text="Duración:", font=('Segoe UI', 10, 'bold')).grid(row=2, column=4, sticky=tk.W, padx=5)
+        self.stats_labels['duracion_simulacion'] = ttk.Label(stats_inner, text="300s", font=('Segoe UI', 10))
+        self.stats_labels['duracion_simulacion'].grid(row=2, column=5, sticky=tk.W, padx=(0, 20))
         
     def configurar_grafico_inicial(self):
         """Configura el gráfico inicial sin grafo cargado"""
@@ -541,7 +748,6 @@ class InterfazSimulacion:
                 time.sleep(0.1)  # Pequeña pausa para asegurar que el hilo termine
             
             # Actualizar configuración
-            self.config.num_ciclistas = self.num_ciclistas_var.get()
             self.config.velocidad_min = self.vel_min_var.get()
             self.config.velocidad_max = self.vel_max_var.get()
             
@@ -713,6 +919,7 @@ class InterfazSimulacion:
         self.stats_labels['velocidad_promedio'].config(text=f"{stats['velocidad_promedio']:.1f} m/s")
         self.stats_labels['velocidad_min'].config(text=f"{stats['velocidad_minima']:.1f} m/s")
         self.stats_labels['velocidad_max'].config(text=f"{stats['velocidad_maxima']:.1f} m/s")
+        self.stats_labels['duracion_simulacion'].config(text=f"{stats.get('duracion_simulacion', 300):.0f}s")
         
         # Estadísticas del grafo
         if stats.get('usando_grafo_real', False):
@@ -815,3 +1022,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

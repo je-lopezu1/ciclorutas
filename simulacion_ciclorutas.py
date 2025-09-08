@@ -13,9 +13,9 @@ from scipy import stats
 @dataclass
 class ConfiguracionSimulacion:
     """Clase para almacenar la configuración de la simulación"""
-    num_ciclistas: int = 20
     velocidad_min: float = 10.0
     velocidad_max: float = 15.0
+    duracion_simulacion: float = 300.0  # Duración en segundos
 
 class DistribucionNodo:
     """Clase para manejar distribuciones de probabilidad para tasas de arribo por nodo"""
@@ -296,34 +296,40 @@ class SimuladorCiclorutas:
     def inicializar_simulacion(self):
         """Inicializa una nueva simulación con los parámetros configurados"""
         # Limpiar datos anteriores
-        self.coordenadas = [(0, 0)] * self.config.num_ciclistas
-        self.rutas = [None] * self.config.num_ciclistas  # Se asignarán dinámicamente
-        self.colores = ['#6C757D'] * self.config.num_ciclistas  # Se asignarán dinámicamente
-        self.trayectorias = [[] for _ in range(self.config.num_ciclistas)]
-        self.velocidades = [random.uniform(self.config.velocidad_min, self.config.velocidad_max) 
-                           for _ in range(self.config.num_ciclistas)]
+        self.coordenadas = []
+        self.rutas = []
+        self.colores = []
+        self.trayectorias = []
+        self.velocidades = []
+        self.procesos = []
+        self.ciclista_id_counter = 0
         
         # Crear entorno SimPy
         self.env = simpy.Environment()
-        self.procesos = []
         
         # Crear procesos de ciclistas
         if self.usar_grafo_real and self.distribuciones_nodos:
             # Usar generación realista con distribuciones
             self.env.process(self._generador_ciclistas_realista())
+            # Proceso para detener la simulación después de la duración
+            self.env.process(self._detener_por_tiempo())
         else:
             print("⚠️ No hay grafo cargado. Carga un grafo para iniciar la simulación.")
             return
         
         self.estado = "detenido"
         self.tiempo_actual = 0
-        self.tiempo_total = 0
+        self.tiempo_total = self.config.duracion_simulacion
+    
+    def _detener_por_tiempo(self):
+        """Detiene la simulación después del tiempo configurado"""
+        yield self.env.timeout(self.config.duracion_simulacion)
+        self.estado = "completada"
+        print(f"✅ Simulación completada después de {self.config.duracion_simulacion} segundos")
     
     def _generador_ciclistas_realista(self):
         """Genera ciclistas de manera realista usando las distribuciones de arribo"""
-        ciclista_id = 0
-        
-        while ciclista_id < self.config.num_ciclistas:
+        while self.estado != "completada":
             # Seleccionar nodo origen basado en las distribuciones
             nodo_origen = self._seleccionar_nodo_origen()
             
@@ -332,37 +338,27 @@ class SimuladorCiclorutas:
                 tiempo_arribo = self.generar_tiempo_arribo_nodo(nodo_origen)
                 yield self.env.timeout(tiempo_arribo)
                 
-                # Crear ciclista en este nodo
-                if ciclista_id < self.config.num_ciclistas:
-                    # Asignar ruta basada en el nodo origen
-                    ruta = self._asignar_ruta_desde_nodo(nodo_origen)
-                    velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
-                    
-                    # Actualizar datos del ciclista
-                    self.rutas[ciclista_id] = ruta
-                    self.colores[ciclista_id] = self.colores_nodos.get(nodo_origen, '#6C757D')
-                    self.velocidades[ciclista_id] = velocidad
-                    
-                    # Crear proceso del ciclista
-                    proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
-                    self.procesos.append(proceso)
-                    
-                    ciclista_id += 1
+                # Crear nuevo ciclista
+                ciclista_id = self.ciclista_id_counter
+                self.ciclista_id_counter += 1
+                
+                # Asignar ruta basada en el nodo origen
+                ruta = self._asignar_ruta_desde_nodo(nodo_origen)
+                velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
+                
+                # Agregar datos del ciclista
+                self.rutas.append(ruta)
+                self.colores.append(self.colores_nodos.get(nodo_origen, '#6C757D'))
+                self.velocidades.append(velocidad)
+                self.coordenadas.append((0, 0))  # Posición inicial
+                self.trayectorias.append([])
+                
+                # Crear proceso del ciclista
+                proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
+                self.procesos.append(proceso)
             else:
-                # Fallback: crear ciclista con distribución por defecto
+                # Fallback: esperar un poco y reintentar
                 yield self.env.timeout(1.0)
-                if ciclista_id < self.config.num_ciclistas:
-                    ruta = random.choice(self.rutas_posibles)
-                    velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
-                    
-                    self.rutas[ciclista_id] = ruta
-                    self.colores[ciclista_id] = self.color_map.get(ruta, '#6C757D')
-                    self.velocidades[ciclista_id] = velocidad
-                    
-                    proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
-                    self.procesos.append(proceso)
-                    
-                    ciclista_id += 1
     
     def _seleccionar_nodo_origen(self) -> Optional[str]:
         """Selecciona un nodo origen basado en las distribuciones configuradas"""
@@ -484,11 +480,12 @@ class SimuladorCiclorutas:
     def obtener_estadisticas(self) -> Dict:
         """Retorna estadísticas de la simulación"""
         stats = {
-            'total_ciclistas': self.config.num_ciclistas,
+            'total_ciclistas': len(self.coordenadas),
             'velocidad_promedio': np.mean(self.velocidades) if self.velocidades else 0,
             'velocidad_minima': min(self.velocidades) if self.velocidades else 0,
             'velocidad_maxima': max(self.velocidades) if self.velocidades else 0,
-            'usando_grafo_real': self.usar_grafo_real
+            'usando_grafo_real': self.usar_grafo_real,
+            'duracion_simulacion': self.config.duracion_simulacion
         }
         
         # Agregar estadísticas del grafo si está disponible
