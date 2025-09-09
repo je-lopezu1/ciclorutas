@@ -104,6 +104,14 @@ class SimuladorCiclorutas:
         # Sistema de colores dinámico basado en nodos
         self.colores_nodos = {}  # Dict[nodo_id, color]
         self.rutas_dinamicas = []  # Lista de rutas calculadas dinámicamente
+        
+        # Sistema de rastreo de rutas
+        self.rutas_utilizadas = {}  # Dict[ruta_str, contador] para contar uso de rutas
+        self.rutas_por_ciclista = {}  # Dict[ciclista_id, ruta_info] para rastrear rutas individuales
+        
+        # Sistema de rastreo de estado de ciclistas
+        self.estado_ciclistas = {}  # Dict[ciclista_id, estado] para rastrear si están activos o completados
+        self.ciclistas_por_nodo = {}  # Dict[nodo_origen, contador] para contar ciclistas por nodo de origen
     
     def configurar_distribuciones_nodos(self, distribuciones: Dict[str, Dict]):
         """Configura las distribuciones de probabilidad para cada nodo"""
@@ -203,16 +211,35 @@ class SimuladorCiclorutas:
     
     def _inicializar_colores_nodos(self, nodos: List[str]):
         """Inicializa colores únicos para cada nodo"""
+        # Paleta de colores más oscuros y distintivos
         colores_base = [
-            '#FF6B35', '#FF1744', '#00E676', '#2979FF', '#9C27B0',
-            '#FF9800', '#4CAF50', '#2196F3', '#E91E63', '#795548'
+            '#CC0000',  # Rojo oscuro
+            '#006666',  # Verde azulado oscuro
+            '#003366',  # Azul marino
+            '#006600',  # Verde oscuro
+            '#CC6600',  # Naranja oscuro
+            '#660066',  # Púrpura oscuro
+            '#006633',  # Verde bosque
+            '#CC9900',  # Dorado oscuro
+            '#663399',  # Violeta oscuro
+            '#003399',  # Azul oscuro
+            '#CC3300',  # Rojo naranja oscuro
+            '#006600',  # Verde esmeralda oscuro
+            '#990000',  # Rojo vino
+            '#4B0082',  # Índigo
+            '#2F4F2F',  # Verde oliva oscuro
+            '#8B4513',  # Marrón oscuro
+            '#800080',  # Púrpura
+            '#191970',  # Azul medianoche
+            '#2E8B57',  # Verde mar
+            '#8B0000'   # Rojo oscuro intenso
         ]
         
         for i, nodo in enumerate(nodos):
             color = colores_base[i % len(colores_base)]
             self.colores_nodos[nodo] = color
         
-        print(f"✅ Colores asignados a {len(nodos)} nodos")
+        print(f"🎨 Colores asignados a {len(nodos)} nodos: {self.colores_nodos}")
     
     def _calcular_rutas_dinamicas(self):
         """Calcula todas las rutas posibles entre nodos del grafo"""
@@ -342,20 +369,46 @@ class SimuladorCiclorutas:
                 ciclista_id = self.ciclista_id_counter
                 self.ciclista_id_counter += 1
                 
-                # Asignar ruta basada en el nodo origen
-                ruta = self._asignar_ruta_desde_nodo(nodo_origen)
-                velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
-                
-                # Agregar datos del ciclista
-                self.rutas.append(ruta)
-                self.colores.append(self.colores_nodos.get(nodo_origen, '#6C757D'))
-                self.velocidades.append(velocidad)
-                self.coordenadas.append((0, 0))  # Posición inicial
-                self.trayectorias.append([])
-                
-                # Crear proceso del ciclista
-                proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
-                self.procesos.append(proceso)
+                # Generar ruta aleatoria desde el nodo origen
+                origen, destino, ruta_nodos = self._asignar_ruta_desde_nodo(nodo_origen)
+                if origen and destino:
+                    velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
+                    
+                    # Crear representación de la ruta para almacenar
+                    ruta_str = f"{origen}->{destino}"
+                    ruta_detallada = "->".join(ruta_nodos)
+                    
+                    # Rastrear la ruta utilizada
+                    if ruta_detallada not in self.rutas_utilizadas:
+                        self.rutas_utilizadas[ruta_detallada] = 0
+                    self.rutas_utilizadas[ruta_detallada] += 1
+                    
+                    # Almacenar información de la ruta para este ciclista
+                    self.rutas_por_ciclista[ciclista_id] = {
+                        'origen': origen,
+                        'destino': destino,
+                        'ruta_detallada': ruta_detallada,
+                        'ruta_simple': ruta_str
+                    }
+                    
+                    # Marcar ciclista como activo
+                    self.estado_ciclistas[ciclista_id] = 'activo'
+                    
+                    # Rastrear ciclistas por nodo de origen
+                    if nodo_origen not in self.ciclistas_por_nodo:
+                        self.ciclistas_por_nodo[nodo_origen] = 0
+                    self.ciclistas_por_nodo[nodo_origen] += 1
+                    
+                    # Agregar datos del ciclista
+                    self.rutas.append(ruta_str)
+                    self.colores.append(self.colores_nodos.get(nodo_origen, '#6C757D'))
+                    self.velocidades.append(velocidad)
+                    self.coordenadas.append((-1000, -1000))  # Posición inicial invisible
+                    self.trayectorias.append([])
+                    
+                    # Crear proceso del ciclista
+                    proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
+                    self.procesos.append(proceso)
             else:
                 # Fallback: esperar un poco y reintentar
                 yield self.env.timeout(1.0)
@@ -388,22 +441,34 @@ class SimuladorCiclorutas:
         
         return random.choice(nodos) if nodos else None
     
-    def _asignar_ruta_desde_nodo(self, nodo_origen: str) -> str:
-        """Asigna una ruta basada en el nodo origen usando rutas dinámicas"""
-        # Filtrar rutas que empiecen desde el nodo origen
-        rutas_desde_origen = [ruta for ruta in self.rutas_dinamicas if ruta[0] == nodo_origen]
+    def _asignar_ruta_desde_nodo(self, nodo_origen: str) -> tuple:
+        """Genera una ruta aleatoria desde el nodo origen hasta cualquier otro nodo"""
+        if not self.grafo or nodo_origen not in self.grafo.nodes():
+            return None, None
         
-        if rutas_desde_origen:
-            # Seleccionar ruta aleatoria desde el nodo origen
-            origen, destino = random.choice(rutas_desde_origen)
-            return f"{origen}->{destino}"
-        else:
-            # Fallback: seleccionar cualquier ruta disponible
-            if self.rutas_dinamicas:
-                origen, destino = random.choice(self.rutas_dinamicas)
-                return f"{origen}->{destino}"
-            else:
-                return "N/A"
+        # Obtener todos los nodos excepto el origen
+        nodos_destino = [nodo for nodo in self.grafo.nodes() if nodo != nodo_origen]
+        
+        if not nodos_destino:
+            return None, None
+        
+        # Seleccionar nodo destino aleatorio
+        nodo_destino = random.choice(nodos_destino)
+        
+        # Generar ruta usando NetworkX (puede ser directa o con múltiples arcos)
+        try:
+            # Usar el algoritmo de camino más corto de NetworkX
+            ruta_nodos = nx.shortest_path(self.grafo, nodo_origen, nodo_destino)
+            return nodo_origen, nodo_destino, ruta_nodos
+        except nx.NetworkXNoPath:
+            # Si no hay camino, intentar con otro nodo destino
+            for destino_alt in nodos_destino:
+                try:
+                    ruta_nodos = nx.shortest_path(self.grafo, nodo_origen, destino_alt)
+                    return nodo_origen, destino_alt, ruta_nodos
+                except nx.NetworkXNoPath:
+                    continue
+            return None, None, None
         
     def _ciclista(self, id: int, velocidad: float):
         """Lógica de movimiento de un ciclista individual usando grafo real"""
@@ -415,7 +480,7 @@ class SimuladorCiclorutas:
         yield from self._ciclista_grafo_real(id, origen, destino, velocidad)
     
     def _ciclista_grafo_real(self, id: int, origen: str, destino: str, velocidad: float):
-        """Movimiento usando coordenadas reales del grafo NetworkX con distribuciones de arribo"""
+        """Movimiento usando coordenadas reales del grafo NetworkX con rutas dinámicas"""
         # Verificar que los nodos existen en el grafo
         if origen not in self.grafo.nodes() or destino not in self.grafo.nodes():
             print(f"⚠️ Error: Nodos {origen} o {destino} no existen en el grafo")
@@ -425,19 +490,39 @@ class SimuladorCiclorutas:
         tiempo_arribo = self.generar_tiempo_arribo_nodo(origen)
         yield self.env.timeout(tiempo_arribo)
         
+        # Obtener la ruta detallada para este ciclista
+        if id in self.rutas_por_ciclista:
+            ruta_detallada = self.rutas_por_ciclista[id]['ruta_detallada']
+            nodos_ruta = ruta_detallada.split('->')
+        else:
+            # Fallback: ruta directa
+            nodos_ruta = [origen, destino]
+        
         # Posición inicial en el nodo origen
-        pos_inicial = self._obtener_coordenada_nodo(origen)
+        pos_inicial = self._obtener_coordenada_nodo(nodos_ruta[0])
         self.coordenadas[id] = pos_inicial
         self.trayectorias[id].append(pos_inicial)
         
-        # Obtener distancia real del arco
-        distancia_real = self._obtener_distancia_arco(origen, destino)
+        # Mover a través de cada segmento de la ruta
+        for i in range(len(nodos_ruta) - 1):
+            nodo_actual = nodos_ruta[i]
+            nodo_siguiente = nodos_ruta[i + 1]
+            
+            # Obtener coordenadas de los nodos
+            pos_actual = self._obtener_coordenada_nodo(nodo_actual)
+            pos_siguiente = self._obtener_coordenada_nodo(nodo_siguiente)
+            
+            # Obtener distancia real del arco
+            distancia_real = self._obtener_distancia_arco(nodo_actual, nodo_siguiente)
+            
+            # Movimiento interpolado suave entre nodos
+            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad, id)
         
-        # Posición final en el nodo destino
-        pos_final = self._obtener_coordenada_nodo(destino)
+        # Marcar ciclista como completado cuando termine su ruta
+        self.estado_ciclistas[id] = 'completado'
         
-        # Movimiento interpolado suave
-        yield from self._interpolar_movimiento(pos_inicial, pos_final, distancia_real, velocidad, id)
+        # Mover ciclista fuera de la vista (posición invisible)
+        self.coordenadas[id] = (-1000, -1000)  # Posición fuera del área visible
     
     
     def ejecutar_paso(self):
@@ -477,13 +562,52 @@ class SimuladorCiclorutas:
             'ruta_actual': self.rutas.copy()
         }
     
+    def obtener_ciclistas_activos(self) -> Dict:
+        """Retorna solo los ciclistas que están activos (no completados)"""
+        ciclistas_activos = {
+            'coordenadas': [],
+            'colores': [],
+            'ruta_actual': [],
+            'velocidades': [],
+            'trayectorias': []
+        }
+        
+        for i, (coords, color, ruta, velocidad, trayectoria) in enumerate(zip(
+            self.coordenadas, self.colores, self.rutas, self.velocidades, self.trayectorias)):
+            
+            # Solo incluir si el ciclista está activo
+            if i in self.estado_ciclistas and self.estado_ciclistas[i] == 'activo':
+                ciclistas_activos['coordenadas'].append(coords)
+                ciclistas_activos['colores'].append(color)
+                ciclistas_activos['ruta_actual'].append(ruta)
+                ciclistas_activos['velocidades'].append(velocidad)
+                ciclistas_activos['trayectorias'].append(trayectoria)
+        
+        return ciclistas_activos
+    
+    def obtener_colores_nodos(self) -> Dict[str, str]:
+        """Retorna el mapeo de colores por nodo"""
+        return self.colores_nodos.copy()
+    
     def obtener_estadisticas(self) -> Dict:
         """Retorna estadísticas de la simulación"""
+        # Contar ciclistas activos
+        ciclistas_activos = sum(1 for estado in self.estado_ciclistas.values() if estado == 'activo')
+        ciclistas_completados = sum(1 for estado in self.estado_ciclistas.values() if estado == 'completado')
+        
+        # Obtener velocidades solo de ciclistas activos
+        velocidades_activas = []
+        for i, velocidad in enumerate(self.velocidades):
+            if i in self.estado_ciclistas and self.estado_ciclistas[i] == 'activo':
+                velocidades_activas.append(velocidad)
+        
         stats = {
             'total_ciclistas': len(self.coordenadas),
-            'velocidad_promedio': np.mean(self.velocidades) if self.velocidades else 0,
-            'velocidad_minima': min(self.velocidades) if self.velocidades else 0,
-            'velocidad_maxima': max(self.velocidades) if self.velocidades else 0,
+            'ciclistas_activos': ciclistas_activos,
+            'ciclistas_completados': ciclistas_completados,
+            'velocidad_promedio': np.mean(velocidades_activas) if velocidades_activas else 0,
+            'velocidad_minima': min(velocidades_activas) if velocidades_activas else 0,
+            'velocidad_maxima': max(velocidades_activas) if velocidades_activas else 0,
             'usando_grafo_real': self.usar_grafo_real,
             'duracion_simulacion': self.config.duracion_simulacion
         }
@@ -519,4 +643,45 @@ class SimuladorCiclorutas:
                     'tasa_arribo_promedio': np.mean(tasas_promedio) if tasas_promedio else 0
                 })
         
+        # Agregar estadísticas de rutas
+        stats.update({
+            'rutas_utilizadas': len(self.rutas_utilizadas),
+            'total_viajes': sum(self.rutas_utilizadas.values()) if self.rutas_utilizadas else 0,
+            'ruta_mas_usada': self._obtener_ruta_mas_usada(),
+            'rutas_por_frecuencia': self._obtener_rutas_por_frecuencia()
+        })
+        
+        # Agregar estadísticas de ciclistas por nodo
+        stats.update({
+            'ciclistas_por_nodo': self.ciclistas_por_nodo.copy(),
+            'nodo_mas_activo': self._obtener_nodo_mas_activo()
+        })
+        
         return stats
+    
+    def _obtener_ruta_mas_usada(self) -> str:
+        """Obtiene la ruta más utilizada"""
+        if not self.rutas_utilizadas:
+            return "N/A"
+        
+        ruta_mas_usada = max(self.rutas_utilizadas.items(), key=lambda x: x[1])
+        return f"{ruta_mas_usada[0]} ({ruta_mas_usada[1]} viajes)"
+    
+    def _obtener_rutas_por_frecuencia(self) -> list:
+        """Obtiene las rutas ordenadas por frecuencia de uso"""
+        if not self.rutas_utilizadas:
+            return []
+        
+        # Ordenar rutas por frecuencia (descendente)
+        rutas_ordenadas = sorted(self.rutas_utilizadas.items(), key=lambda x: x[1], reverse=True)
+        
+        # Retornar las top 5 rutas
+        return rutas_ordenadas[:5]
+    
+    def _obtener_nodo_mas_activo(self) -> str:
+        """Obtiene el nodo que ha generado más ciclistas"""
+        if not self.ciclistas_por_nodo:
+            return "N/A"
+        
+        nodo_mas_activo = max(self.ciclistas_por_nodo.items(), key=lambda x: x[1])
+        return f"Nodo {nodo_mas_activo[0]} ({nodo_mas_activo[1]} ciclistas)"

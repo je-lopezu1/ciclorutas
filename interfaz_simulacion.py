@@ -32,6 +32,10 @@ class InterfazSimulacion:
         # Variables de control
         self.simulacion_activa = False
         self.hilo_simulacion = None
+        self.ventana_cerrada = False  # Flag para controlar si la ventana está cerrada
+        
+        # Configurar manejo de cierre de ventana
+        self.root.protocol("WM_DELETE_WINDOW", self.cerrar_aplicacion)
         
         # Configurar estilo
         self.configurar_estilo()
@@ -134,13 +138,13 @@ class InterfazSimulacion:
         ttk.Button(control_frame, text="⏸️ PAUSAR", command=self.pausar_simulacion, 
                   style='Accent.TButton').grid(row=11, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
         
-        ttk.Button(control_frame, text="⏹️ DETENER", command=self.detener_simulacion, 
+        ttk.Button(control_frame, text="🏁 TERMINAR", command=self.terminar_simulacion, 
                   style='Accent.TButton').grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
         
         ttk.Button(control_frame, text="⏭️ ADELANTAR", command=self.adelantar_simulacion, 
                   style='Accent.TButton').grid(row=12, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
         
-        ttk.Button(control_frame, text="🔄 REPRODUCIR", command=self.reiniciar_simulacion, 
+        ttk.Button(control_frame, text="🔄 REINICIAR", command=self.reiniciar_simulacion, 
                   style='Accent.TButton').grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
         # Separador
@@ -587,6 +591,28 @@ class InterfazSimulacion:
         self.stats_labels['duracion_simulacion'] = ttk.Label(stats_inner, text="300s", font=('Segoe UI', 10))
         self.stats_labels['duracion_simulacion'].grid(row=2, column=5, sticky=tk.W, padx=(0, 20))
         
+        # Cuarta fila - Estadísticas de rutas
+        ttk.Label(stats_inner, text="Rutas Utilizadas:", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['rutas_utilizadas'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['rutas_utilizadas'].grid(row=3, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        ttk.Label(stats_inner, text="Total Viajes:", font=('Segoe UI', 10, 'bold')).grid(row=3, column=2, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['total_viajes'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['total_viajes'].grid(row=3, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        ttk.Label(stats_inner, text="Ruta Más Usada:", font=('Segoe UI', 10, 'bold')).grid(row=3, column=4, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['ruta_mas_usada'] = ttk.Label(stats_inner, text="N/A", font=('Segoe UI', 9), foreground='#6c757d')
+        self.stats_labels['ruta_mas_usada'].grid(row=3, column=5, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        # Quinta fila - Estadísticas adicionales
+        ttk.Label(stats_inner, text="Ciclistas Completados:", font=('Segoe UI', 10, 'bold')).grid(row=4, column=0, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['ciclistas_completados'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10), foreground='#28a745')
+        self.stats_labels['ciclistas_completados'].grid(row=4, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        ttk.Label(stats_inner, text="Nodo Más Activo:", font=('Segoe UI', 10, 'bold')).grid(row=4, column=2, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['nodo_mas_activo'] = ttk.Label(stats_inner, text="N/A", font=('Segoe UI', 9), foreground='#6c757d')
+        self.stats_labels['nodo_mas_activo'].grid(row=4, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        
     def configurar_grafico_inicial(self):
         """Configura el gráfico inicial sin grafo cargado"""
         self.ax.clear()
@@ -648,7 +674,9 @@ class InterfazSimulacion:
         self.scatter = self.ax.scatter([], [], s=120, alpha=0.95, edgecolors='white', 
                                      linewidth=2, zorder=10)
         
+        
         self.canvas.draw()
+    
         
     # def configurar_grafico(self):
     #     """Configura el gráfico de matplotlib"""
@@ -698,24 +726,25 @@ class InterfazSimulacion:
             return
             
         try:
-            estado = self.simulador.obtener_estado_actual()
+            # Obtener solo ciclistas activos
+            ciclistas_activos = self.simulador.obtener_ciclistas_activos()
             
-            if not estado['coordenadas']:
-                # No hay ciclistas para mostrar
+            if not ciclistas_activos['coordenadas']:
+                # No hay ciclistas activos para mostrar
                 self.scatter.set_offsets([])
                 self.canvas.draw()
                 return
             
-            # Extraer coordenadas
-            x, y = zip(*estado['coordenadas'])
+            # Extraer coordenadas de ciclistas activos
+            x, y = zip(*ciclistas_activos['coordenadas'])
             
-            # Actualizar posiciones de los ciclistas
+            # Actualizar posiciones de los ciclistas activos
             self.scatter.set_offsets(list(zip(x, y)))
-            self.scatter.set_color(estado['colores'])
+            self.scatter.set_color(ciclistas_activos['colores'])
             
-            # Configurar apariencia de los ciclistas
-            num_ciclistas = len(estado['coordenadas'])
-            self.scatter.set_sizes([120] * num_ciclistas)
+            # Configurar apariencia de los ciclistas activos
+            num_ciclistas_activos = len(ciclistas_activos['coordenadas'])
+            self.scatter.set_sizes([120] * num_ciclistas_activos)
             self.scatter.set_alpha(0.95)
             
             # Configurar bordes según si hay grafo o no
@@ -799,69 +828,127 @@ class InterfazSimulacion:
     
     def ejecutar_simulacion(self):
         """Ejecuta la simulación en un hilo separado"""
-        while self.simulacion_activa and self.simulador.estado == "ejecutando":
+        while self.simulacion_activa and self.simulador.estado == "ejecutando" and not self.ventana_cerrada:
             if self.simulador.ejecutar_paso():
-                # Actualizar interfaz en el hilo principal
-                self.root.after(0, self.actualizar_interfaz)
+                # Actualizar interfaz en el hilo principal solo si la ventana sigue abierta
+                if not self.ventana_cerrada and self.root.winfo_exists():
+                    self.root.after(0, self.actualizar_interfaz)
                 time.sleep(0.05)  # Control de velocidad
             else:
                 # La simulación ha terminado
-                self.root.after(0, self.simulacion_terminada)
+                if not self.ventana_cerrada and self.root.winfo_exists():
+                    self.root.after(0, self.simulacion_terminada)
                 break
     
     def actualizar_interfaz(self):
         """Actualiza la interfaz con los datos actuales"""
-        estado = self.simulador.obtener_estado_actual()
-        self.tiempo_label.config(text=f"{estado['tiempo_actual']:.1f}s")
-        self.actualizar_visualizacion()
-        self.actualizar_estadisticas()
+        # Verificar si la ventana sigue abierta
+        if self.ventana_cerrada or not self.root.winfo_exists():
+            return
+            
+        try:
+            estado = self.simulador.obtener_estado_actual()
+            if hasattr(self, 'tiempo_label') and self.tiempo_label.winfo_exists():
+                self.tiempo_label.config(text=f"{estado['tiempo_actual']:.1f}s")
+            self.actualizar_visualizacion()
+            self.actualizar_estadisticas()
+        except tk.TclError:
+            # Widget ya fue destruido, no hacer nada
+            pass
     
     def pausar_simulacion(self):
         """Pausa o reanuda la simulación"""
-        if self.simulador.estado == "ejecutando":
-            # Pausar
-            self.simulador.pausar_simulacion()
-            self.estado_label.config(text="PAUSADO", foreground='#ffc107')
-            # Cambiar texto del botón
-            for widget in self.root.winfo_children():
-                if isinstance(widget, ttk.Frame):
-                    for child in widget.winfo_children():
-                        if isinstance(child, ttk.LabelFrame):
-                            for button in child.winfo_children():
-                                if isinstance(button, ttk.Button) and "PAUSAR" in button.cget("text"):
-                                    button.configure(text="▶️ REANUDAR")
-        else:
-            # Reanudar
-            self.simulador.estado = "ejecutando"
-            self.estado_label.config(text="EJECUTANDO", foreground='#007bff')
-            # Cambiar texto del botón de vuelta
-            for widget in self.root.winfo_children():
-                if isinstance(widget, ttk.Frame):
-                    for child in widget.winfo_children():
-                        if isinstance(child, ttk.LabelFrame):
-                            for button in child.winfo_children():
-                                if isinstance(button, ttk.Button) and "REANUDAR" in button.cget("text"):
-                                    button.configure(text="⏸️ PAUSAR")
+        # Verificar si la ventana sigue abierta
+        if self.ventana_cerrada or not self.root.winfo_exists():
+            return
+            
+        try:
+            if self.simulador.estado == "ejecutando":
+                # Pausar
+                self.simulador.pausar_simulacion()
+                if hasattr(self, 'estado_label') and self.estado_label.winfo_exists():
+                    self.estado_label.config(text="PAUSADO", foreground='#ffc107')
+                # Cambiar texto del botón
+                for widget in self.root.winfo_children():
+                    if isinstance(widget, ttk.Frame):
+                        for child in widget.winfo_children():
+                            if isinstance(child, ttk.LabelFrame):
+                                for button in child.winfo_children():
+                                    if isinstance(button, ttk.Button) and "PAUSAR" in button.cget("text"):
+                                        button.configure(text="▶️ REANUDAR")
+            else:
+                # Reanudar
+                self.simulador.estado = "ejecutando"
+                self.simulacion_activa = True
+                if hasattr(self, 'estado_label') and self.estado_label.winfo_exists():
+                    self.estado_label.config(text="EJECUTANDO", foreground='#007bff')
+                
+                # Reiniciar hilo de simulación
+                self.hilo_simulacion = threading.Thread(target=self.ejecutar_simulacion)
+                self.hilo_simulacion.daemon = True
+                self.hilo_simulacion.start()
+                
+                # Cambiar texto del botón de vuelta
+                for widget in self.root.winfo_children():
+                    if isinstance(widget, ttk.Frame):
+                        for child in widget.winfo_children():
+                            if isinstance(child, ttk.LabelFrame):
+                                for button in child.winfo_children():
+                                    if isinstance(button, ttk.Button) and "REANUDAR" in button.cget("text"):
+                                        button.configure(text="⏸️ PAUSAR")
+        except tk.TclError:
+            # Widget ya fue destruido, no hacer nada
+            pass
     
-    def detener_simulacion(self):
-        """Detiene la simulación"""
+    def terminar_simulacion(self):
+        """Termina la simulación llevándola a su estado final"""
+        # Ejecutar la simulación hasta el final
+        while self.simulador.ejecutar_paso():
+            pass  # Continuar hasta que termine naturalmente
+        
+        # Marcar como terminada
         self.simulacion_activa = False
-        self.simulador.detener_simulacion()
-        self.estado_label.config(text="DETENIDO", foreground='#dc3545')
-        self.tiempo_label.config(text="0.0s")
+        self.simulador.estado = "completada"
+        
+        # Verificar si la ventana sigue abierta antes de actualizar widgets
+        if not self.ventana_cerrada and self.root.winfo_exists():
+            try:
+                if hasattr(self, 'estado_label') and self.estado_label.winfo_exists():
+                    self.estado_label.config(text="TERMINADA", foreground='#28a745')
+                # Actualizar interfaz con el estado final
+                self.actualizar_interfaz()
+                self.actualizar_estadisticas()
+                
+                # Mostrar mensaje de terminación
+                messagebox.showinfo("Simulación Terminada", 
+                                  "¡La simulación ha sido terminada exitosamente!\n\n"
+                                  "Todos los ciclistas han completado sus rutas.")
+            except tk.TclError:
+                # Widget ya fue destruido, no hacer nada
+                pass
         
     def simulacion_terminada(self):
         """Maneja cuando la simulación termina naturalmente"""
         self.simulacion_activa = False
-        self.estado_label.config(text="COMPLETADA", foreground='#28a745')
-        self.actualizar_estadisticas()
         
-        # Mostrar mensaje de finalización
-        messagebox.showinfo("Simulación Completada", 
-                          "¡La simulación ha terminado! Puedes:\n\n"
-                          "• Hacer clic en 'NUEVA SIMULACIÓN' para reiniciar\n"
-                          "• Hacer clic en 'REPRODUCIR' para repetir la misma simulación\n"
-                          "• Modificar parámetros y crear una nueva simulación")
+        # Verificar si la ventana sigue abierta antes de actualizar widgets
+        if self.ventana_cerrada or not self.root.winfo_exists():
+            return
+            
+        try:
+            if hasattr(self, 'estado_label') and self.estado_label.winfo_exists():
+                self.estado_label.config(text="COMPLETADA", foreground='#28a745')
+            self.actualizar_estadisticas()
+            
+            # Mostrar mensaje de finalización
+            messagebox.showinfo("Simulación Completada", 
+                              "¡La simulación ha terminado! Puedes:\n\n"
+                              "• Hacer clic en 'NUEVA' para crear una nueva simulación\n"
+                              "• Hacer clic en 'REINICIAR' para repetir la misma simulación\n"
+                              "• Modificar parámetros y crear una nueva simulación")
+        except tk.TclError:
+            # Widget ya fue destruido, no hacer nada
+            pass
         
     def reiniciar_simulacion(self):
         """Reinicia la simulación actual con los mismos parámetros"""
@@ -904,18 +991,18 @@ class InterfazSimulacion:
     
     def adelantar_simulacion(self):
         """Adelanta la simulación varios pasos"""
-        if self.simulador.estado == "ejecutando":
-            for _ in range(10):  # Adelantar 10 pasos
-                if not self.simulador.ejecutar_paso():
-                    break
-            self.actualizar_interfaz()
+        # Adelantar pasos independientemente del estado
+        for _ in range(10):  # Adelantar 10 pasos
+            if not self.simulador.ejecutar_paso():
+                break
+        self.actualizar_interfaz()
     
     def actualizar_estadisticas(self):
         """Actualiza las estadísticas mostradas"""
         stats = self.simulador.obtener_estadisticas()
         
         # Estadísticas básicas
-        self.stats_labels['total_ciclistas'].config(text=str(stats['total_ciclistas']))
+        self.stats_labels['total_ciclistas'].config(text=str(stats.get('ciclistas_activos', 0)))
         self.stats_labels['velocidad_promedio'].config(text=f"{stats['velocidad_promedio']:.1f} m/s")
         self.stats_labels['velocidad_min'].config(text=f"{stats['velocidad_minima']:.1f} m/s")
         self.stats_labels['velocidad_max'].config(text=f"{stats['velocidad_maxima']:.1f} m/s")
@@ -937,6 +1024,25 @@ class InterfazSimulacion:
             self.stats_labels['modo_simulacion'].config(text="Sistema Original", foreground='#6c757d')
             self.stats_labels['distribuciones_configuradas'].config(text="0")
             self.stats_labels['tasa_arribo_promedio'].config(text="0.0")
+        
+        # Estadísticas de rutas
+        self.stats_labels['rutas_utilizadas'].config(text=str(stats.get('rutas_utilizadas', 0)))
+        self.stats_labels['total_viajes'].config(text=str(stats.get('total_viajes', 0)))
+        
+        # Ruta más usada (truncar si es muy larga)
+        ruta_mas_usada = stats.get('ruta_mas_usada', 'N/A')
+        if len(ruta_mas_usada) > 30:
+            ruta_mas_usada = ruta_mas_usada[:27] + "..."
+        self.stats_labels['ruta_mas_usada'].config(text=ruta_mas_usada)
+        
+        # Ciclistas completados
+        self.stats_labels['ciclistas_completados'].config(text=str(stats.get('ciclistas_completados', 0)))
+        
+        # Nodo más activo (truncar si es muy largo)
+        nodo_mas_activo = stats.get('nodo_mas_activo', 'N/A')
+        if len(nodo_mas_activo) > 25:
+            nodo_mas_activo = nodo_mas_activo[:22] + "..."
+        self.stats_labels['nodo_mas_activo'].config(text=nodo_mas_activo)
 
 
     def cargar_grafo(self):
@@ -1014,6 +1120,24 @@ class InterfazSimulacion:
                                         "Asegúrate de que el archivo tenga las hojas 'NODOS' y 'ARCOS'")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar el archivo: {str(e)}")
+    def cerrar_aplicacion(self):
+        """Maneja el cierre seguro de la aplicación"""
+        # Marcar que la ventana está siendo cerrada
+        self.ventana_cerrada = True
+        
+        # Detener la simulación si está activa
+        if self.simulacion_activa:
+            self.simulacion_activa = False
+            if self.simulador:
+                self.simulador.detener_simulacion()
+        
+        # Esperar a que el hilo termine (con timeout)
+        if self.hilo_simulacion and self.hilo_simulacion.is_alive():
+            self.hilo_simulacion.join(timeout=1.0)
+        
+        # Destruir la ventana
+        self.root.destroy()
+
 def main():
     """Función principal para ejecutar la interfaz"""
     root = tk.Tk()
