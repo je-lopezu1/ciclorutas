@@ -66,7 +66,7 @@ class InterfazSimulacion:
     def configurar_matplotlib_optimizado(self):
         """Configura matplotlib para mejor rendimiento"""
         # Configurar matplotlib para mejor rendimiento
-        plt.ion()  # Modo interactivo
+        plt.ioff()  # Desactivar modo interactivo para evitar ventanas externas
         plt.rcParams['figure.max_open_warning'] = 0  # Desactivar advertencias
         plt.rcParams['axes.unicode_minus'] = False  # Mejor compatibilidad
         plt.rcParams['figure.autolayout'] = True  # Auto-layout
@@ -76,6 +76,7 @@ class InterfazSimulacion:
         plt.rcParams['axes.linewidth'] = 0.5  # Líneas más delgadas
         plt.rcParams['grid.linewidth'] = 0.5
         plt.rcParams['lines.linewidth'] = 1.0
+        plt.rcParams['interactive'] = False  # Desactivar modo interactivo
         
     def configurar_estilo(self):
         """Configura el estilo visual de la interfaz"""
@@ -551,10 +552,18 @@ class InterfazSimulacion:
         viz_frame = ttk.LabelFrame(parent, text="📊 VISUALIZACIÓN EN TIEMPO REAL", padding="10")
         parent.add(viz_frame, weight=2)  # Panel visual más grande
         
-        # Crear figura de matplotlib
+        # Crear figura de matplotlib sin mostrar ventana externa
         self.fig, self.ax = plt.subplots(figsize=(10, 6))
+        self.fig.patch.set_facecolor('white')  # Fondo blanco
+        self.ax.set_facecolor('white')  # Fondo del eje blanco
+        
+        # Crear canvas integrado en la interfaz
         self.canvas = FigureCanvasTkAgg(self.fig, viz_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
+        # Configurar para evitar ventanas externas
+        self.fig.set_tight_layout(True)
+        self.fig.canvas.draw()  # Dibujar inicialmente
         
         # Configurar el gráfico inicial
         self.configurar_grafico_inicial()
@@ -786,6 +795,78 @@ class InterfazSimulacion:
         
     #     self.canvas.draw()
         
+    def actualizar_visualizacion_rapida(self):
+        """Actualiza la visualización de forma rápida para loop continuo"""
+        if not hasattr(self, 'scatter'):
+            return
+            
+        try:
+            # Si no hay grafo cargado, mostrar mensaje
+            if not self.grafo_actual:
+                return
+            
+            # Obtener solo ciclistas activos
+            ciclistas_activos = self.simulador.obtener_ciclistas_activos()
+            
+            if not ciclistas_activos.get('coordenadas', []):
+                # No hay ciclistas activos para mostrar
+                self.scatter.set_offsets([])
+                self.canvas.draw_idle()
+                return
+            
+            # Extraer coordenadas de ciclistas activos
+            coordenadas = ciclistas_activos.get('coordenadas', [])
+            colores = ciclistas_activos.get('colores', [])
+            
+            if coordenadas and len(coordenadas) > 0:
+                # Verificar que las coordenadas tienen la estructura correcta
+                try:
+                    x, y = zip(*coordenadas)
+                    
+                    # Convertir a array 2D para set_offsets
+                    offsets = np.array(list(zip(x, y)))
+                    
+                    # Actualizar posiciones de los ciclistas activos
+                    self.scatter.set_offsets(offsets)
+                    
+                    # Configurar colores solo si hay colores disponibles
+                    if colores and len(colores) == len(coordenadas):
+                        self.scatter.set_color(colores)
+                    else:
+                        # Usar color por defecto si no hay colores
+                        self.scatter.set_color(['#FF6B6B'] * len(coordenadas))
+                    
+                    # Configurar apariencia de los ciclistas activos
+                    num_ciclistas_activos = len(coordenadas)
+                    self.scatter.set_sizes([120] * num_ciclistas_activos)
+                    self.scatter.set_alpha(0.95)
+                    
+                    # Configurar bordes según si hay grafo o no
+                    if self.grafo_actual:
+                        # Con grafo: bordes blancos para contraste
+                        self.scatter.set_edgecolors('white')
+                        self.scatter.set_linewidth(2)
+                    else:
+                        # Sin grafo: sin bordes
+                        self.scatter.set_edgecolors('none')
+                        self.scatter.set_linewidth(0)
+                    
+                    # Actualizar canvas de forma rápida
+                    self.canvas.draw_idle()
+                    
+                except (ValueError, TypeError) as e:
+                    # Limpiar visualización en caso de error
+                    self.scatter.set_offsets([])
+                    self.canvas.draw_idle()
+            else:
+                # No hay ciclistas activos
+                self.scatter.set_offsets([])
+                self.canvas.draw_idle()
+            
+        except Exception as e:
+            # En caso de error, no hacer nada para no interrumpir el loop
+            pass
+
     def actualizar_visualizacion_optimizada(self):
         """Actualiza la visualización de forma optimizada con actualización diferencial"""
         if not hasattr(self, 'scatter'):
@@ -839,8 +920,8 @@ class InterfazSimulacion:
                         self.scatter.set_edgecolors('none')
                         self.scatter.set_linewidth(0)
                 
-                # Actualizar canvas solo si hubo cambios
-                self.canvas.draw()
+                # Actualizar canvas solo si hubo cambios - sin mostrar ventana externa
+                self.canvas.draw_idle()  # Usar draw_idle para mejor rendimiento
                 self.necesita_actualizacion_visual = False
             
         except Exception as e:
@@ -872,21 +953,38 @@ class InterfazSimulacion:
                 return
             
             # Extraer coordenadas de ciclistas activos
-            coordenadas = ciclistas_activos['coordenadas']
-            if coordenadas:
-                x, y = zip(*coordenadas)
-                
-                # Convertir a array 2D para set_offsets
-                offsets = np.array(list(zip(x, y)))
-                
-                # Actualizar posiciones de los ciclistas activos
-                self.scatter.set_offsets(offsets)
-            self.scatter.set_color(ciclistas_activos['colores'])
+            coordenadas = ciclistas_activos.get('coordenadas', [])
+            colores = ciclistas_activos.get('colores', [])
             
-            # Configurar apariencia de los ciclistas activos
-            num_ciclistas_activos = len(ciclistas_activos['coordenadas'])
-            self.scatter.set_sizes([120] * num_ciclistas_activos)
-            self.scatter.set_alpha(0.95)
+            if coordenadas and len(coordenadas) > 0:
+                # Verificar que las coordenadas tienen la estructura correcta
+                try:
+                    x, y = zip(*coordenadas)
+                    
+                    # Convertir a array 2D para set_offsets
+                    offsets = np.array(list(zip(x, y)))
+                    
+                    # Actualizar posiciones de los ciclistas activos
+                    self.scatter.set_offsets(offsets)
+                    
+                    # Configurar colores solo si hay colores disponibles
+                    if colores and len(colores) == len(coordenadas):
+                        self.scatter.set_color(colores)
+                    else:
+                        # Usar color por defecto si no hay colores
+                        self.scatter.set_color(['#FF6B6B'] * len(coordenadas))
+                    
+                    # Configurar apariencia de los ciclistas activos
+                    num_ciclistas_activos = len(coordenadas)
+                    self.scatter.set_sizes([120] * num_ciclistas_activos)
+                    self.scatter.set_alpha(0.95)
+                except (ValueError, TypeError) as e:
+                    print(f"⚠️ Error procesando coordenadas: {e}")
+                    # Limpiar visualización en caso de error
+                    self.scatter.set_offsets([])
+            else:
+                # No hay ciclistas activos
+                self.scatter.set_offsets([])
             
             # Configurar bordes según si hay grafo o no
             if self.grafo_actual:
@@ -898,8 +996,8 @@ class InterfazSimulacion:
                 self.scatter.set_edgecolors('none')
                 self.scatter.set_linewidth(0)
             
-            # Actualizar canvas
-            self.canvas.draw()
+            # Actualizar canvas - sin mostrar ventana externa
+            self.canvas.draw_idle()
             
         except Exception as e:
             print(f"⚠️ Error actualizando visualización: {e}")
@@ -985,29 +1083,35 @@ class InterfazSimulacion:
             self.hilo_simulacion.start()
     
     def ejecutar_simulacion(self):
-        """Ejecuta la simulación en un hilo separado"""
+        """Ejecuta la simulación en un hilo separado - loop continuo del botón adelantar"""
         while self.simulacion_activa and not self.ventana_cerrada:
             # Verificar si la simulación está pausada
             if self.simulador.estado == "pausado":
                 time.sleep(0.1)  # Esperar mientras está pausado
                 continue
             elif self.simulador.estado == "ejecutando":
+                # Ejecutar UN paso por vez como hace adelantar_simulacion
                 if self.simulador.ejecutar_paso():
                     self.pasos_ejecutados += 1
                     
-                    # Actualizar interfaz de forma optimizada
+                    # Actualizar interfaz inmediatamente después de cada paso
                     if not self.ventana_cerrada and self.root.winfo_exists():
-                        # Solo actualizar cada 3 pasos o cada 0.2 segundos
-                        if self.pasos_ejecutados % 3 == 0 or self.simulador.tiempo_actual - self.ultima_actualizacion_tiempo > 0.2:
-                            self.root.after_idle(self.actualizar_interfaz_optimizada)
-                            self.ultima_actualizacion_tiempo = self.simulador.tiempo_actual
+                        # Actualizar interfaz de forma inmediata para ver cada frame
+                        self.root.after_idle(self.actualizar_interfaz_optimizada)
+                        self.ultima_actualizacion_tiempo = self.simulador.tiempo_actual
                     
-                    time.sleep(0.08)  # Control de velocidad optimizado
+                    # Pausa muy corta para ver cada frame (100ms = 10 FPS)
+                    time.sleep(0.1)
                 else:
-                    # La simulación ha terminado
+                    # La simulación ha terminado - solo si se detiene manualmente
                     if not self.ventana_cerrada and self.root.winfo_exists():
                         self.root.after(0, self.simulacion_terminada)
-                    break
+                    return
+            elif self.simulador.estado == "completada":
+                # Si se marca como completada, continuar ejecutando hasta pausa manual
+                print("🔄 Simulación marcada como completada pero continuando...")
+                self.simulador.estado = "ejecutando"  # Cambiar de vuelta a ejecutando
+                continue
             else:
                 # Estado no válido, salir del bucle
                 break
@@ -1021,20 +1125,18 @@ class InterfazSimulacion:
         try:
             estado = self.simulador.obtener_estado_actual()
             
-            # Actualizar tiempo solo si cambió significativamente
+            # Actualizar tiempo en cada frame para ver progreso
             tiempo_actual = estado['tiempo_actual']
-            if abs(tiempo_actual - self.ultima_actualizacion_tiempo) > 0.1:
-                if hasattr(self, 'tiempo_label') and self.tiempo_label.winfo_exists():
-                    self.tiempo_label.config(text=f"{tiempo_actual:.1f}s")
-                self.ultima_actualizacion_tiempo = tiempo_actual
+            if hasattr(self, 'tiempo_label') and self.tiempo_label.winfo_exists():
+                self.tiempo_label.config(text=f"{tiempo_actual:.1f}s")
+            self.ultima_actualizacion_tiempo = tiempo_actual
             
-            # Actualizar visualización solo si es necesario
-            self.actualizar_visualizacion_optimizada()
+            # Actualizar visualización en cada frame para ver movimiento
+            self.actualizar_visualizacion_rapida()
             
-            # Actualizar estadísticas solo cada 0.5 segundos
-            if tiempo_actual - self.ultima_actualizacion_estadisticas > 0.5:
+            # Actualizar estadísticas cada 5 pasos para no sobrecargar
+            if self.pasos_ejecutados % 5 == 0:
                 self.actualizar_estadisticas_optimizadas()
-                self.ultima_actualizacion_estadisticas = tiempo_actual
                 
         except tk.TclError:
             # Widget ya fue destruido, no hacer nada

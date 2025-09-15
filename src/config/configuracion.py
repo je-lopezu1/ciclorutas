@@ -36,7 +36,7 @@ class ConfiguracionSimulacion:
     max_ciclistas_simultaneos: int = 100
     
     # Parámetros de visualización
-    intervalo_actualizacion: float = 0.05  # Intervalo entre actualizaciones en segundos
+    intervalo_actualizacion: float = 0.03  # Intervalo entre actualizaciones en segundos (33 FPS)
     max_trayectorias_por_ciclista: int = 1000  # Límite de puntos de trayectoria
     
     # Parámetros de red
@@ -140,7 +140,7 @@ class ConfiguracionesPredefinidas:
             velocidad_max=25.0,
             duracion_simulacion=60.0,
             max_ciclistas_simultaneos=20,
-            intervalo_actualizacion=0.1
+            intervalo_actualizacion=0.02  # 50 FPS para simulación rápida
         )
     
     @staticmethod
@@ -151,7 +151,7 @@ class ConfiguracionesPredefinidas:
             velocidad_max=18.0,
             duracion_simulacion=600.0,
             max_ciclistas_simultaneos=50,
-            intervalo_actualizacion=0.05
+            intervalo_actualizacion=0.03  # 33 FPS para simulación realista
         )
     
     @staticmethod
@@ -162,5 +162,5 @@ class ConfiguracionesPredefinidas:
             velocidad_max=20.0,
             duracion_simulacion=1200.0,
             max_ciclistas_simultaneos=200,
-            intervalo_actualizacion=0.02
+            intervalo_actualizacion=0.02  # 50 FPS para simulación intensiva
         )

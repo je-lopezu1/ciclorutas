@@ -221,8 +221,8 @@ class SimuladorCiclorutas:
     def _detener_por_tiempo(self):
         """Detiene la simulación después del tiempo configurado."""
         yield self.env.timeout(self.config.duracion_simulacion)
-        self.estado = "completada"
-        print(f"✅ Simulación completada después de {self.config.duracion_simulacion} segundos")
+        # No cambiar el estado automáticamente - solo mostrar mensaje
+        print(f"⏰ Simulación ha alcanzado {self.config.duracion_simulacion} segundos - Continúa ejecutándose")
     
     def ejecutar_paso(self) -> bool:
         """
@@ -260,6 +260,11 @@ class SimuladorCiclorutas:
         self.estado = "detenido"
         self.tiempo_actual = 0.0
         print("⏹️ Simulación detenida")
+    
+    def marcar_completada(self):
+        """Marca la simulación como completada manualmente."""
+        self.estado = "completada"
+        print("✅ Simulación marcada como completada")
     
     def reiniciar_simulacion(self):
         """Reinicia la simulación desde el principio."""
