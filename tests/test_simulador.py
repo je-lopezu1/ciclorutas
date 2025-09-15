@@ -8,6 +8,10 @@ sin errores de compatibilidad.
 
 import sys
 import traceback
+import os
+
+# Agregar el directorio raíz al path para importar el paquete
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_imports():
     """Prueba que todas las importaciones funcionen"""
@@ -48,7 +52,8 @@ def test_simulacion():
     print("\n🔍 Probando módulo de simulación...")
     
     try:
-        from simulacion_ciclorutas import SimuladorCiclorutas, ConfiguracionSimulacion
+        from src.core import SimuladorCiclorutas
+        from src.config import ConfiguracionSimulacion
         print("✅ Módulo de simulación importado correctamente")
         
         # Crear configuración

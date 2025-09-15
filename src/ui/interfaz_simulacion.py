@@ -5,7 +5,9 @@ import networkx as nx
 from tkinter import ttk, messagebox
 import threading
 import time
-from simulacion_ciclorutas import SimuladorCiclorutas, ConfiguracionSimulacion
+import numpy as np
+from ..core import SimuladorCiclorutas
+from ..config import ConfiguracionSimulacion
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.patches import Circle
@@ -34,21 +36,46 @@ class InterfazSimulacion:
         self.hilo_simulacion = None
         self.ventana_cerrada = False  # Flag para controlar si la ventana está cerrada
         
+        # Variables de optimización
+        self.ultima_actualizacion_tiempo = 0.0
+        self.ultima_actualizacion_ciclistas = 0
+        self.ultima_actualizacion_estadisticas = 0.0
+        self.pasos_ejecutados = 0
+        self.update_timer = None
+        self.estadisticas_cache = {}
+        self.necesita_actualizacion_visual = False
+        
         # Configurar manejo de cierre de ventana
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar_aplicacion)
         
         # Configurar estilo
         self.configurar_estilo()
         
+        # Configurar matplotlib para mejor rendimiento
+        self.configurar_matplotlib_optimizado()
+        
         # Crear interfaz
         self.crear_interfaz()
         
-        # Inicializar simulación
-        self.simulador.inicializar_simulacion()
+        # Mostrar mensaje inicial sin grafo
         self.actualizar_visualizacion()
 
         # Posiciones del grafo
         self.pos_grafo = None
+        
+    def configurar_matplotlib_optimizado(self):
+        """Configura matplotlib para mejor rendimiento"""
+        # Configurar matplotlib para mejor rendimiento
+        plt.ion()  # Modo interactivo
+        plt.rcParams['figure.max_open_warning'] = 0  # Desactivar advertencias
+        plt.rcParams['axes.unicode_minus'] = False  # Mejor compatibilidad
+        plt.rcParams['figure.autolayout'] = True  # Auto-layout
+        plt.rcParams['figure.dpi'] = 100  # DPI optimizado para UI
+        plt.rcParams['savefig.dpi'] = 100
+        plt.rcParams['font.size'] = 9  # Tamaño de fuente optimizado
+        plt.rcParams['axes.linewidth'] = 0.5  # Líneas más delgadas
+        plt.rcParams['grid.linewidth'] = 0.5
+        plt.rcParams['lines.linewidth'] = 1.0
         
     def configurar_estilo(self):
         """Configura el estilo visual de la interfaz"""
@@ -632,12 +659,16 @@ class InterfazSimulacion:
         self.scatter = self.ax.scatter([], [], s=100, alpha=0.9, edgecolors='none', linewidth=0, zorder=5)
         
         # Mensaje inicial
-        self.ax.text(0.5, 0.5, '📂 Carga un grafo Excel para comenzar la simulación\n\n' +
-                    'El grafo debe tener:\n' +
+        self.ax.text(0.5, 0.5, '🚴 SIMULADOR DE CICLORUTAS\n\n' +
+                    '📂 DEBES CARGAR UN GRAFO PARA COMENZAR\n\n' +
+                    'Usa el botón "📂 CARGAR GRAFO" para cargar un archivo Excel\n\n' +
+                    'El archivo Excel debe contener:\n' +
                     '• Hoja "NODOS" con lista de nodos\n' +
-                    '• Hoja "ARCOS" con origen, destino y peso', 
-                    transform=self.ax.transAxes, fontsize=11, ha='center', va='center',
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.7))
+                    '• Hoja "ARCOS" con origen, destino y peso\n\n' +
+                    'Una vez cargado el grafo, podrás iniciar la simulación', 
+                    transform=self.ax.transAxes, fontsize=12, ha='center', va='center',
+                    bbox=dict(boxstyle="round,pad=0.5", facecolor='#e3f2fd', alpha=0.9, 
+                             edgecolor='#1976d2', linewidth=2))
         
         self.canvas.draw()
         
@@ -648,15 +679,34 @@ class InterfazSimulacion:
             
         self.ax.clear()
         
+        # Obtener límites de las posiciones para configurar los ejes
+        posiciones = list(self.pos_grafo_actual.values())
+        if posiciones:
+            x_coords = [pos[0] for pos in posiciones]
+            y_coords = [pos[1] for pos in posiciones]
+            
+            # Calcular límites con margen
+            x_margin = (max(x_coords) - min(x_coords)) * 0.2
+            y_margin = (max(y_coords) - min(y_coords)) * 0.2
+            
+            x_min, x_max = min(x_coords) - x_margin, max(x_coords) + x_margin
+            y_min, y_max = min(y_coords) - y_margin, max(y_coords) + y_margin
+            
+            # Configurar límites de los ejes
+            self.ax.set_xlim(x_min, x_max)
+            self.ax.set_ylim(y_min, y_max)
+        
         # Dibujar el grafo NetworkX
         nx.draw(self.grafo_actual, self.pos_grafo_actual, ax=self.ax, 
                 with_labels=True, node_color="#2E86AB", edge_color="#AAB7B8",
-                node_size=800, font_size=10, font_color="white", font_weight='bold')
+                node_size=800, font_size=10, font_color="white", font_weight='bold',
+                width=2, alpha=0.8)
         
         # Agregar etiquetas de peso en los arcos
         etiquetas = nx.get_edge_attributes(self.grafo_actual, 'weight')
         nx.draw_networkx_edge_labels(self.grafo_actual, self.pos_grafo_actual, 
-                                   edge_labels=etiquetas, ax=self.ax, font_size=8)
+                                   edge_labels=etiquetas, ax=self.ax, font_size=8,
+                                   bbox=dict(boxstyle="round,pad=0.2", facecolor='white', alpha=0.8))
         
         # Configurar el gráfico
         self.ax.set_title("🚴 SIMULACIÓN SOBRE GRAFO REAL", 
@@ -670,10 +720,26 @@ class InterfazSimulacion:
         self.ax.spines['left'].set_color('#6c757d')
         self.ax.spines['bottom'].set_color('#6c757d')
         
+        # Configurar grid sutil
+        self.ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+        
         # Scatter plot para ciclistas con zorder alto para estar por encima del grafo
         self.scatter = self.ax.scatter([], [], s=120, alpha=0.95, edgecolors='white', 
                                      linewidth=2, zorder=10)
         
+        # Asegurar que los ejes tengan la misma escala
+        self.ax.set_aspect('equal', adjustable='box')
+        
+        # Optimizaciones adicionales para mejor rendimiento
+        self.ax.set_autoscale_on(False)  # Desactivar autoescalado
+        self.ax.set_autoscalex_on(False)
+        self.ax.set_autoscaley_on(False)
+        
+        # Mostrar información de debug sobre las coordenadas
+        print(f"📊 Información del grafo cargado:")
+        print(f"   • Nodos: {list(self.grafo_actual.nodes())}")
+        print(f"   • Arcos: {len(self.grafo_actual.edges())}")
+        print(f"   • Coordenadas: {self.pos_grafo_actual}")
         
         self.canvas.draw()
     
@@ -720,12 +786,82 @@ class InterfazSimulacion:
         
     #     self.canvas.draw()
         
-    def actualizar_visualizacion(self):
-        """Actualiza la visualización con los datos actuales"""
+    def actualizar_visualizacion_optimizada(self):
+        """Actualiza la visualización de forma optimizada con actualización diferencial"""
         if not hasattr(self, 'scatter'):
             return
             
         try:
+            # Si no hay grafo cargado, mostrar mensaje
+            if not self.grafo_actual:
+                if not hasattr(self, 'grafico_inicial_mostrado'):
+                    self.configurar_grafico_inicial()
+                    self.grafico_inicial_mostrado = True
+                return
+            
+            # Obtener solo ciclistas activos
+            ciclistas_activos = self.simulador.obtener_ciclistas_activos()
+            num_ciclistas_actual = len(ciclistas_activos['coordenadas'])
+            
+            # Solo actualizar si el número de ciclistas cambió o si es la primera vez
+            if num_ciclistas_actual != self.ultima_actualizacion_ciclistas or not hasattr(self, 'ultima_actualizacion_ciclistas'):
+                self.ultima_actualizacion_ciclistas = num_ciclistas_actual
+                self.necesita_actualizacion_visual = True
+            
+            # Solo redibujar si es necesario
+            if self.necesita_actualizacion_visual:
+                if not ciclistas_activos['coordenadas']:
+                    # No hay ciclistas activos para mostrar
+                    self.scatter.set_offsets([])
+                else:
+                    # Extraer coordenadas de ciclistas activos
+                    coordenadas = ciclistas_activos['coordenadas']
+                    x, y = zip(*coordenadas)
+                    
+                    # Convertir a array 2D para set_offsets
+                    offsets = np.array(list(zip(x, y)))
+                    
+                    # Actualizar posiciones de los ciclistas activos
+                    self.scatter.set_offsets(offsets)
+                    self.scatter.set_color(ciclistas_activos['colores'])
+                    
+                    # Configurar apariencia de los ciclistas activos
+                    self.scatter.set_sizes([120] * num_ciclistas_actual)
+                    self.scatter.set_alpha(0.95)
+                    
+                    # Configurar bordes según si hay grafo o no
+                    if self.grafo_actual:
+                        # Con grafo: bordes blancos para contraste
+                        self.scatter.set_edgecolors('white')
+                        self.scatter.set_linewidth(2)
+                    else:
+                        # Sin grafo: sin bordes
+                        self.scatter.set_edgecolors('none')
+                        self.scatter.set_linewidth(0)
+                
+                # Actualizar canvas solo si hubo cambios
+                self.canvas.draw()
+                self.necesita_actualizacion_visual = False
+            
+        except Exception as e:
+            print(f"⚠️ Error actualizando visualización: {e}")
+            # En caso de error, intentar redibujar el gráfico
+            if self.grafo_actual:
+                self.configurar_grafico_con_grafo()
+            else:
+                self.configurar_grafico_inicial()
+    
+    def actualizar_visualizacion(self):
+        """Actualiza la visualización con los datos actuales (versión completa)"""
+        if not hasattr(self, 'scatter'):
+            return
+            
+        try:
+            # Si no hay grafo cargado, mostrar mensaje
+            if not self.grafo_actual:
+                self.configurar_grafico_inicial()
+                return
+            
             # Obtener solo ciclistas activos
             ciclistas_activos = self.simulador.obtener_ciclistas_activos()
             
@@ -736,10 +872,15 @@ class InterfazSimulacion:
                 return
             
             # Extraer coordenadas de ciclistas activos
-            x, y = zip(*ciclistas_activos['coordenadas'])
-            
-            # Actualizar posiciones de los ciclistas activos
-            self.scatter.set_offsets(list(zip(x, y)))
+            coordenadas = ciclistas_activos['coordenadas']
+            if coordenadas:
+                x, y = zip(*coordenadas)
+                
+                # Convertir a array 2D para set_offsets
+                offsets = np.array(list(zip(x, y)))
+                
+                # Actualizar posiciones de los ciclistas activos
+                self.scatter.set_offsets(offsets)
             self.scatter.set_color(ciclistas_activos['colores'])
             
             # Configurar apariencia de los ciclistas activos
@@ -771,6 +912,13 @@ class InterfazSimulacion:
     def nueva_simulacion(self):
         """Crea una nueva simulación con los parámetros actuales"""
         try:
+            # Verificar que hay un grafo cargado
+            if not self.grafo_actual:
+                messagebox.showwarning("Sin Grafo", 
+                                     "Debes cargar un grafo antes de crear una simulación.\n\n"
+                                     "Usa el botón '📂 CARGAR GRAFO' para cargar un archivo Excel.")
+                return
+            
             # Detener simulación actual si está corriendo
             if self.simulacion_activa:
                 self.simulacion_activa = False
@@ -794,6 +942,9 @@ class InterfazSimulacion:
             
             self.simulador.inicializar_simulacion()
             
+            # Limpiar cache de optimización para nueva simulación
+            self.limpiar_cache_optimizacion()
+            
             # Actualizar interfaz
             if self.grafo_actual:
                 self.configurar_grafico_con_grafo()
@@ -816,6 +967,13 @@ class InterfazSimulacion:
     
     def iniciar_simulacion(self):
         """Inicia la simulación"""
+        # Verificar que hay un grafo cargado
+        if not self.grafo_actual:
+            messagebox.showwarning("Sin Grafo", 
+                                 "Debes cargar un grafo antes de iniciar la simulación.\n\n"
+                                 "Usa el botón '📂 CARGAR GRAFO' para cargar un archivo Excel.")
+            return
+        
         if not self.simulacion_activa:
             self.simulador.estado = "ejecutando"
             self.simulacion_activa = True
@@ -828,20 +986,62 @@ class InterfazSimulacion:
     
     def ejecutar_simulacion(self):
         """Ejecuta la simulación en un hilo separado"""
-        while self.simulacion_activa and self.simulador.estado == "ejecutando" and not self.ventana_cerrada:
-            if self.simulador.ejecutar_paso():
-                # Actualizar interfaz en el hilo principal solo si la ventana sigue abierta
-                if not self.ventana_cerrada and self.root.winfo_exists():
-                    self.root.after(0, self.actualizar_interfaz)
-                time.sleep(0.05)  # Control de velocidad
+        while self.simulacion_activa and not self.ventana_cerrada:
+            # Verificar si la simulación está pausada
+            if self.simulador.estado == "pausado":
+                time.sleep(0.1)  # Esperar mientras está pausado
+                continue
+            elif self.simulador.estado == "ejecutando":
+                if self.simulador.ejecutar_paso():
+                    self.pasos_ejecutados += 1
+                    
+                    # Actualizar interfaz de forma optimizada
+                    if not self.ventana_cerrada and self.root.winfo_exists():
+                        # Solo actualizar cada 3 pasos o cada 0.2 segundos
+                        if self.pasos_ejecutados % 3 == 0 or self.simulador.tiempo_actual - self.ultima_actualizacion_tiempo > 0.2:
+                            self.root.after_idle(self.actualizar_interfaz_optimizada)
+                            self.ultima_actualizacion_tiempo = self.simulador.tiempo_actual
+                    
+                    time.sleep(0.08)  # Control de velocidad optimizado
+                else:
+                    # La simulación ha terminado
+                    if not self.ventana_cerrada and self.root.winfo_exists():
+                        self.root.after(0, self.simulacion_terminada)
+                    break
             else:
-                # La simulación ha terminado
-                if not self.ventana_cerrada and self.root.winfo_exists():
-                    self.root.after(0, self.simulacion_terminada)
+                # Estado no válido, salir del bucle
                 break
     
+    def actualizar_interfaz_optimizada(self):
+        """Actualiza la interfaz de forma optimizada con actualización diferencial"""
+        # Verificar si la ventana sigue abierta
+        if self.ventana_cerrada or not self.root.winfo_exists():
+            return
+            
+        try:
+            estado = self.simulador.obtener_estado_actual()
+            
+            # Actualizar tiempo solo si cambió significativamente
+            tiempo_actual = estado['tiempo_actual']
+            if abs(tiempo_actual - self.ultima_actualizacion_tiempo) > 0.1:
+                if hasattr(self, 'tiempo_label') and self.tiempo_label.winfo_exists():
+                    self.tiempo_label.config(text=f"{tiempo_actual:.1f}s")
+                self.ultima_actualizacion_tiempo = tiempo_actual
+            
+            # Actualizar visualización solo si es necesario
+            self.actualizar_visualizacion_optimizada()
+            
+            # Actualizar estadísticas solo cada 0.5 segundos
+            if tiempo_actual - self.ultima_actualizacion_estadisticas > 0.5:
+                self.actualizar_estadisticas_optimizadas()
+                self.ultima_actualizacion_estadisticas = tiempo_actual
+                
+        except tk.TclError:
+            # Widget ya fue destruido, no hacer nada
+            pass
+    
     def actualizar_interfaz(self):
-        """Actualiza la interfaz con los datos actuales"""
+        """Actualiza la interfaz con los datos actuales (versión completa)"""
         # Verificar si la ventana sigue abierta
         if self.ventana_cerrada or not self.root.winfo_exists():
             return
@@ -876,17 +1076,18 @@ class InterfazSimulacion:
                                 for button in child.winfo_children():
                                     if isinstance(button, ttk.Button) and "PAUSAR" in button.cget("text"):
                                         button.configure(text="▶️ REANUDAR")
-            else:
-                # Reanudar
-                self.simulador.estado = "ejecutando"
+            elif self.simulador.estado == "pausado":
+                # Reanudar usando el método correcto del simulador
+                self.simulador.reanudar_simulacion()
                 self.simulacion_activa = True
                 if hasattr(self, 'estado_label') and self.estado_label.winfo_exists():
                     self.estado_label.config(text="EJECUTANDO", foreground='#007bff')
                 
-                # Reiniciar hilo de simulación
-                self.hilo_simulacion = threading.Thread(target=self.ejecutar_simulacion)
-                self.hilo_simulacion.daemon = True
-                self.hilo_simulacion.start()
+                # Reiniciar hilo de simulación solo si no existe o no está vivo
+                if not self.hilo_simulacion or not self.hilo_simulacion.is_alive():
+                    self.hilo_simulacion = threading.Thread(target=self.ejecutar_simulacion)
+                    self.hilo_simulacion.daemon = True
+                    self.hilo_simulacion.start()
                 
                 # Cambiar texto del botón de vuelta
                 for widget in self.root.winfo_children():
@@ -953,8 +1154,16 @@ class InterfazSimulacion:
     def reiniciar_simulacion(self):
         """Reinicia la simulación actual con los mismos parámetros"""
         try:
-            # Reinicializar el simulador actual
-            self.simulador.inicializar_simulacion()
+            # Detener simulación actual si está corriendo
+            if self.simulacion_activa:
+                self.simulacion_activa = False
+                time.sleep(0.1)  # Pequeña pausa para asegurar que el hilo termine
+            
+            # Reinicializar el simulador actual sin limpiar entidades
+            self.simulador.reiniciar_sin_limpiar()
+            
+            # Limpiar cache de optimización
+            self.limpiar_cache_optimizacion()
             
             # Resetear estado
             self.simulacion_activa = False
@@ -989,6 +1198,17 @@ class InterfazSimulacion:
                             if isinstance(button, ttk.Button) and "REANUDAR" in button.cget("text"):
                                 button.configure(text="⏸️ PAUSAR")
     
+    def limpiar_cache_optimizacion(self):
+        """Limpia el cache de optimización para una nueva simulación"""
+        self.ultima_actualizacion_tiempo = 0.0
+        self.ultima_actualizacion_ciclistas = 0
+        self.ultima_actualizacion_estadisticas = 0.0
+        self.pasos_ejecutados = 0
+        self.estadisticas_cache = {}
+        self.necesita_actualizacion_visual = False
+        if hasattr(self, 'grafico_inicial_mostrado'):
+            delattr(self, 'grafico_inicial_mostrado')
+    
     def adelantar_simulacion(self):
         """Adelanta la simulación varios pasos"""
         # Adelantar pasos independientemente del estado
@@ -997,8 +1217,93 @@ class InterfazSimulacion:
                 break
         self.actualizar_interfaz()
     
+    def actualizar_estadisticas_optimizadas(self):
+        """Actualiza las estadísticas de forma optimizada con cache"""
+        try:
+            # Obtener estadísticas solo si han cambiado significativamente
+            stats = self.simulador.obtener_estadisticas()
+            
+            # Verificar si las estadísticas han cambiado significativamente
+            stats_key = f"{stats.get('ciclistas_activos', 0)}_{stats.get('total_viajes', 0)}_{stats.get('velocidad_promedio', 0):.1f}"
+            if stats_key == self.estadisticas_cache.get('last_key'):
+                return  # No hay cambios significativos
+            
+            self.estadisticas_cache['last_key'] = stats_key
+            
+            # Actualizar solo las estadísticas que han cambiado
+            ciclistas_activos = stats.get('ciclistas_activos', 0)
+            if ciclistas_activos != self.estadisticas_cache.get('ciclistas_activos', -1):
+                self.stats_labels['total_ciclistas'].config(text=str(ciclistas_activos))
+                self.estadisticas_cache['ciclistas_activos'] = ciclistas_activos
+            
+            # Actualizar velocidades solo si cambiaron significativamente
+            vel_promedio = stats['velocidad_promedio']
+            if abs(vel_promedio - self.estadisticas_cache.get('velocidad_promedio', 0)) > 0.1:
+                self.stats_labels['velocidad_promedio'].config(text=f"{vel_promedio:.1f} m/s")
+                self.stats_labels['velocidad_min'].config(text=f"{stats['velocidad_minima']:.1f} m/s")
+                self.stats_labels['velocidad_max'].config(text=f"{stats['velocidad_maxima']:.1f} m/s")
+                self.estadisticas_cache['velocidad_promedio'] = vel_promedio
+            
+            # Actualizar estadísticas del grafo solo si es necesario
+            if stats.get('usando_grafo_real', False):
+                grafo_nodos = stats.get('grafo_nodos', 0)
+                if grafo_nodos != self.estadisticas_cache.get('grafo_nodos', -1):
+                    self.stats_labels['grafo_nodos'].config(text=str(grafo_nodos))
+                    self.stats_labels['grafo_arcos'].config(text=str(stats.get('grafo_arcos', 0)))
+                    self.stats_labels['modo_simulacion'].config(text="Grafo Real", foreground='#28a745')
+                    self.estadisticas_cache['grafo_nodos'] = grafo_nodos
+                
+                # Estadísticas de distribuciones
+                distribuciones = stats.get('distribuciones_configuradas', 0)
+                if distribuciones != self.estadisticas_cache.get('distribuciones_configuradas', -1):
+                    self.stats_labels['distribuciones_configuradas'].config(text=str(distribuciones))
+                    self.estadisticas_cache['distribuciones_configuradas'] = distribuciones
+                
+                tasa_promedio = stats.get('tasa_arribo_promedio', 0)
+                if abs(tasa_promedio - self.estadisticas_cache.get('tasa_arribo_promedio', 0)) > 0.01:
+                    self.stats_labels['tasa_arribo_promedio'].config(text=f"{tasa_promedio:.2f}")
+                    self.estadisticas_cache['tasa_arribo_promedio'] = tasa_promedio
+            else:
+                if not self.estadisticas_cache.get('modo_original_mostrado', False):
+                    self.stats_labels['grafo_nodos'].config(text="0")
+                    self.stats_labels['grafo_arcos'].config(text="0")
+                    self.stats_labels['modo_simulacion'].config(text="Sistema Original", foreground='#6c757d')
+                    self.stats_labels['distribuciones_configuradas'].config(text="0")
+                    self.stats_labels['tasa_arribo_promedio'].config(text="0.0")
+                    self.estadisticas_cache['modo_original_mostrado'] = True
+            
+            # Actualizar estadísticas de rutas solo si cambiaron
+            total_viajes = stats.get('total_viajes', 0)
+            if total_viajes != self.estadisticas_cache.get('total_viajes', -1):
+                self.stats_labels['rutas_utilizadas'].config(text=str(stats.get('rutas_utilizadas', 0)))
+                self.stats_labels['total_viajes'].config(text=str(total_viajes))
+                self.estadisticas_cache['total_viajes'] = total_viajes
+                
+                # Ruta más usada (truncar si es muy larga)
+                ruta_mas_usada = stats.get('ruta_mas_usada', 'N/A')
+                if len(ruta_mas_usada) > 30:
+                    ruta_mas_usada = ruta_mas_usada[:27] + "..."
+                self.stats_labels['ruta_mas_usada'].config(text=ruta_mas_usada)
+            
+            # Ciclistas completados
+            ciclistas_completados = stats.get('ciclistas_completados', 0)
+            if ciclistas_completados != self.estadisticas_cache.get('ciclistas_completados', -1):
+                self.stats_labels['ciclistas_completados'].config(text=str(ciclistas_completados))
+                self.estadisticas_cache['ciclistas_completados'] = ciclistas_completados
+            
+            # Nodo más activo
+            nodo_mas_activo = stats.get('nodo_mas_activo', 'N/A')
+            if nodo_mas_activo != self.estadisticas_cache.get('nodo_mas_activo', ''):
+                if len(nodo_mas_activo) > 25:
+                    nodo_mas_activo = nodo_mas_activo[:22] + "..."
+                self.stats_labels['nodo_mas_activo'].config(text=nodo_mas_activo)
+                self.estadisticas_cache['nodo_mas_activo'] = nodo_mas_activo
+                
+        except Exception as e:
+            print(f"⚠️ Error actualizando estadísticas: {e}")
+    
     def actualizar_estadisticas(self):
-        """Actualiza las estadísticas mostradas"""
+        """Actualiza las estadísticas mostradas (versión completa)"""
         stats = self.simulador.obtener_estadisticas()
         
         # Estadísticas básicas
@@ -1079,15 +1384,37 @@ class InterfazSimulacion:
                 messagebox.showerror("Error", "El grafo debe tener al menos 3 nodos para la simulación")
                 return
             
-            # Calcular posiciones del grafo
-            pos = nx.spring_layout(G, seed=42, k=2, iterations=50)
+            # Calcular posiciones del grafo usando el método normalizado
+            from ..data.grafo import CargadorGrafo
+            G_normalizado, pos_normalizado, errores_pos = CargadorGrafo.cargar_desde_excel(archivo)
             
-            # Guardar grafo y posiciones
-            self.grafo_actual = G
-            self.pos_grafo_actual = pos
+            if errores_pos:
+                print(f"⚠️ Advertencias al cargar posiciones: {errores_pos}")
+            
+            # Usar el grafo y posiciones normalizados
+            self.grafo_actual = G_normalizado
+            self.pos_grafo_actual = pos_normalizado
             
             # Configurar el simulador con el nuevo grafo
-            self.simulador.configurar_grafo(G, pos)
+            print(f"🔧 Configurando simulador con grafo de {len(G_normalizado.nodes())} nodos...")
+            exito = self.simulador.configurar_grafo(G_normalizado, pos_normalizado)
+            
+            if not exito:
+                messagebox.showerror("Error", "No se pudo configurar el grafo en el simulador")
+                return
+            
+            # Mostrar información de configuración
+            print(f"📊 Parámetros de simulación actuales:")
+            print(f"   • Velocidad mínima: {self.simulador.config.velocidad_min}")
+            print(f"   • Velocidad máxima: {self.simulador.config.velocidad_max}")
+            print(f"   • Duración: {self.simulador.config.duracion_simulacion}")
+            print(f"   • Max ciclistas: {self.simulador.config.max_ciclistas_simultaneos}")
+            
+            # Mostrar distribuciones configuradas
+            distribuciones = self.simulador.obtener_distribuciones_nodos()
+            print(f"📈 Distribuciones configuradas: {len(distribuciones)} nodos")
+            for nodo, config in distribuciones.items():
+                print(f"   • {nodo}: {config['tipo']} - {config['parametros']}")
             
             # Actualizar visualización
             self.configurar_grafico_con_grafo()

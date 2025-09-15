@@ -1,43 +1,55 @@
-# 🚴 SIMULADOR DE CICLORUTAS - SISTEMA COMPLETO 🚴
+# 📚 Documentación del Simulador de Ciclorutas
 
-Un simulador avanzado de ciclorutas con interfaz gráfica moderna, que permite simular el movimiento de ciclistas en una red de carreteras en forma de Y.
+## 🎯 Descripción General
 
-## 🎯 Características Principales
-
-- **Simulación en Tiempo Real**: Visualización en vivo del movimiento de ciclistas
-- **Interfaz Gráfica Moderna**: UI intuitiva con tkinter y matplotlib
-- **Control Completo**: Iniciar, pausar, detener y adelantar simulación
-- **Parámetros Configurables**: Número de ciclistas, velocidades y distancias
-- **Estadísticas en Vivo**: Métricas actualizadas en tiempo real
-- **Arquitectura Modular**: Lógica de simulación separada de la interfaz
+El Simulador de Ciclorutas es una herramienta avanzada para simular el comportamiento de ciclistas en redes de carreteras. Utiliza técnicas de simulación de eventos discretos y distribuciones de probabilidad para modelar de manera realista el flujo de tráfico ciclístico.
 
 ## 🏗️ Arquitectura del Sistema
 
+### Estructura de Carpetas
+
 ```
 ciclorutas/
-├── main.py                      # 🚀 Archivo principal de ejecución
-├── simulacion_ciclorutas.py    # ⚙️ Lógica de simulación (SimPy)
-├── interfaz_simulacion.py      # 🖥️ Interfaz gráfica (tkinter)
-├── Sim inicial.py              # 📊 Simulación original (referencia)
-├── requirements.txt            # 📦 Dependencias del proyecto
-└── README.md                  # 📖 Este archivo
+├── src/                          # Código fuente principal
+│   ├── core/                     # Lógica central del negocio
+│   │   ├── simulador.py          # Orquestador principal
+│   │   ├── ciclista.py           # Lógica de ciclistas
+│   │   └── generador.py          # Generación de ciclistas
+│   ├── data/                     # Manejo de datos
+│   │   ├── grafo.py              # Operaciones con grafos
+│   │   ├── distribuciones.py     # Distribuciones de probabilidad
+│   │   └── estadisticas.py       # Cálculo de estadísticas
+│   ├── ui/                       # Interfaz de usuario
+│   │   └── interfaz_simulacion.py
+│   ├── utils/                    # Utilidades y helpers
+│   │   └── validadores.py        # Validaciones comunes
+│   └── config/                   # Configuración
+│       └── configuracion.py
+├── tests/                        # Pruebas
+├── examples/                     # Ejemplos de uso
+└── main.py                       # Punto de entrada
 ```
 
-## 🚀 Instalación y Configuración
+### Principios de Diseño
+
+- **Separación de Responsabilidades**: Cada módulo tiene una responsabilidad específica
+- **Modularidad**: Los componentes pueden ser reutilizados independientemente
+- **Extensibilidad**: Fácil agregar nuevas funcionalidades
+- **Mantenibilidad**: Código organizado y bien documentado
+
+## 🚀 Instalación
 
 ### Requisitos Previos
-- **Python 3.7 o superior**
-- **pip** (gestor de paquetes de Python)
 
-### Pasos de Instalación
+- Python 3.7 o superior
+- pip (gestor de paquetes de Python)
 
-1. **Clonar o descargar el proyecto**
+### Instalación desde Código Fuente
+
+1. **Clonar el repositorio**
    ```bash
-   # Si tienes git:
-   git clone <url-del-repositorio>
+   git clone https://github.com/usuario/ciclorutas.git
    cd ciclorutas
-   
-   # O simplemente descarga los archivos en una carpeta
    ```
 
 2. **Instalar dependencias**
@@ -45,151 +57,186 @@ ciclorutas/
    pip install -r requirements.txt
    ```
 
-3. **Verificar instalación**
+3. **Instalar el paquete en modo desarrollo**
    ```bash
-   python main.py
+   pip install -e .
    ```
 
-## 🎮 Uso del Sistema
+### Instalación con pip
 
-### Ejecución Principal
+```bash
+pip install simulador-ciclorutas
+```
+
+## 🎮 Uso Básico
+
+### Interfaz Gráfica
+
 ```bash
 python main.py
 ```
 
-### Flujo de Trabajo Típico
+### Uso Programático
 
-1. **Configurar Parámetros**
-   - Número de ciclistas (5-100)
-   - Velocidad mínima y máxima (1.0-30.0 m/s)
-   - Distancias A, B y C (15.0-100.0 m)
+```python
+from src.core import SimuladorCiclorutas, crear_simulador_rapido
+from src.config import ConfiguracionSimulacion
 
-2. **Crear Nueva Simulación**
-   - Hacer clic en "🔄 NUEVA SIMULACIÓN"
-   - Los parámetros se aplican automáticamente
+# Crear simulador
+simulador = crear_simulador_rapido()
 
-3. **Controlar la Simulación**
-   - **▶️ INICIAR**: Comienza la simulación
-   - **⏸️ PAUSAR**: Pausa temporalmente
-   - **⏹️ DETENER**: Detiene completamente
-   - **⏭️ ADELANTAR**: Avanza 10 pasos rápidamente
+# Crear grafo de ejemplo
+simulador.crear_grafo_ejemplo()
 
-4. **Repetir el Proceso**
-   - Modificar parámetros según sea necesario
-   - Crear nuevas simulaciones
-   - Comparar resultados
+# Inicializar simulación
+simulador.inicializar_simulacion()
 
-## 🔧 Parámetros Configurables
+# Ejecutar simulación
+simulador.estado = "ejecutando"
+while simulador.ejecutar_paso():
+    pass
 
-| Parámetro | Rango | Descripción |
-|-----------|-------|-------------|
-| **Número de Ciclistas** | 5-100 | Cantidad de entidades en la simulación |
-| **Velocidad Mínima** | 1.0-20.0 m/s | Velocidad más baja de los ciclistas |
-| **Velocidad Máxima** | 1.0-30.0 m/s | Velocidad más alta de los ciclistas |
-| **Distancia A** | 20.0-100.0 m | Longitud del tramo principal A→X |
-| **Distancia B** | 15.0-80.0 m | Longitud del tramo X→B |
-| **Distancia C** | 15.0-80.0 m | Longitud del tramo X→C |
-
-## 📊 Visualización
-
-### Geometría de la Red
-- **Tramo A→X**: Camino principal horizontal (gris)
-- **Tramo X→B**: Bifurcación hacia arriba (azul)
-- **Tramo X→C**: Bifurcación hacia abajo (magenta)
-
-### Colores de Ciclistas
-- **A→B**: Naranja brillante (#FF6B35) - Muy llamativo y energético
-- **A→C**: Rojo vibrante (#FF1744) - Intenso y dinámico
-- **B→A**: Verde neón (#00E676) - Brillante y fresco
-- **C→A**: Azul eléctrico (#2979FF) - Intenso y moderno
-
-## 🎨 Características de la Interfaz
-
-- **Panel de Control**: Configuración de parámetros y botones de control
-- **Visualización en Tiempo Real**: Gráfico matplotlib integrado
-- **Panel de Estadísticas**: Métricas actualizadas dinámicamente
-- **Diseño Responsivo**: Se adapta a diferentes tamaños de ventana
-- **Colores Modernos**: Paleta de colores profesional y atractiva
-
-## 🔍 Solución de Problemas
-
-### Error de Dependencias
-```bash
-# Si aparece error de módulos faltantes:
-pip install simpy matplotlib numpy
+# Obtener estadísticas
+stats = simulador.obtener_estadisticas()
+print(f"Ciclistas activos: {stats['ciclistas_activos']}")
 ```
 
-### Error de tkinter
-```bash
-# En sistemas Linux, puede necesitar:
-sudo apt-get install python3-tk
+## 📊 Características Principales
 
-# En macOS con Homebrew:
-brew install python-tk
+### Simulación en Tiempo Real
+- Visualización en vivo del movimiento de ciclistas
+- Control de velocidad de simulación
+- Pausa y reanudación
+
+### Distribuciones de Probabilidad
+- Exponencial
+- Poisson
+- Uniforme
+- Normal
+- Gamma
+
+### Gestión de Grafos
+- Carga desde archivos Excel
+- Validación automática
+- Cálculo de rutas dinámicas
+
+### Estadísticas Avanzadas
+- Métricas en tiempo real
+- Análisis de patrones de tráfico
+- Reportes detallados
+
+## 🔧 Configuración
+
+### Parámetros Principales
+
+- **Velocidad mínima/máxima**: Rango de velocidades de ciclistas
+- **Duración de simulación**: Tiempo total de la simulación
+- **Máximo de ciclistas**: Límite de ciclistas simultáneos
+- **Distribuciones**: Configuración de tasas de arribo por nodo
+
+### Archivos de Configuración
+
+El sistema utiliza archivos Excel para definir grafos de red:
+
+- **Hoja "NODOS"**: Lista de nodos de la red
+- **Hoja "ARCOS"**: Conexiones entre nodos con distancias
+
+## 🧪 Pruebas
+
+### Ejecutar Pruebas
+
+```bash
+# Pruebas básicas
+python tests/test_simulador.py
+
+# Pruebas con pytest
+pytest tests/
+
+# Pruebas con cobertura
+pytest --cov=src tests/
 ```
 
-### Error de Matplotlib (zorder en leyenda)
+### Ejemplos
+
 ```bash
-# Si aparece error: "Legend.__init__() got an unexpected keyword argument 'zorder'"
-# El código ya está corregido, pero si persiste:
-pip install --upgrade matplotlib
+# Ejemplo básico
+python examples/ejemplo_basico.py
 ```
 
-### Error de Fuentes (Emojis no soportados)
-```bash
-# Si aparecen warnings sobre glifos faltantes:
-# El sistema automáticamente usa texto simple en lugar de emojis
-# No afecta la funcionalidad del simulador
+## 📈 API Reference
+
+### Clases Principales
+
+#### SimuladorCiclorutas
+Orquestador principal del sistema.
+
+```python
+simulador = SimuladorCiclorutas(config)
+simulador.configurar_grafo(grafo, posiciones)
+simulador.inicializar_simulacion()
+simulador.ejecutar_paso()
 ```
 
-### Rendimiento Lento
-- Reducir el número de ciclistas
-- Aumentar el intervalo de actualización
-- Cerrar otras aplicaciones pesadas
+#### ConfiguracionSimulacion
+Configuración de parámetros de simulación.
 
-### Verificar Instalación
-```bash
-# Ejecutar archivo de pruebas:
-python test_simulador.py
-
-# Si todas las pruebas pasan, el sistema está listo
+```python
+config = ConfiguracionSimulacion(
+    velocidad_min=10.0,
+    velocidad_max=20.0,
+    duracion_simulacion=300.0
+)
 ```
 
-## 🚧 Limitaciones Actuales
+#### GestorDistribuciones
+Manejo de distribuciones de probabilidad.
 
-- Simulación limitada a geometría en forma de Y
-- No incluye colisiones entre ciclistas
-- Velocidades constantes durante el trayecto
-- No incluye factores externos (clima, tráfico)
+```python
+gestor = GestorDistribuciones()
+gestor.agregar_distribucion(nodo_id, distribucion)
+tiempo = gestor.generar_tiempo_arribo_nodo(nodo_id)
+```
 
-## 🔮 Mejoras Futuras
+## 🤝 Contribución
 
-- [ ] Múltiples geometrías de red
-- [ ] Sistema de colisiones y congestión
-- [ ] Factores ambientales y de tráfico
-- [ ] Exportación de datos y reportes
-- [ ] Simulación en 3D
-- [ ] Análisis de patrones de tráfico
+### Cómo Contribuir
 
-## 📝 Licencia
-
-Este proyecto está desarrollado con fines educativos y de investigación.
-
-## 🤝 Contribuciones
-
-Las contribuciones son bienvenidas. Por favor:
 1. Fork el proyecto
-2. Crea una rama para tu feature
-3. Commit tus cambios
-4. Push a la rama
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abre un Pull Request
+
+### Estándares de Código
+
+- Usar Black para formateo de código
+- Seguir PEP 8 para estilo de código
+- Escribir docstrings para todas las funciones
+- Incluir pruebas para nuevas funcionalidades
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
 
 ## 📞 Soporte
 
 Para soporte técnico o preguntas:
-- Revisa la documentación
+
 - Abre un issue en el repositorio
 - Contacta al equipo de desarrollo
+- Revisa la documentación completa
+
+## 🔮 Roadmap
+
+### Versión 2.1
+- [ ] Simulación en 3D
+- [ ] Análisis de congestión
+- [ ] Exportación de datos
+
+### Versión 2.2
+- [ ] Múltiples tipos de vehículos
+- [ ] Factores ambientales
+- [ ] Integración con APIs externas
 
 ---
 

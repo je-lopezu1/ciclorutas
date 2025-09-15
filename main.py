@@ -88,7 +88,7 @@ def main():
     
     try:
         # Importar e iniciar la interfaz
-        from interfaz_simulacion import main as iniciar_interfaz
+        from src.ui.interfaz_simulacion import main as iniciar_interfaz
         iniciar_interfaz()
         
     except ImportError as e:
