@@ -502,40 +502,27 @@ class SimuladorCiclorutas:
             return {}
     
     def _calcular_velocidad_ajustada(self, velocidad_base: float, origen: str, destino: str) -> float:
-        """Calcula la velocidad ajustada basada en los atributos del arco"""
+        """Calcula la velocidad ajustada basada en los atributos del arco
+        
+        Esta función respeta los límites de velocidad configurados por el usuario,
+        asegurando que la velocidad ajustada nunca sea menor a la velocidad mínima
+        ni mayor a la velocidad máxima configuradas.
+        """
         atributos = self._obtener_atributos_arco(origen, destino)
         
         if not atributos:
             return velocidad_base
         
-        # Factores de ajuste basados en atributos
-        factor_seguridad = 1.0
-        factor_luminosidad = 1.0
-        factor_inclinacion = 1.0
+        # Importar GrafoUtils para usar la función optimizada
+        from Simulador.utils.grafo_utils import GrafoUtils
         
-        # Ajuste por seguridad (valores más altos = más confianza = velocidad ligeramente mayor)
-        if 'seguridad' in atributos:
-            seguridad = atributos['seguridad']
-            # Seguridad 5-9, factor 0.8-1.2
-            factor_seguridad = 0.8 + (seguridad - 5) * 0.1
-        
-        # Ajuste por luminosidad (valores más altos = mejor visibilidad = velocidad ligeramente mayor)
-        if 'luminosidad' in atributos:
-            luminosidad = atributos['luminosidad']
-            # Luminosidad 4-8, factor 0.9-1.1
-            factor_luminosidad = 0.9 + (luminosidad - 4) * 0.05
-        
-        # Ajuste por inclinación (valores más altos = más pendiente = velocidad menor)
-        if 'inclinacion' in atributos:
-            inclinacion = atributos['inclinacion']
-            # Inclinación 1.2-3.0, factor 1.0-0.7
-            factor_inclinacion = 1.0 - (inclinacion - 1.2) * 0.167
-        
-        # Aplicar todos los factores
-        velocidad_ajustada = velocidad_base * factor_seguridad * factor_luminosidad * factor_inclinacion
-        
-        # Limitar la velocidad ajustada a un rango razonable
-        return max(velocidad_base * 0.5, min(velocidad_base * 1.5, velocidad_ajustada))
+        # Calcular velocidad ajustada respetando la configuración del usuario
+        return GrafoUtils.calcular_velocidad_ajustada(
+            velocidad_base=velocidad_base,
+            atributos_arco=atributos,
+            velocidad_min_config=self.config.velocidad_min,
+            velocidad_max_config=self.config.velocidad_max
+        )
     
     def _seleccionar_perfil_ciclista(self) -> dict:
         """Selecciona un perfil aleatorio para un nuevo ciclista"""

@@ -1,7 +1,7 @@
-# 🚴 SIMULADOR DE CICLORUTAS - DEPENDENCIAS REQUERIDAS 🚴
+# 🚴 SIMULADOR DE CICLORUTAS v2.0 - DEPENDENCIAS REQUERIDAS 🚴
 # 
 # Este archivo lista todas las dependencias necesarias para ejecutar
-# el simulador completo de ciclorutas con interfaz gráfica.
+# el simulador completo de ciclorutas con interfaz gráfica modular.
 #
 # Para instalar todas las dependencias, ejecuta:
 # pip install -r requirements.txt
@@ -9,22 +9,33 @@
 # Versión mínima de Python: 3.7+
 
 # Simulación de eventos discretos
-simpy>=3.0.0
+simpy>=4.0.0
 
 # Computación numérica y matemática
 numpy>=1.20.0
+scipy>=1.9.0
 
 # Visualización y gráficos
 matplotlib>=3.5.0
 
+# Análisis de datos y manipulación
+pandas>=1.5.0
+
+# Análisis de redes y grafos
+networkx>=3.0
+
+# Manejo de archivos Excel
+openpyxl>=3.0.0
+
 # Interfaz gráfica (incluida con Python)
 # tkinter - NO requiere instalación separada
 
-# Dependencias adicionales de matplotlib
-# (se instalan automáticamente)
+# Dependencias adicionales (se instalan automáticamente)
 # - pillow (para manejo de imágenes)
 # - cycler (para estilos de gráficos)
 # - kiwisolver (para layout)
 # - pyparsing (para parsing)
 # - python-dateutil (para fechas)
 # - six (para compatibilidad)
+# - xlrd (para lectura de Excel legacy)
+# - et-xmlfile (para openpyxl)
