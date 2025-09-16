@@ -9,6 +9,7 @@ from matplotlib.patches import Circle
 import matplotlib.colors as mcolors
 import networkx as nx
 from scipy import stats
+import time
 
 @dataclass
 class ConfiguracionSimulacion:
@@ -16,6 +17,143 @@ class ConfiguracionSimulacion:
     velocidad_min: float = 10.0
     velocidad_max: float = 15.0
     duracion_simulacion: float = 300.0  # Duración en segundos
+
+class Ciclista:
+    """Clase optimizada para ciclistas con gestión de memoria"""
+    
+    def __init__(self, id):
+        self.id = id
+        self.coordenadas = (-1000, -1000)
+        self.trayectoria = []
+        self.velocidad = 0
+        self.estado = 'inactivo'
+        self.ruta = ""
+        self.color = '#6C757D'
+        self.tiempo_creacion = time.time()
+        self.tiempo_ultima_actividad = time.time()
+        
+        # Límites de memoria por ciclista
+        self.max_trayectoria_puntos = 50
+        self.max_tiempo_inactivo = 300  # 5 minutos
+    
+    def reset(self):
+        """Resetea el ciclista para reutilización"""
+        self.coordenadas = (-1000, -1000)
+        self.trayectoria = []
+        self.velocidad = 0
+        self.estado = 'inactivo'
+        self.ruta = ""
+        self.color = '#6C757D'
+        self.tiempo_creacion = time.time()
+        self.tiempo_ultima_actividad = time.time()
+    
+    def actualizar_posicion(self, x, y):
+        """Actualiza la posición del ciclista"""
+        self.coordenadas = (x, y)
+        self.tiempo_ultima_actividad = time.time()
+        
+        # Limitar trayectoria para evitar uso excesivo de memoria
+        if len(self.trayectoria) >= self.max_trayectoria_puntos:
+            self.trayectoria = self.trayectoria[-self.max_trayectoria_puntos//2:]
+        
+        self.trayectoria.append((x, y))
+    
+    def es_antiguo(self):
+        """Verifica si el ciclista es muy antiguo"""
+        return time.time() - self.tiempo_ultima_actividad > self.max_tiempo_inactivo
+    
+    def completar_viaje(self):
+        """Marca el ciclista como completado"""
+        self.estado = 'completado'
+        self.coordenadas = (-1000, -1000)  # Posición invisible
+
+class PoolCiclistas:
+    """Pool inteligente de ciclistas para reutilización"""
+    
+    def __init__(self, tamaño_inicial=100, tamaño_maximo=1000):
+        self.tamaño_inicial = tamaño_inicial
+        self.tamaño_maximo = tamaño_maximo
+        self.ciclistas_disponibles = []
+        self.ciclistas_activos = {}
+        self.contador_id = 0
+        self.estadisticas = {
+            'creados': 0,
+            'reutilizados': 0,
+            'liberados': 0,
+            'eliminados': 0
+        }
+        
+        # Crear pool inicial
+        self._inicializar_pool()
+    
+    def _inicializar_pool(self):
+        """Inicializa el pool con ciclistas pre-creados"""
+        for _ in range(self.tamaño_inicial):
+            ciclista = Ciclista(self.contador_id)
+            self.ciclistas_disponibles.append(ciclista)
+            self.contador_id += 1
+            self.estadisticas['creados'] += 1
+    
+    def obtener_ciclista(self):
+        """Obtiene un ciclista del pool o crea uno nuevo"""
+        if self.ciclistas_disponibles:
+            # Reutilizar ciclista existente
+            ciclista = self.ciclistas_disponibles.pop()
+            ciclista.reset()
+            self.ciclistas_activos[ciclista.id] = ciclista
+            self.estadisticas['reutilizados'] += 1
+            return ciclista
+        else:
+            # Crear nuevo ciclista si el pool está vacío
+            if len(self.ciclistas_activos) < self.tamaño_maximo:
+                ciclista = Ciclista(self.contador_id)
+                self.contador_id += 1
+                self.ciclistas_activos[ciclista.id] = ciclista
+                self.estadisticas['creados'] += 1
+                return ciclista
+            else:
+                # Pool lleno, reutilizar el más antiguo
+                return self._reutilizar_mas_antiguo()
+    
+    def _reutilizar_mas_antiguo(self):
+        """Reutiliza el ciclista más antiguo cuando el pool está lleno"""
+        if not self.ciclistas_activos:
+            return None
+        
+        # Encontrar el ciclista más antiguo
+        id_mas_antiguo = min(self.ciclistas_activos.keys())
+        ciclista = self.ciclistas_activos[id_mas_antiguo]
+        
+        # Resetear y reutilizar
+        ciclista.reset()
+        self.estadisticas['reutilizados'] += 1
+        return ciclista
+    
+    def liberar_ciclista(self, ciclista):
+        """Libera un ciclista al pool"""
+        if ciclista.id in self.ciclistas_activos:
+            del self.ciclistas_activos[ciclista.id]
+            
+            if len(self.ciclistas_disponibles) < self.tamaño_inicial:
+                # Mantener pool mínimo
+                self.ciclistas_disponibles.append(ciclista)
+                self.estadisticas['liberados'] += 1
+            else:
+                # Pool lleno, eliminar ciclista
+                del ciclista
+                self.estadisticas['eliminados'] += 1
+    
+    def obtener_estadisticas(self):
+        """Retorna estadísticas del pool"""
+        return {
+            'ciclistas_activos': len(self.ciclistas_activos),
+            'ciclistas_disponibles': len(self.ciclistas_disponibles),
+            'total_creados': self.estadisticas['creados'],
+            'total_reutilizados': self.estadisticas['reutilizados'],
+            'total_liberados': self.estadisticas['liberados'],
+            'total_eliminados': self.estadisticas['eliminados'],
+            'eficiencia': self.estadisticas['reutilizados'] / max(1, self.estadisticas['creados'])
+        }
 
 class DistribucionNodo:
     """Clase para manejar distribuciones de probabilidad para tasas de arribo por nodo"""
@@ -117,6 +255,27 @@ class SimuladorCiclorutas:
         self.perfiles_df = None  # DataFrame con perfiles de ciclistas
         self.rutas_df = None  # DataFrame con matriz de probabilidades de destino
         self.perfiles_ciclistas = {}  # Dict[ciclista_id, perfil] para rastrear perfil de cada ciclista
+        
+        # ✅ OPTIMIZACIÓN: Cache de rendimiento
+        self.rangos_atributos = {}  # Rangos pre-calculados de atributos
+        self.rangos_calculados = False  # Flag para evitar recálculos
+        self.grafos_por_perfil = {}  # Cache de grafos optimizados por perfil
+        self.grafo_base = None  # Referencia al grafo original
+        
+        # ✅ OPTIMIZACIÓN: Cache inteligente de rutas
+        self.rutas_por_perfil = {}  # Cache de rutas por perfil
+        self.max_rutas_por_perfil = 100  # Límite de rutas por perfil
+        self.max_rutas_total = 500  # Límite total de rutas en cache
+        
+        # ✅ OPTIMIZACIÓN: Pool de objetos para ciclistas
+        self.pool_ciclistas = PoolCiclistas()
+        self.estadisticas_persistentes = {
+            'total_ciclistas_creados': 0,
+            'total_ciclistas_completados': 0,
+            'total_ciclistas_eliminados': 0,
+            'total_viajes_completados': 0,
+            'total_distancia_recorrida': 0.0
+        }
     
     def configurar_distribuciones_nodos(self, distribuciones: Dict[str, Dict]):
         """Configura las distribuciones de probabilidad para cada nodo"""
@@ -154,7 +313,7 @@ class SimuladorCiclorutas:
             return np.random.exponential(2.0)  # 0.5 arribos por segundo
     
     def configurar_grafo(self, grafo: nx.Graph, posiciones: Dict, perfiles_df=None, rutas_df=None):
-        """Configura el grafo NetworkX y sus posiciones para la simulación"""
+        """Configura el grafo NetworkX y sus posiciones para la simulación - OPTIMIZADO"""
         if not self._validar_grafo(grafo):
             print("⚠️ Advertencia: El grafo no es válido")
             self.usar_grafo_real = False
@@ -164,9 +323,22 @@ class SimuladorCiclorutas:
         self.pos_grafo = posiciones
         self.usar_grafo_real = True
         
+        # ✅ OPTIMIZACIÓN: Guardar referencia al grafo base para cache
+        self.grafo_base = grafo.copy()
+        
         # Configurar perfiles y rutas si están disponibles
         self.perfiles_df = perfiles_df
         self.rutas_df = rutas_df
+        
+        # ✅ OPTIMIZACIÓN: Pre-calcular rangos al cargar el grafo
+        self._precalcular_rangos_atributos()
+        
+        # ✅ OPTIMIZACIÓN: Configurar límites adaptativos
+        self._configurar_limites_adaptativos()
+        
+        # Limpiar cache de grafos por perfil al cambiar grafo
+        self.grafos_por_perfil = {}
+        self.rutas_por_perfil = {}
         
         self._inicializar_grafo()
         return True
@@ -461,16 +633,15 @@ class SimuladorCiclorutas:
         
         return peso
     
-    def _obtener_rangos_atributos(self) -> dict:
-        """Obtiene los rangos min/max de cada atributo en el grafo"""
-        rangos = {}
+    def _precalcular_rangos_atributos(self):
+        """Pre-calcula los rangos de atributos una sola vez al cargar el grafo"""
+        if self.rangos_calculados or not self.grafo:
+            return
         
-        if not self.grafo:
-            return rangos
-        
-        # Recopilar todos los valores de cada atributo
+        self.rangos_atributos = {}
         atributos_valores = {}
         
+        # Recopilar todos los valores una sola vez
         for edge in self.grafo.edges(data=True):
             for attr, valor in edge[2].items():
                 if attr not in ['weight'] and isinstance(valor, (int, float)):
@@ -478,29 +649,126 @@ class SimuladorCiclorutas:
                         atributos_valores[attr] = []
                     atributos_valores[attr].append(valor)
         
-        # Calcular rangos
+        # Calcular rangos una sola vez
         for attr, valores in atributos_valores.items():
             if valores:
-                rangos[attr] = (min(valores), max(valores))
+                self.rangos_atributos[attr] = (min(valores), max(valores))
         
-        return rangos
+        self.rangos_calculados = True
+        print(f"✅ Rangos pre-calculados para {len(self.rangos_atributos)} atributos")
+    
+    def _obtener_rangos_atributos(self) -> dict:
+        """Obtiene los rangos min/max de cada atributo en el grafo - OPTIMIZADO"""
+        # ✅ USAR rangos pre-calculados en lugar de calcular cada vez
+        if not self.rangos_calculados:
+            self._precalcular_rangos_atributos()
+        
+        return self.rangos_atributos.copy()
+    
+    def _obtener_grafo_para_perfil(self, perfil_ciclista: dict) -> nx.Graph:
+        """Obtiene o crea un grafo optimizado para un perfil específico - CACHE OPTIMIZADO"""
+        perfil_id = perfil_ciclista['id']
+        
+        # ✅ USAR cache si ya existe
+        if perfil_id in self.grafos_por_perfil:
+            return self.grafos_por_perfil[perfil_id]
+        
+        # ✅ CREAR grafo optimizado para este perfil
+        grafo_optimizado = self.grafo_base.copy()
+        
+        # Calcular pesos una sola vez para este perfil
+        for edge in grafo_optimizado.edges(data=True):
+            origen, destino, datos = edge
+            atributos_arco = {k: v for k, v in datos.items() if k not in ['weight', 'distancia_real']}
+            
+            nuevo_peso = self._calcular_peso_compuesto_perfil(atributos_arco, perfil_ciclista)
+            grafo_optimizado[origen][destino]['weight'] = nuevo_peso
+        
+        # ✅ GUARDAR en cache
+        self.grafos_por_perfil[perfil_id] = grafo_optimizado
+        print(f"✅ Grafo optimizado creado para perfil {perfil_id}")
+        return grafo_optimizado
+    
+    def _obtener_ruta_inteligente(self, nodo_origen: str, nodo_destino: str, perfil_ciclista: dict) -> List[str]:
+        """Cache inteligente que solo calcula rutas cuando es necesario - OPTIMIZADO"""
+        perfil_id = perfil_ciclista['id']
+        ruta_key = (nodo_origen, nodo_destino)
+        
+        # Inicializar cache si no existe
+        if perfil_id not in self.rutas_por_perfil:
+            self.rutas_por_perfil[perfil_id] = {}
+        
+        # ✅ USAR cache si existe
+        if ruta_key in self.rutas_por_perfil[perfil_id]:
+            return self.rutas_por_perfil[perfil_id][ruta_key]
+        
+        # ✅ CALCULAR y guardar en cache
+        grafo_optimizado = self._obtener_grafo_para_perfil(perfil_ciclista)
+        try:
+            ruta = nx.shortest_path(grafo_optimizado, nodo_origen, nodo_destino, weight='weight')
+            self.rutas_por_perfil[perfil_id][ruta_key] = ruta
+            
+            # ✅ LIMPIAR cache si es necesario
+            self._limpiar_cache_si_necesario()
+            
+            return ruta
+        except nx.NetworkXNoPath:
+            return None
+    
+    def _limpiar_cache_si_necesario(self):
+        """Limpia cache si usa demasiada memoria - OPTIMIZACIÓN DE MEMORIA"""
+        total_rutas = sum(len(rutas) for rutas in self.rutas_por_perfil.values())
+        
+        # Límite: máximo 500 rutas en cache
+        if total_rutas > self.max_rutas_total:
+            # Limpiar 50% de las rutas menos usadas
+            for perfil_id in self.rutas_por_perfil:
+                rutas = self.rutas_por_perfil[perfil_id]
+                if len(rutas) > 10:  # Mantener al menos 10 rutas por perfil
+                    # Eliminar la mitad de las rutas
+                    rutas_a_eliminar = list(rutas.keys())[:len(rutas)//2]
+                    for ruta_key in rutas_a_eliminar:
+                        del rutas[ruta_key]
+            
+            print(f"✅ Cache limpiado: {total_rutas} → {sum(len(rutas) for rutas in self.rutas_por_perfil.values())} rutas")
+    
+    def _configurar_limites_adaptativos(self):
+        """Configura límites según el tamaño del grafo - OPTIMIZACIÓN ADAPTATIVA"""
+        if not self.grafo:
+            return
+        
+        num_nodos = len(self.grafo.nodes())
+        num_perfiles = len(self.perfiles_df) if self.perfiles_df is not None else 1
+        
+        # Límites adaptativos
+        if num_nodos <= 10:
+            self.max_rutas_por_perfil = 50
+            self.max_rutas_total = 200
+        elif num_nodos <= 20:
+            self.max_rutas_por_perfil = 100
+            self.max_rutas_total = 500
+        else:
+            self.max_rutas_por_perfil = 200
+            self.max_rutas_total = 1000
+        
+        print(f"✅ Límites adaptativos: {self.max_rutas_por_perfil} rutas/perfil, {self.max_rutas_total} total")
     
     def _interpolar_movimiento(self, origen: Tuple[float, float], destino: Tuple[float, float], 
                              distancia: float, velocidad: float, ciclista_id: int):
-        """Interpola el movimiento suave entre dos puntos del grafo"""
+        """Interpola el movimiento suave entre dos puntos del grafo - OPTIMIZADO"""
         if distancia <= 0 or velocidad <= 0:
             return
         
-        # Optimización: calcular pasos de manera más eficiente
+        # ✅ OPTIMIZACIÓN CRÍTICA: Reducir frecuencia de 0.1s a 0.5s por paso
         tiempo_total = distancia / velocidad
-        pasos = max(1, min(int(tiempo_total / 0.1), 1000))  # Limitar a 1000 pasos máximo
+        pasos = max(1, min(int(tiempo_total / 0.5), 200))  # Máximo 200 pasos (5x menos)
         
         # Pre-calcular incrementos para eficiencia
         dx = (destino[0] - origen[0]) / pasos
         dy = (destino[1] - origen[1]) / pasos
         
         for i in range(pasos + 1):
-            yield self.env.timeout(0.1)
+            yield self.env.timeout(0.5)  # ✅ 0.5 segundos por paso (5x menos operaciones)
             
             # Interpolación lineal optimizada
             x = origen[0] + i * dx
@@ -508,12 +776,8 @@ class SimuladorCiclorutas:
             
             self.coordenadas[ciclista_id] = (x, y)
             
-            # Optimización: limitar trayectorias para evitar uso excesivo de memoria
-            if len(self.trayectorias[ciclista_id]) < 1000:
-                self.trayectorias[ciclista_id].append((x, y))
-            else:
-                # Mantener solo los últimos 500 puntos
-                self.trayectorias[ciclista_id] = self.trayectorias[ciclista_id][-500:]
+            # ✅ OPTIMIZACIÓN: Solo guardar cada 5to punto para reducir memoria
+            if i % 5 == 0 and len(self.trayectorias[ciclista_id]) < 100:
                 self.trayectorias[ciclista_id].append((x, y))
         
     def inicializar_simulacion(self):
@@ -652,27 +916,13 @@ class SimuladorCiclorutas:
         if not nodo_destino:
             return None, None, None
         
-        # Generar ruta usando pesos del perfil del ciclista
+        # Generar ruta usando pesos del perfil del ciclista - OPTIMIZADO CON CACHE
         try:
-            # Crear grafo temporal con pesos del perfil
-            grafo_temp = self.grafo.copy()
+            # ✅ OPTIMIZACIÓN: Usar cache inteligente de rutas
+            ruta_nodos = self._obtener_ruta_inteligente(nodo_origen, nodo_destino, perfil)
             
-            # Recalcular pesos de arcos usando el perfil del ciclista
-            for edge in grafo_temp.edges(data=True):
-                origen, destino, datos = edge
-                atributos_arco = {k: v for k, v in datos.items() if k not in ['weight', 'distancia_real']}
-                
-                # Calcular peso compuesto dinámicamente usando el perfil del ciclista
-                # Esta función normaliza los atributos en tiempo real basándose en:
-                # 1. Los rangos de valores del grafo completo
-                # 2. Los pesos de preferencia del perfil específico
-                nuevo_peso_compuesto = self._calcular_peso_compuesto_perfil(atributos_arco, perfil)
-                
-                # Usar el peso compuesto calculado dinámicamente para pathfinding
-                grafo_temp[origen][destino]['weight'] = nuevo_peso_compuesto
-            
-            # Encontrar ruta más corta usando el grafo con pesos del perfil
-            ruta_nodos = nx.shortest_path(grafo_temp, nodo_origen, nodo_destino, weight='weight')
+            if ruta_nodos is None:
+                return None, None, None
             
             return nodo_origen, nodo_destino, ruta_nodos
             
@@ -754,6 +1004,11 @@ class SimuladorCiclorutas:
         if self.env and self.estado == "ejecutando":
             self.env.step()
             self.tiempo_actual = self.env.now
+            
+            # ✅ OPTIMIZACIÓN: Gestión inteligente de memoria cada 10 pasos
+            if int(self.tiempo_actual) % 10 == 0:
+                self._gestionar_memoria_inteligente()
+            
             return True
         return False
     
@@ -775,6 +1030,132 @@ class SimuladorCiclorutas:
     def reiniciar_simulacion(self):
         """Reinicia la simulación desde el principio"""
         self.inicializar_simulacion()
+    
+    def limpiar_cache_optimizaciones(self):
+        """Limpia el cache de optimizaciones para liberar memoria"""
+        self.grafos_por_perfil = {}
+        self.rutas_por_perfil = {}
+        self.pool_ciclistas = PoolCiclistas()  # Reiniciar pool
+        print("✅ Cache de optimizaciones limpiado")
+    
+    def obtener_estadisticas_cache(self) -> Dict:
+        """Retorna estadísticas del cache para monitoreo"""
+        total_rutas = sum(len(rutas) for rutas in self.rutas_por_perfil.values())
+        total_grafos = len(self.grafos_por_perfil)
+        
+        return {
+            'rutas_en_cache': total_rutas,
+            'grafos_en_cache': total_grafos,
+            'max_rutas_total': self.max_rutas_total,
+            'max_rutas_por_perfil': self.max_rutas_por_perfil,
+            'porcentaje_uso_cache': (total_rutas / self.max_rutas_total) * 100 if self.max_rutas_total > 0 else 0
+        }
+    
+    def _gestionar_memoria_inteligente(self):
+        """Gestión inteligente de memoria para múltiples ciclistas"""
+        # Calcular uso actual de memoria
+        uso_memoria = self._calcular_uso_memoria()
+        
+        # Limpiar según el uso
+        if uso_memoria > 0.9:  # 90% de uso
+            self._limpieza_agresiva()
+        elif uso_memoria > 0.7:  # 70% de uso
+            self._limpieza_moderada()
+        elif uso_memoria > 0.5:  # 50% de uso
+            self._limpieza_basica()
+        
+        # Limpiar ciclistas antiguos
+        self._limpiar_ciclistas_antiguos()
+    
+    def _calcular_uso_memoria(self) -> float:
+        """Calcula el uso actual de memoria"""
+        total_ciclistas = len(self.coordenadas)
+        total_trayectorias = sum(len(t) for t in self.trayectorias)
+        total_rutas_cache = sum(len(rutas) for rutas in self.rutas_por_perfil.values())
+        total_grafos_cache = len(self.grafos_por_perfil)
+        
+        # Estimación de memoria (valores aproximados)
+        memoria_ciclistas = total_ciclistas * 200  # 200 bytes por ciclista
+        memoria_trayectorias = total_trayectorias * 16  # 16 bytes por punto
+        memoria_cache = (total_rutas_cache * 50) + (total_grafos_cache * 1000)
+        
+        memoria_total = memoria_ciclistas + memoria_trayectorias + memoria_cache
+        memoria_maxima = 100 * 1024 * 1024  # 100MB máximo
+        
+        return memoria_total / memoria_maxima
+    
+    def _limpiar_ciclistas_antiguos(self):
+        """Limpia ciclistas que han estado inactivos por mucho tiempo"""
+        ciclistas_a_limpiar = []
+        
+        for i, estado in self.estado_ciclistas.items():
+            if estado == 'completado' and i < len(self.coordenadas):
+                # Verificar si el ciclista es antiguo (simulado)
+                if len(self.trayectorias[i]) > 0:
+                    ciclistas_a_limpiar.append(i)
+        
+        for i in ciclistas_a_limpiar[:len(ciclistas_a_limpiar)//2]:  # Limpiar solo la mitad
+            # Marcar como eliminado
+            self.estado_ciclistas[i] = 'eliminado'
+            self.coordenadas[i] = (-1000, -1000)
+            self.trayectorias[i] = []
+            self.estadisticas_persistentes['total_ciclistas_eliminados'] += 1
+        
+        if ciclistas_a_limpiar:
+            print(f"✅ Limpiados {len(ciclistas_a_limpiar)//2} ciclistas antiguos")
+    
+    def _limpieza_agresiva(self):
+        """Limpieza agresiva de memoria"""
+        # Liberar 50% de ciclistas completados
+        ciclistas_completados = [i for i, estado in self.estado_ciclistas.items() if estado == 'completado']
+        ciclistas_a_liberar = ciclistas_completados[:len(ciclistas_completados)//2]
+        
+        for i in ciclistas_a_liberar:
+            self.estado_ciclistas[i] = 'eliminado'
+            self.coordenadas[i] = (-1000, -1000)
+            self.trayectorias[i] = []
+            self.estadisticas_persistentes['total_ciclistas_eliminados'] += 1
+        
+        # Limpiar 75% del cache de rutas
+        for perfil_id in self.rutas_por_perfil:
+            rutas = self.rutas_por_perfil[perfil_id]
+            if len(rutas) > 10:
+                rutas_a_eliminar = list(rutas.keys())[:len(rutas)*3//4]
+                for ruta_key in rutas_a_eliminar:
+                    del rutas[ruta_key]
+        
+        print("✅ Limpieza agresiva de memoria completada")
+    
+    def _limpieza_moderada(self):
+        """Limpieza moderada de memoria"""
+        # Liberar 25% de ciclistas completados
+        ciclistas_completados = [i for i, estado in self.estado_ciclistas.items() if estado == 'completado']
+        ciclistas_a_liberar = ciclistas_completados[:len(ciclistas_completados)//4]
+        
+        for i in ciclistas_a_liberar:
+            self.estado_ciclistas[i] = 'eliminado'
+            self.coordenadas[i] = (-1000, -1000)
+            self.trayectorias[i] = []
+            self.estadisticas_persistentes['total_ciclistas_eliminados'] += 1
+        
+        # Limpiar 50% del cache de rutas
+        for perfil_id in self.rutas_por_perfil:
+            rutas = self.rutas_por_perfil[perfil_id]
+            if len(rutas) > 20:
+                rutas_a_eliminar = list(rutas.keys())[:len(rutas)//2]
+                for ruta_key in rutas_a_eliminar:
+                    del rutas[ruta_key]
+        
+        print("✅ Limpieza moderada de memoria completada")
+    
+    def _limpieza_basica(self):
+        """Limpieza básica de memoria"""
+        # Solo limpiar trayectorias largas
+        for i, trayectoria in enumerate(self.trayectorias):
+            if len(trayectoria) > 100:
+                self.trayectorias[i] = trayectoria[-50:]
+        
+        print("✅ Limpieza básica de memoria completada")
     
     def obtener_estado_actual(self) -> Dict:
         """Retorna el estado actual de la simulación"""
@@ -879,6 +1260,14 @@ class SimuladorCiclorutas:
         stats.update({
             'ciclistas_por_nodo': self.ciclistas_por_nodo.copy(),
             'nodo_mas_activo': self._obtener_nodo_mas_activo()
+        })
+        
+        # ✅ OPTIMIZACIÓN: Agregar estadísticas del pool y memoria
+        stats.update({
+            'estadisticas_persistentes': self.estadisticas_persistentes.copy(),
+            'uso_memoria_porcentaje': self._calcular_uso_memoria() * 100,
+            'memoria_estimada_mb': self._calcular_uso_memoria() * 100,  # Convertir a MB
+            'pool_estadisticas': self.pool_ciclistas.obtener_estadisticas()
         })
         
         return stats

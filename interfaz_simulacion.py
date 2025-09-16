@@ -38,6 +38,11 @@ class InterfazSimulacion:
         self.hilo_simulacion = None
         self.ventana_cerrada = False  # Flag para controlar si la ventana está cerrada
         
+        # ✅ OPTIMIZACIÓN: Cache de datos de interfaz
+        self._cache_interfaz = None
+        self._ultima_actualizacion_cache = 0
+        self._intervalo_cache = 0.1  # Actualizar cache cada 100ms
+        
         # Configurar manejo de cierre de ventana
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar_aplicacion)
         
@@ -1136,15 +1141,13 @@ class InterfazSimulacion:
         
     #     self.canvas.draw()
         
-    def actualizar_visualizacion(self):
-        """Actualiza la visualización con los datos actuales"""
+    def actualizar_visualizacion_con_cache(self, ciclistas_activos):
+        """Actualiza la visualización con datos del cache - OPTIMIZADO"""
         if not hasattr(self, 'scatter'):
             return
             
         try:
-            # Obtener solo ciclistas activos
-            ciclistas_activos = self.simulador.obtener_ciclistas_activos()
-            
+            # ✅ OPTIMIZACIÓN: Usar datos del cache (ya procesados)
             if not ciclistas_activos['coordenadas']:
                 # No hay ciclistas activos para mostrar
                 self.scatter.set_offsets([])
@@ -1183,6 +1186,12 @@ class InterfazSimulacion:
                 self.configurar_grafico_con_grafo()
             else:
                 self.configurar_grafico_inicial()
+    
+    def actualizar_visualizacion(self):
+        """Actualiza la visualización con los datos actuales - MANTENER COMPATIBILIDAD"""
+        # Obtener datos del simulador (para compatibilidad)
+        ciclistas_activos = self.simulador.obtener_ciclistas_activos()
+        self.actualizar_visualizacion_con_cache(ciclistas_activos)
             
     def nueva_simulacion(self):
         """Crea una nueva simulación con los parámetros actuales"""
@@ -1257,17 +1266,42 @@ class InterfazSimulacion:
                 break
     
     def actualizar_interfaz(self):
-        """Actualiza la interfaz con los datos actuales"""
+        """Actualiza la interfaz con los datos actuales - OPTIMIZADO CON CACHE"""
         # Verificar si la ventana sigue abierta
         if self.ventana_cerrada or not self.root.winfo_exists():
             return
             
         try:
-            estado = self.simulador.obtener_estado_actual()
+            # ✅ OPTIMIZACIÓN: Cache de datos para evitar recálculos costosos
+            tiempo_actual = time.time()
+            if (self._cache_interfaz is None or 
+                tiempo_actual - self._ultima_actualizacion_cache > self._intervalo_cache):
+                
+                # Actualizar cache con datos del simulador
+                estado = self.simulador.obtener_estado_actual()
+                ciclistas_activos = self.simulador.obtener_ciclistas_activos()
+                estadisticas = self.simulador.obtener_estadisticas()
+                
+                self._cache_interfaz = {
+                    'estado': estado,
+                    'ciclistas_activos': ciclistas_activos,
+                    'estadisticas': estadisticas,
+                    'timestamp': tiempo_actual
+                }
+                self._ultima_actualizacion_cache = tiempo_actual
+            else:
+                # Usar datos del cache (mucho más rápido)
+                estado = self._cache_interfaz['estado']
+                ciclistas_activos = self._cache_interfaz['ciclistas_activos']
+                estadisticas = self._cache_interfaz['estadisticas']
+            
+            # Actualizar interfaz con datos (cached o nuevos)
             if hasattr(self, 'tiempo_label') and self.tiempo_label.winfo_exists():
                 self.tiempo_label.config(text=f"{estado['tiempo_actual']:.1f}s")
-            self.actualizar_visualizacion()
-            self.actualizar_estadisticas()
+            
+            self.actualizar_visualizacion_con_cache(ciclistas_activos)
+            self.actualizar_estadisticas_con_cache(estadisticas)
+            
         except tk.TclError:
             # Widget ya fue destruido, no hacer nada
             pass
@@ -1413,10 +1447,9 @@ class InterfazSimulacion:
                 break
         self.actualizar_interfaz()
     
-    def actualizar_estadisticas(self):
-        """Actualiza las estadísticas mostradas"""
-        stats = self.simulador.obtener_estadisticas()
-        
+    def actualizar_estadisticas_con_cache(self, stats):
+        """Actualiza las estadísticas con datos del cache - OPTIMIZADO"""
+        # ✅ OPTIMIZACIÓN: Usar datos del cache (ya procesados)
         # Estadísticas básicas
         self.stats_labels['total_ciclistas'].config(text=str(stats.get('ciclistas_activos', 0)))
         self.stats_labels['velocidad_promedio'].config(text=f"{stats['velocidad_promedio']:.1f} m/s")
@@ -1508,7 +1541,34 @@ class InterfazSimulacion:
             text=matriz_rutas_activa,
             foreground='#28a745' if matriz_rutas_activa == "Sí" else '#6c757d'
         )
-
+    
+    def actualizar_estadisticas(self):
+        """Actualiza las estadísticas mostradas - MANTENER COMPATIBILIDAD"""
+        # Obtener datos del simulador (para compatibilidad)
+        stats = self.simulador.obtener_estadisticas()
+        self.actualizar_estadisticas_con_cache(stats)
+    
+    def limpiar_cache_interfaz(self):
+        """Limpia el cache de interfaz para liberar memoria"""
+        self._cache_interfaz = None
+        self._ultima_actualizacion_cache = 0
+        print("✅ Cache de interfaz limpiado")
+    
+    def obtener_estadisticas_cache_interfaz(self) -> Dict:
+        """Retorna estadísticas del cache de interfaz para monitoreo"""
+        if self._cache_interfaz is None:
+            return {
+                'cache_activo': False,
+                'ultima_actualizacion': 0,
+                'intervalo_cache': self._intervalo_cache
+            }
+        
+        return {
+            'cache_activo': True,
+            'ultima_actualizacion': self._ultima_actualizacion_cache,
+            'intervalo_cache': self._intervalo_cache,
+            'timestamp_cache': self._cache_interfaz['timestamp']
+        }
 
     def cargar_grafo(self):
         """Carga un grafo desde archivo Excel y lo integra con la simulación"""
