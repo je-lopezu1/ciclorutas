@@ -112,6 +112,11 @@ class SimuladorCiclorutas:
         # Sistema de rastreo de estado de ciclistas
         self.estado_ciclistas = {}  # Dict[ciclista_id, estado] para rastrear si están activos o completados
         self.ciclistas_por_nodo = {}  # Dict[nodo_origen, contador] para contar ciclistas por nodo de origen
+        
+        # Sistema de perfiles y rutas
+        self.perfiles_df = None  # DataFrame con perfiles de ciclistas
+        self.rutas_df = None  # DataFrame con matriz de probabilidades de destino
+        self.perfiles_ciclistas = {}  # Dict[ciclista_id, perfil] para rastrear perfil de cada ciclista
     
     def configurar_distribuciones_nodos(self, distribuciones: Dict[str, Dict]):
         """Configura las distribuciones de probabilidad para cada nodo"""
@@ -148,7 +153,7 @@ class SimuladorCiclorutas:
             # Distribución por defecto si no está configurada
             return np.random.exponential(2.0)  # 0.5 arribos por segundo
     
-    def configurar_grafo(self, grafo: nx.Graph, posiciones: Dict):
+    def configurar_grafo(self, grafo: nx.Graph, posiciones: Dict, perfiles_df=None, rutas_df=None):
         """Configura el grafo NetworkX y sus posiciones para la simulación"""
         if not self._validar_grafo(grafo):
             print("⚠️ Advertencia: El grafo no es válido")
@@ -158,6 +163,11 @@ class SimuladorCiclorutas:
         self.grafo = grafo
         self.pos_grafo = posiciones
         self.usar_grafo_real = True
+        
+        # Configurar perfiles y rutas si están disponibles
+        self.perfiles_df = perfiles_df
+        self.rutas_df = rutas_df
+        
         self._inicializar_grafo()
         return True
     
@@ -274,13 +284,33 @@ class SimuladorCiclorutas:
         return (0.0, 0.0)  # Fallback
     
     def _obtener_distancia_arco(self, origen: str, destino: str) -> float:
-        """Obtiene la distancia real del arco entre dos nodos"""
+        """Obtiene la distancia real del arco entre dos nodos para simulación
+        
+        IMPORTANTE: Esta función SIEMPRE devuelve distancias reales en metros
+        para garantizar tiempos de simulación realistas, independientemente
+        de qué se muestre en la visualización.
+        """
         if not self.grafo:
             return 50.0  # Distancia por defecto
         
         try:
             if self.grafo.has_edge(origen, destino):
-                return self.grafo[origen][destino].get('weight', 50.0)
+                # SIEMPRE priorizar distancia_real para simulación (tiempos realistas)
+                if 'distancia_real' in self.grafo[origen][destino]:
+                    return self.grafo[origen][destino]['distancia_real']
+                
+                # Fallback: usar distancia original si no hay distancia_real
+                elif 'distancia' in self.grafo[origen][destino]:
+                    return self.grafo[origen][destino]['distancia']
+                
+                # Fallback: usar weight si es una distancia real (no normalizada)
+                else:
+                    peso = self.grafo[origen][destino].get('weight', 50.0)
+                    if peso >= 10.0:  # Es distancia real directa
+                        return peso
+                    else:  # Es peso compuesto normalizado, convertir a distancia real
+                        # Convertir peso compuesto (0-1) a distancia real (20-200m)
+                        return 20 + (1 - peso) * 180
             else:
                 # Si no hay arco directo, calcular distancia euclidiana
                 pos_origen = self._obtener_coordenada_nodo(origen)
@@ -288,6 +318,172 @@ class SimuladorCiclorutas:
                 return np.sqrt((pos_destino[0] - pos_origen[0])**2 + (pos_destino[1] - pos_origen[1])**2)
         except Exception:
             return 50.0  # Fallback
+    
+    def _obtener_atributos_arco(self, origen: str, destino: str) -> dict:
+        """Obtiene todos los atributos del arco entre dos nodos"""
+        if not self.grafo or not self.grafo.has_edge(origen, destino):
+            return {}
+        
+        try:
+            return dict(self.grafo[origen][destino])
+        except Exception:
+            return {}
+    
+    def _calcular_velocidad_ajustada(self, velocidad_base: float, origen: str, destino: str) -> float:
+        """Calcula la velocidad ajustada basada en los atributos del arco"""
+        atributos = self._obtener_atributos_arco(origen, destino)
+        
+        if not atributos:
+            return velocidad_base
+        
+        # Factores de ajuste basados en atributos
+        factor_seguridad = 1.0
+        factor_luminosidad = 1.0
+        factor_inclinacion = 1.0
+        
+        # Ajuste por seguridad (valores más altos = más confianza = velocidad ligeramente mayor)
+        if 'seguridad' in atributos:
+            seguridad = atributos['seguridad']
+            # Seguridad 5-9, factor 0.8-1.2
+            factor_seguridad = 0.8 + (seguridad - 5) * 0.1
+        
+        # Ajuste por luminosidad (valores más altos = mejor visibilidad = velocidad ligeramente mayor)
+        if 'luminosidad' in atributos:
+            luminosidad = atributos['luminosidad']
+            # Luminosidad 4-8, factor 0.9-1.1
+            factor_luminosidad = 0.9 + (luminosidad - 4) * 0.05
+        
+        # Ajuste por inclinación (valores más altos = más pendiente = velocidad menor)
+        if 'inclinacion' in atributos:
+            inclinacion = atributos['inclinacion']
+            # Inclinación 1.2-3.0, factor 1.0-0.7
+            factor_inclinacion = 1.0 - (inclinacion - 1.2) * 0.167
+        
+        # Aplicar todos los factores
+        velocidad_ajustada = velocidad_base * factor_seguridad * factor_luminosidad * factor_inclinacion
+        
+        # Limitar la velocidad ajustada a un rango razonable
+        return max(velocidad_base * 0.5, min(velocidad_base * 1.5, velocidad_ajustada))
+    
+    def _seleccionar_perfil_ciclista(self) -> dict:
+        """Selecciona un perfil aleatorio para un nuevo ciclista"""
+        if self.perfiles_df is None:
+            # Perfil por defecto si no hay perfiles disponibles
+            return {
+                'id': 0,
+                'pesos': {
+                    'distancia': 0.4,
+                    'seguridad': 0.3,
+                    'luminosidad': 0.2,
+                    'inclinacion': 0.1
+                }
+            }
+        
+        # Seleccionar perfil aleatorio
+        perfil_id = np.random.choice(self.perfiles_df['PERFILES'])
+        perfil_data = self.perfiles_df[self.perfiles_df['PERFILES'] == perfil_id].iloc[0]
+        
+        return {
+            'id': int(perfil_id),
+            'pesos': {
+                'distancia': perfil_data['DISTANCIA'],
+                'seguridad': perfil_data['SEGURIDAD'],
+                'luminosidad': perfil_data['LUMINOSIDAD'],
+                'inclinacion': perfil_data['INCLINACION']
+            }
+        }
+    
+    def _seleccionar_destino(self, nodo_origen: str) -> str:
+        """Selecciona un destino basado en las probabilidades de la matriz RUTAS"""
+        if self.rutas_df is None:
+            # Selección aleatoria simple si no hay matriz de rutas
+            nodos_destino = [nodo for nodo in self.grafo.nodes() if nodo != nodo_origen]
+            return np.random.choice(nodos_destino) if nodos_destino else None
+        
+        try:
+            # Buscar la fila correspondiente al nodo origen
+            fila_origen = self.rutas_df[self.rutas_df['NODO'] == nodo_origen]
+            if fila_origen.empty:
+                # Fallback si no se encuentra el nodo
+                nodos_destino = [nodo for nodo in self.grafo.nodes() if nodo != nodo_origen]
+                return np.random.choice(nodos_destino) if nodos_destino else None
+            
+            fila_origen = fila_origen.iloc[0]
+            nodos_destino = [col for col in self.rutas_df.columns if col != 'NODO']
+            probabilidades = [fila_origen[nodo] for nodo in nodos_destino]
+            
+            # Seleccionar destino basado en probabilidades
+            return np.random.choice(nodos_destino, p=probabilidades)
+            
+        except Exception as e:
+            print(f"⚠️ Error seleccionando destino: {e}")
+            # Fallback en caso de error
+            nodos_destino = [nodo for nodo in self.grafo.nodes() if nodo != nodo_origen]
+            return np.random.choice(nodos_destino) if nodos_destino else None
+    
+    def _calcular_peso_compuesto_perfil(self, atributos_arco: dict, perfil_ciclista: dict) -> float:
+        """Calcula peso compuesto dinámicamente usando los pesos del perfil del ciclista
+        
+        IMPORTANTE: Esta función normaliza los atributos en tiempo real basándose en:
+        1. Los rangos de valores del grafo completo
+        2. Los pesos de preferencia del perfil del ciclista específico
+        """
+        peso = 0.0
+        
+        # Obtener rangos de normalización del grafo completo
+        if not self.grafo:
+            return 0.0
+            
+        rangos = self._obtener_rangos_atributos()
+        
+        for attr, valor in atributos_arco.items():
+            # Solo procesar atributos que están en el perfil del ciclista
+            if attr in perfil_ciclista['pesos'] and attr in rangos:
+                min_val, max_val = rangos[attr]
+                
+                if max_val > min_val and isinstance(valor, (int, float)):
+                    # Normalizar atributo según su tipo
+                    if attr == 'distancia':
+                        # Para distancia, valores más altos = peor (invertir)
+                        norm_val = 1 - (valor - min_val) / (max_val - min_val)
+                    elif attr in ['seguridad', 'luminosidad']:
+                        # Para seguridad y luminosidad, valores más altos = mejor
+                        norm_val = (valor - min_val) / (max_val - min_val)
+                    elif attr == 'inclinacion':
+                        # Para inclinación, valores más altos = peor (invertir)
+                        norm_val = 1 - (valor - min_val) / (max_val - min_val)
+                    else:
+                        # Para otros atributos, asumir que valores más altos = mejor
+                        norm_val = (valor - min_val) / (max_val - min_val)
+                    
+                    # Aplicar peso del perfil del ciclista
+                    peso += norm_val * perfil_ciclista['pesos'][attr]
+        
+        return peso
+    
+    def _obtener_rangos_atributos(self) -> dict:
+        """Obtiene los rangos min/max de cada atributo en el grafo"""
+        rangos = {}
+        
+        if not self.grafo:
+            return rangos
+        
+        # Recopilar todos los valores de cada atributo
+        atributos_valores = {}
+        
+        for edge in self.grafo.edges(data=True):
+            for attr, valor in edge[2].items():
+                if attr not in ['weight'] and isinstance(valor, (int, float)):
+                    if attr not in atributos_valores:
+                        atributos_valores[attr] = []
+                    atributos_valores[attr].append(valor)
+        
+        # Calcular rangos
+        for attr, valores in atributos_valores.items():
+            if valores:
+                rangos[attr] = (min(valores), max(valores))
+        
+        return rangos
     
     def _interpolar_movimiento(self, origen: Tuple[float, float], destino: Tuple[float, float], 
                              distancia: float, velocidad: float, ciclista_id: int):
@@ -369,8 +565,8 @@ class SimuladorCiclorutas:
                 ciclista_id = self.ciclista_id_counter
                 self.ciclista_id_counter += 1
                 
-                # Generar ruta aleatoria desde el nodo origen
-                origen, destino, ruta_nodos = self._asignar_ruta_desde_nodo(nodo_origen)
+                # Generar ruta usando perfiles y matriz de rutas
+                origen, destino, ruta_nodos = self._asignar_ruta_desde_nodo(nodo_origen, ciclista_id)
                 if origen and destino:
                     velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
                     
@@ -441,33 +637,55 @@ class SimuladorCiclorutas:
         
         return random.choice(nodos) if nodos else None
     
-    def _asignar_ruta_desde_nodo(self, nodo_origen: str) -> tuple:
-        """Genera una ruta aleatoria desde el nodo origen hasta cualquier otro nodo"""
+    def _asignar_ruta_desde_nodo(self, nodo_origen: str, ciclista_id: int) -> tuple:
+        """Genera una ruta desde el nodo origen usando perfiles y matriz de rutas"""
         if not self.grafo or nodo_origen not in self.grafo.nodes():
-            return None, None
+            return None, None, None
         
-        # Obtener todos los nodos excepto el origen
-        nodos_destino = [nodo for nodo in self.grafo.nodes() if nodo != nodo_origen]
+        # Seleccionar perfil para este ciclista
+        perfil = self._seleccionar_perfil_ciclista()
+        self.perfiles_ciclistas[ciclista_id] = perfil
         
-        if not nodos_destino:
-            return None, None
+        # Seleccionar destino usando matriz de rutas
+        nodo_destino = self._seleccionar_destino(nodo_origen)
         
-        # Seleccionar nodo destino aleatorio
-        nodo_destino = random.choice(nodos_destino)
+        if not nodo_destino:
+            return None, None, None
         
-        # Generar ruta usando NetworkX (puede ser directa o con múltiples arcos)
+        # Generar ruta usando pesos del perfil del ciclista
         try:
-            # Usar el algoritmo de camino más corto de NetworkX
-            ruta_nodos = nx.shortest_path(self.grafo, nodo_origen, nodo_destino)
+            # Crear grafo temporal con pesos del perfil
+            grafo_temp = self.grafo.copy()
+            
+            # Recalcular pesos de arcos usando el perfil del ciclista
+            for edge in grafo_temp.edges(data=True):
+                origen, destino, datos = edge
+                atributos_arco = {k: v for k, v in datos.items() if k not in ['weight', 'distancia_real']}
+                
+                # Calcular peso compuesto dinámicamente usando el perfil del ciclista
+                # Esta función normaliza los atributos en tiempo real basándose en:
+                # 1. Los rangos de valores del grafo completo
+                # 2. Los pesos de preferencia del perfil específico
+                nuevo_peso_compuesto = self._calcular_peso_compuesto_perfil(atributos_arco, perfil)
+                
+                # Usar el peso compuesto calculado dinámicamente para pathfinding
+                grafo_temp[origen][destino]['weight'] = nuevo_peso_compuesto
+            
+            # Encontrar ruta más corta usando el grafo con pesos del perfil
+            ruta_nodos = nx.shortest_path(grafo_temp, nodo_origen, nodo_destino, weight='weight')
+            
             return nodo_origen, nodo_destino, ruta_nodos
+            
         except nx.NetworkXNoPath:
-            # Si no hay camino, intentar con otro nodo destino
-            for destino_alt in nodos_destino:
+            # Si no hay camino, intentar con selección aleatoria simple
+            nodos_destino = [nodo for nodo in self.grafo.nodes() if nodo != nodo_origen]
+            if nodos_destino:
+                nodo_destino_alt = random.choice(nodos_destino)
                 try:
-                    ruta_nodos = nx.shortest_path(self.grafo, nodo_origen, destino_alt)
-                    return nodo_origen, destino_alt, ruta_nodos
+                    ruta_nodos = nx.shortest_path(self.grafo, nodo_origen, nodo_destino_alt)
+                    return nodo_origen, nodo_destino_alt, ruta_nodos
                 except nx.NetworkXNoPath:
-                    continue
+                    pass
             return None, None, None
         
     def _ciclista(self, id: int, velocidad: float):
@@ -515,8 +733,14 @@ class SimuladorCiclorutas:
             # Obtener distancia real del arco
             distancia_real = self._obtener_distancia_arco(nodo_actual, nodo_siguiente)
             
-            # Movimiento interpolado suave entre nodos
-            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad, id)
+            # Calcular velocidad ajustada basada en atributos del arco
+            velocidad_ajustada = self._calcular_velocidad_ajustada(velocidad, nodo_actual, nodo_siguiente)
+            
+            # Actualizar velocidad del ciclista para estadísticas
+            self.velocidades[id] = velocidad_ajustada
+            
+            # Movimiento interpolado suave entre nodos con velocidad ajustada
+            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad_ajustada, id)
         
         # Marcar ciclista como completado cuando termine su ruta
         self.estado_ciclistas[id] = 'completado'

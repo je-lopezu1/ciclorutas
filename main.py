@@ -31,6 +31,8 @@ def verificar_dependencias():
                 __import__(dep)
         except ImportError:
             faltantes.append(dep)
+
+
     
     if faltantes:
         print("❌ ERROR: Faltan las siguientes dependencias:")
@@ -52,6 +54,7 @@ def mostrar_bienvenida():
     print()
     print("🎯 CARACTERÍSTICAS PRINCIPALES:")
     print("   • Simulación en tiempo real de ciclorutas en forma de Y")
+    
     print("   • Interfaz gráfica intuitiva y moderna")
     print("   • Control completo de parámetros de simulación")
     print("   • Visualización en tiempo real con matplotlib")

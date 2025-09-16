@@ -5,6 +5,7 @@ import networkx as nx
 from tkinter import ttk, messagebox
 import threading
 import time
+import os
 from simulacion_ciclorutas import SimuladorCiclorutas, ConfiguracionSimulacion
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -28,6 +29,9 @@ class InterfazSimulacion:
         # Variables para el grafo
         self.grafo_actual = None
         self.pos_grafo_actual = None
+        
+        # Variable para controlar qué pesos mostrar en la visualización
+        self.tipo_visualizacion = tk.StringVar(value="distancia_real")
         
         # Variables de control
         self.simulacion_activa = False
@@ -110,67 +114,127 @@ class InterfazSimulacion:
         vel_max_spin = ttk.Spinbox(control_frame, from_=1.0, to=30.0, increment=0.5, textvariable=self.vel_max_var, width=10)
         vel_max_spin.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
+        # Botón para aplicar cambios de velocidad
+        ttk.Button(control_frame, text="✅ Aplicar Velocidades", 
+                  command=self.aplicar_velocidades,
+                  style='Accent.TButton').grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        
         # Información sobre el grafo
-        ttk.Label(control_frame, text="📊 Configuración de Red:", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        ttk.Label(control_frame, text="📊 Configuración de Red:", font=('Segoe UI', 10, 'bold')).grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         self.info_grafo_label = ttk.Label(control_frame, text="Sin grafo cargado", font=('Segoe UI', 9), foreground='#6c757d')
-        self.info_grafo_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=2)
+        self.info_grafo_label.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=2)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
         # Sección de carga de grafo
-        ttk.Label(control_frame, text="📂 GESTIÓN DE GRAFO", font=('Segoe UI', 10, 'bold')).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
-        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(control_frame, text="📂 GESTIÓN DE GRAFO", font=('Segoe UI', 10, 'bold')).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
         # Sección de control de simulación
-        ttk.Label(control_frame, text="🎮 CONTROL DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Label(control_frame, text="🎮 CONTROL DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
         
         # Botones principales en dos columnas
         ttk.Button(control_frame, text="🔄 NUEVA", command=self.nueva_simulacion, 
-                  style='Accent.TButton').grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+                  style='Accent.TButton').grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
         ttk.Button(control_frame, text="▶️ INICIAR", command=self.iniciar_simulacion, 
-                  style='Accent.TButton').grid(row=11, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
-        
-        ttk.Button(control_frame, text="⏸️ PAUSAR", command=self.pausar_simulacion, 
-                  style='Accent.TButton').grid(row=11, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
-        
-        ttk.Button(control_frame, text="🏁 TERMINAR", command=self.terminar_simulacion, 
                   style='Accent.TButton').grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
         
-        ttk.Button(control_frame, text="⏭️ ADELANTAR", command=self.adelantar_simulacion, 
+        ttk.Button(control_frame, text="⏸️ PAUSAR", command=self.pausar_simulacion, 
                   style='Accent.TButton').grid(row=12, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
         
+        ttk.Button(control_frame, text="🏁 TERMINAR", command=self.terminar_simulacion, 
+                  style='Accent.TButton').grid(row=13, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
+        
+        ttk.Button(control_frame, text="⏭️ ADELANTAR", command=self.adelantar_simulacion, 
+                  style='Accent.TButton').grid(row=13, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
+        
         ttk.Button(control_frame, text="🔄 REINICIAR", command=self.reiniciar_simulacion, 
-                  style='Accent.TButton').grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+                  style='Accent.TButton').grid(row=14, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=14, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
         # Sección de estado
-        ttk.Label(control_frame, text="📊 ESTADO DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=15, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Label(control_frame, text="📊 ESTADO DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=16, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
         
         # Estado de la simulación
-        ttk.Label(control_frame, text="Estado:", font=('Segoe UI', 9, 'bold')).grid(row=16, column=0, sticky=tk.W, pady=2)
+        ttk.Label(control_frame, text="Estado:", font=('Segoe UI', 9, 'bold')).grid(row=17, column=0, sticky=tk.W, pady=2)
         self.estado_label = ttk.Label(control_frame, text="DETENIDO", font=('Segoe UI', 9), foreground='#dc3545')
-        self.estado_label.grid(row=16, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        self.estado_label.grid(row=17, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
         # Tiempo actual
-        ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 9, 'bold')).grid(row=17, column=0, sticky=tk.W, pady=2)
+        ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 9, 'bold')).grid(row=18, column=0, sticky=tk.W, pady=2)
         self.tiempo_label = ttk.Label(control_frame, text="0.0s", font=('Segoe UI', 9))
-        self.tiempo_label.grid(row=17, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        self.tiempo_label.grid(row=18, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+    
+    def aplicar_velocidades(self):
+        """Aplica los cambios de velocidad configurados"""
+        try:
+            # Obtener valores de las variables
+            vel_min = self.vel_min_var.get()
+            vel_max = self.vel_max_var.get()
+            
+            # Validar velocidades
+            if vel_min >= vel_max:
+                messagebox.showerror("Error", "La velocidad mínima debe ser menor que la máxima")
+                return
+            
+            if vel_min < 0 or vel_max < 0:
+                messagebox.showerror("Error", "Las velocidades no pueden ser negativas")
+                return
+            
+            # Actualizar configuración
+            self.config.velocidad_min = vel_min
+            self.config.velocidad_max = vel_max
+            
+            # Actualizar simulador si existe
+            if hasattr(self, 'simulador') and self.simulador:
+                self.simulador.config.velocidad_min = vel_min
+                self.simulador.config.velocidad_max = vel_max
+            
+            # Mostrar mensaje de confirmación
+            messagebox.showinfo("Velocidades Aplicadas", 
+                              f"✅ Velocidades actualizadas:\n"
+                              f"   Mínima: {vel_min:.1f} m/s\n"
+                              f"   Máxima: {vel_max:.1f} m/s\n\n"
+                              f"Los cambios se aplicarán en la próxima simulación.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar velocidades: {str(e)}")
     
     def crear_panel_distribuciones(self, parent):
-        """Crea el panel de configuración de distribuciones por nodo"""
-        dist_frame = ttk.LabelFrame(parent, text="📊 DISTRIBUCIONES DE ARRIBO", padding="10")
+        """Crea el panel de configuración de distribuciones por nodo con pestañas"""
+        dist_frame = ttk.LabelFrame(parent, text="📊 CONFIGURACIÓN DE SIMULACIÓN", padding="10")
         parent.add(dist_frame, weight=1)
         
+        # Crear widget de pestañas (Notebook)
+        self.notebook_distribuciones = ttk.Notebook(dist_frame)
+        self.notebook_distribuciones.pack(fill="both", expand=True)
+        
+        # PESTAÑA 1: NODOS
+        self.crear_tab_nodos()
+        
+        # PESTAÑA 2: PERFILES DE CICLISTAS
+        self.crear_tab_perfiles()
+        
+        # Variables para almacenar controles de distribuciones
+        self.controles_distribuciones = {}
+        self.controles_perfiles = {}
+    
+    def crear_tab_nodos(self):
+        """Crea la pestaña de configuración de nodos"""
+        # Frame para la pestaña de nodos
+        tab_nodos = ttk.Frame(self.notebook_distribuciones)
+        self.notebook_distribuciones.add(tab_nodos, text="📍 NODOS")
+        
         # Frame para scroll - se ajusta al contenido
-        canvas = tk.Canvas(dist_frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(dist_frame, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(tab_nodos, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(tab_nodos, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
         # Función para actualizar el scroll y ajustar el tamaño
@@ -192,12 +256,9 @@ class InterfazSimulacion:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Variables para almacenar controles de distribuciones
-        self.controles_distribuciones = {}
-        
         # Mensaje inicial
         self.mensaje_distribuciones = ttk.Label(scrollable_frame, 
-                                              text="📂 Carga un grafo para configurar distribuciones",
+                                              text="📂 Carga un grafo para configurar distribuciones de nodos",
                                               font=('Segoe UI', 10), foreground='#6c757d')
         self.mensaje_distribuciones.pack(pady=20)
         
@@ -213,6 +274,55 @@ class InterfazSimulacion:
         # Guardar referencias
         self.canvas_distribuciones = canvas
         self.frame_distribuciones = scrollable_frame
+    
+    def crear_tab_perfiles(self):
+        """Crea la pestaña de configuración de perfiles de ciclistas"""
+        # Frame para la pestaña de perfiles
+        tab_perfiles = ttk.Frame(self.notebook_distribuciones)
+        self.notebook_distribuciones.add(tab_perfiles, text="🚴 PERFILES")
+        
+        # Frame para scroll - se ajusta al contenido
+        canvas_perfiles = tk.Canvas(tab_perfiles, highlightthickness=0)
+        scrollbar_perfiles = ttk.Scrollbar(tab_perfiles, orient="vertical", command=canvas_perfiles.yview)
+        scrollable_frame_perfiles = ttk.Frame(canvas_perfiles)
+        
+        # Función para actualizar el scroll y ajustar el tamaño
+        def actualizar_scroll_perfiles(event=None):
+            # Actualizar región de scroll
+            canvas_perfiles.configure(scrollregion=canvas_perfiles.bbox("all"))
+            
+            # Ajustar el tamaño del canvas al contenido si es necesario
+            scrollable_frame_perfiles.update_idletasks()
+            frame_height = scrollable_frame_perfiles.winfo_reqheight()
+            canvas_height = canvas_perfiles.winfo_height()
+            
+            # Si el contenido es menor que el canvas, ajustar el canvas
+            if frame_height < canvas_height and frame_height > 0:
+                canvas_perfiles.configure(height=frame_height)
+        
+        scrollable_frame_perfiles.bind("<Configure>", actualizar_scroll_perfiles)
+        
+        canvas_perfiles.create_window((0, 0), window=scrollable_frame_perfiles, anchor="nw")
+        canvas_perfiles.configure(yscrollcommand=scrollbar_perfiles.set)
+        
+        # Mensaje inicial
+        self.mensaje_perfiles = ttk.Label(scrollable_frame_perfiles, 
+                                         text="📂 Carga un grafo con perfiles para configurar ciclistas",
+                                         font=('Segoe UI', 10), foreground='#6c757d')
+        self.mensaje_perfiles.pack(pady=20)
+        
+        # Empaquetar canvas y scrollbar
+        canvas_perfiles.pack(side="left", fill="both", expand=True)
+        scrollbar_perfiles.pack(side="right", fill="y")
+        
+        # Configurar scroll con mouse wheel
+        def _on_mousewheel_perfiles(event):
+            canvas_perfiles.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas_perfiles.bind_all("<MouseWheel>", _on_mousewheel_perfiles)
+        
+        # Guardar referencias
+        self.canvas_perfiles = canvas_perfiles
+        self.frame_perfiles = scrollable_frame_perfiles
         
         # Función para ajustar el tamaño del panel
         def ajustar_tamano_panel():
@@ -274,6 +384,166 @@ class InterfazSimulacion:
         
         # Ajustar el tamaño del panel al contenido
         self.ajustar_tamano_panel()
+    
+    def actualizar_panel_perfiles(self):
+        """Actualiza el panel de perfiles de ciclistas"""
+        # Limpiar controles existentes
+        for widget in self.frame_perfiles.winfo_children():
+            widget.destroy()
+        
+        self.controles_perfiles = {}
+        
+        if not self.grafo_actual or not hasattr(self, 'perfiles_df') or self.perfiles_df is None:
+            # Mostrar mensaje si no hay grafo o perfiles
+            self.mensaje_perfiles = ttk.Label(self.frame_perfiles, 
+                                            text="📂 Carga un grafo con hoja 'PERFILES' para configurar ciclistas",
+                                            font=('Segoe UI', 10), foreground='#6c757d')
+            self.mensaje_perfiles.pack(pady=20)
+            return
+        
+        # Crear controles para cada perfil
+        for i, (_, perfil_data) in enumerate(self.perfiles_df.iterrows()):
+            self._crear_controles_perfil(self.frame_perfiles, perfil_data, i)
+        
+        # Actualizar el scroll y ajustar el tamaño después de crear todos los controles
+        self.frame_perfiles.update_idletasks()
+        self.canvas_perfiles.configure(scrollregion=self.canvas_perfiles.bbox("all"))
+    
+    def _crear_controles_perfil(self, parent, perfil_data, index):
+        """Crea los controles para un perfil de ciclista"""
+        # Frame principal para el perfil
+        perfil_frame = ttk.LabelFrame(parent, text=f"🚴 Perfil {perfil_data['PERFILES']}", padding="10")
+        perfil_frame.pack(fill="x", pady=5, padx=5)
+        
+        # Información del perfil
+        info_frame = ttk.Frame(perfil_frame)
+        info_frame.pack(fill="x", pady=(0, 10))
+        
+        # Título del perfil
+        ttk.Label(info_frame, text=f"Perfil {perfil_data['PERFILES']}", 
+                 font=('Segoe UI', 12, 'bold')).pack(side=tk.LEFT)
+        
+        # Botón para editar perfil
+        btn_editar = ttk.Button(info_frame, text="✏️ Editar", 
+                               command=lambda p=perfil_data: self._editar_perfil(p))
+        btn_editar.pack(side=tk.RIGHT)
+        
+        # Frame para los pesos
+        pesos_frame = ttk.Frame(perfil_frame)
+        pesos_frame.pack(fill="x")
+        
+        # Crear controles para cada peso
+        pesos = ['DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION']
+        colores = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+        
+        for i, (peso, color) in enumerate(zip(pesos, colores)):
+            # Frame para cada peso
+            peso_frame = ttk.Frame(pesos_frame)
+            peso_frame.grid(row=0, column=i, padx=10, pady=5, sticky="ew")
+            pesos_frame.columnconfigure(i, weight=1)
+            
+            # Label del peso
+            ttk.Label(peso_frame, text=peso.title(), 
+                     font=('Segoe UI', 9, 'bold')).pack()
+            
+            # Barra de progreso visual
+            valor = perfil_data[peso]
+            progress_frame = ttk.Frame(peso_frame)
+            progress_frame.pack(fill="x", pady=2)
+            
+            # Barra de progreso
+            progress = ttk.Progressbar(progress_frame, length=100, mode='determinate')
+            progress['value'] = valor * 100
+            progress.pack(side=tk.LEFT, fill="x", expand=True)
+            
+            # Valor numérico
+            valor_label = ttk.Label(progress_frame, text=f"{valor:.2f}", 
+                                   font=('Segoe UI', 8))
+            valor_label.pack(side=tk.RIGHT, padx=(5, 0))
+            
+            # Guardar referencias
+            self.controles_perfiles[f"perfil_{perfil_data['PERFILES']}_{peso}"] = {
+                'progress': progress,
+                'valor_label': valor_label,
+                'valor': valor
+            }
+    
+    def _editar_perfil(self, perfil_data):
+        """Abre una ventana para editar un perfil de ciclista"""
+        # Crear ventana de edición
+        ventana_edicion = tk.Toplevel(self.root)
+        ventana_edicion.title(f"Editar Perfil {perfil_data['PERFILES']}")
+        ventana_edicion.geometry("400x300")
+        ventana_edicion.resizable(False, False)
+        
+        # Centrar la ventana
+        ventana_edicion.transient(self.root)
+        ventana_edicion.grab_set()
+        
+        # Frame principal
+        main_frame = ttk.Frame(ventana_edicion, padding="20")
+        main_frame.pack(fill="both", expand=True)
+        
+        # Título
+        ttk.Label(main_frame, text=f"Editar Perfil {perfil_data['PERFILES']}", 
+                 font=('Segoe UI', 14, 'bold')).pack(pady=(0, 20))
+        
+        # Variables para los pesos
+        pesos_vars = {}
+        pesos = ['DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION']
+        
+        for peso in pesos:
+            # Frame para cada peso
+            peso_frame = ttk.Frame(main_frame)
+            peso_frame.pack(fill="x", pady=5)
+            
+            # Label
+            ttk.Label(peso_frame, text=f"{peso.title()}:", 
+                     font=('Segoe UI', 10, 'bold')).pack(side=tk.LEFT)
+            
+            # Slider
+            var = tk.DoubleVar(value=perfil_data[peso])
+            pesos_vars[peso] = var
+            
+            slider = ttk.Scale(peso_frame, from_=0.0, to=1.0, variable=var, 
+                              orient="horizontal", length=200)
+            slider.pack(side=tk.LEFT, padx=(10, 5))
+            
+            # Valor
+            valor_label = ttk.Label(peso_frame, text=f"{var.get():.2f}", 
+                                   font=('Segoe UI', 9))
+            valor_label.pack(side=tk.LEFT, padx=(5, 0))
+            
+            # Actualizar valor cuando cambie el slider
+            def update_valor(peso=peso, label=valor_label, var=var):
+                label.config(text=f"{var.get():.2f}")
+            var.trace('w', lambda *args, p=peso, l=valor_label, v=var: update_valor(p, l, v))
+        
+        # Botones
+        botones_frame = ttk.Frame(main_frame)
+        botones_frame.pack(fill="x", pady=(20, 0))
+        
+        def guardar_cambios():
+            # Validar que la suma sea 1.0
+            suma = sum(var.get() for var in pesos_vars.values())
+            if abs(suma - 1.0) > 0.01:
+                messagebox.showerror("Error", f"La suma de los pesos debe ser 1.0 (actual: {suma:.2f})")
+                return
+            
+            # Actualizar el DataFrame
+            for peso, var in pesos_vars.items():
+                self.perfiles_df.loc[self.perfiles_df['PERFILES'] == perfil_data['PERFILES'], peso] = var.get()
+            
+            # Actualizar la interfaz
+            self.actualizar_panel_perfiles()
+            
+            # Cerrar ventana
+            ventana_edicion.destroy()
+            
+            messagebox.showinfo("Éxito", f"Perfil {perfil_data['PERFILES']} actualizado correctamente")
+        
+        ttk.Button(botones_frame, text="💾 Guardar", command=guardar_cambios).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(botones_frame, text="❌ Cancelar", command=ventana_edicion.destroy).pack(side=tk.LEFT)
     
     def _crear_controles_nodo(self, parent, nodo_id: str, index: int, config_actual: Dict[str, any]):
         """Crea los controles para configurar la distribución de un nodo"""
@@ -509,8 +779,16 @@ class InterfazSimulacion:
         if self.grafo_actual:
             num_nodos = len(self.grafo_actual.nodes())
             num_arcos = len(self.grafo_actual.edges())
+            
+            # Información básica del grafo
+            info_texto = f"Red Ciclorutas: {num_nodos} nodos, {num_arcos} arcos"
+            
+            # Agregar nombre del archivo si está disponible
+            if hasattr(self, 'nombre_archivo_excel') and self.nombre_archivo_excel:
+                info_texto += f"\n📁 Archivo: {self.nombre_archivo_excel}"
+            
             self.info_grafo_label.config(
-                text=f"Grafo: {num_nodos} nodos, {num_arcos} arcos",
+                text=info_texto,
                 foreground='#28a745'
             )
         else:
@@ -524,6 +802,36 @@ class InterfazSimulacion:
         viz_frame = ttk.LabelFrame(parent, text="📊 VISUALIZACIÓN EN TIEMPO REAL", padding="10")
         parent.add(viz_frame, weight=2)  # Panel visual más grande
         
+        # Frame para controles de visualización - DISEÑO HORIZONTAL CON BOTÓN APLICAR
+        controles_viz_frame = ttk.Frame(viz_frame)
+        controles_viz_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        # Configurar grid para distribución horizontal con botón
+        controles_viz_frame.columnconfigure(0, weight=0)  # Label fijo
+        controles_viz_frame.columnconfigure(1, weight=1)  # Combobox expandible
+        controles_viz_frame.columnconfigure(2, weight=0)  # Botón fijo
+        controles_viz_frame.columnconfigure(3, weight=2)  # Info expandible
+        
+        # Selector de atributo para visualización
+        ttk.Label(controles_viz_frame, text="🎯 Mostrar:", font=('Segoe UI', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
+        
+        # Lista desplegable para seleccionar atributo
+        self.combo_atributo = ttk.Combobox(controles_viz_frame, state="readonly", width=25)
+        self.combo_atributo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 10))
+        # SIN actualización automática - se aplica con el botón
+        
+        # Botón para aplicar cambios
+        self.btn_aplicar = ttk.Button(controles_viz_frame, text="✅ Aplicar", 
+                                     command=self.actualizar_visualizacion_grafo,
+                                     style="Accent.TButton")
+        self.btn_aplicar.grid(row=0, column=2, sticky=tk.W, padx=(0, 15))
+        
+        # Información sobre la simulación
+        self.info_simulacion_label = ttk.Label(controles_viz_frame, 
+                                              text="ℹ️ Simulación: distancias reales | Usa 'Aplicar' para actualizar", 
+                                              font=('Segoe UI', 9), foreground='#6c757d')
+        self.info_simulacion_label.grid(row=0, column=3, sticky=(tk.W, tk.E), padx=(15, 0))
+        
         # Crear figura de matplotlib
         self.fig, self.ax = plt.subplots(figsize=(10, 6))
         self.canvas = FigureCanvasTkAgg(self.fig, viz_frame)
@@ -531,6 +839,21 @@ class InterfazSimulacion:
         
         # Configurar el gráfico inicial
         self.configurar_grafico_inicial()
+        
+        # Inicializar controles de visualización
+        self.actualizar_controles_visualizacion()
+    
+    def actualizar_visualizacion_grafo(self):
+        """Actualiza la visualización del grafo según la selección del usuario"""
+        print(f"🔄 Actualizando visualización del grafo...")
+        print(f"   Atributo seleccionado: {self.combo_atributo.get()}")
+        
+        if self.grafo_actual and self.pos_grafo_actual:
+            self.configurar_grafico_con_grafo()
+            print(f"✅ Grafo actualizado correctamente")
+        else:
+            self.configurar_grafico_inicial()
+            print(f"⚠️ No hay grafo cargado, mostrando gráfico inicial")
         
     def crear_panel_estadisticas(self, parent):
         """Crea el panel de estadísticas"""
@@ -613,6 +936,24 @@ class InterfazSimulacion:
         self.stats_labels['nodo_mas_activo'] = ttk.Label(stats_inner, text="N/A", font=('Segoe UI', 9), foreground='#6c757d')
         self.stats_labels['nodo_mas_activo'].grid(row=4, column=3, sticky=tk.W, padx=(0, 20), pady=5)
         
+        # Sexta fila - Información de atributos
+        ttk.Label(stats_inner, text="Atributos:", font=('Segoe UI', 10, 'bold')).grid(row=5, column=0, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['atributos_disponibles'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['atributos_disponibles'].grid(row=5, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        ttk.Label(stats_inner, text="Sistema Pesos:", font=('Segoe UI', 10, 'bold')).grid(row=5, column=2, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['peso_compuesto'] = ttk.Label(stats_inner, text="Simple", font=('Segoe UI', 10), foreground='#6c757d')
+        self.stats_labels['peso_compuesto'].grid(row=5, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        # Séptima fila - Información de perfiles y rutas
+        ttk.Label(stats_inner, text="Perfiles:", font=('Segoe UI', 10, 'bold')).grid(row=6, column=0, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['perfiles_disponibles'] = ttk.Label(stats_inner, text="0", font=('Segoe UI', 10))
+        self.stats_labels['perfiles_disponibles'].grid(row=6, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        
+        ttk.Label(stats_inner, text="Matriz Rutas:", font=('Segoe UI', 10, 'bold')).grid(row=6, column=2, sticky=tk.W, padx=5, pady=5)
+        self.stats_labels['matriz_rutas'] = ttk.Label(stats_inner, text="No", font=('Segoe UI', 10), foreground='#6c757d')
+        self.stats_labels['matriz_rutas'].grid(row=6, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        
     def configurar_grafico_inicial(self):
         """Configura el gráfico inicial sin grafo cargado"""
         self.ax.clear()
@@ -653,14 +994,89 @@ class InterfazSimulacion:
                 with_labels=True, node_color="#2E86AB", edge_color="#AAB7B8",
                 node_size=800, font_size=10, font_color="white", font_weight='bold')
         
-        # Agregar etiquetas de peso en los arcos
-        etiquetas = nx.get_edge_attributes(self.grafo_actual, 'weight')
+        # Agregar etiquetas de peso en los arcos según la selección del usuario
+        etiquetas = {}
+        atributo_seleccionado = self.combo_atributo.get()
+        print(f"   Procesando {len(self.grafo_actual.edges())} arcos con atributo: {atributo_seleccionado}")
+        
+        for edge in self.grafo_actual.edges(data=True):
+            origen, destino, datos = edge
+            valor_mostrar = None
+            
+            # Determinar qué valor mostrar según la selección
+            if "Distancia Real (Simulación)" in atributo_seleccionado:
+                if 'distancia_real' in datos:
+                    valor_mostrar = datos['distancia_real']
+                    formato = "m"
+                elif 'distancia' in datos:
+                    valor_mostrar = datos['distancia']
+                    formato = "m"
+                elif 'weight' in datos and datos['weight'] >= 10.0:
+                    valor_mostrar = datos['weight']
+                    formato = "m"
+                    
+            elif "Distancia Original" in atributo_seleccionado:
+                if 'distancia' in datos:
+                    valor_mostrar = datos['distancia']
+                    formato = "m"
+                elif 'weight' in datos and datos['weight'] >= 10.0:
+                    valor_mostrar = datos['weight']
+                    formato = "m"
+                    
+            # Nota: "Peso Compuesto" ya no está en las opciones del selector
+            # Solo se muestran atributos reales del grafo
+                    
+            else:
+                # Buscar atributo específico seleccionado
+                attr_name = atributo_seleccionado.split(' ', 1)[-1].lower()  # Obtener nombre sin emoji
+                
+                # Mapear nombres de atributos
+                attr_mapping = {
+                    'seguridad': 'seguridad',
+                    'luminosidad': 'luminosidad', 
+                    'inclinacion': 'inclinacion',
+                    'safety': 'seguridad',
+                    'luminosity': 'luminosidad',
+                    'inclination': 'inclinacion'
+                }
+                
+                attr_key = attr_mapping.get(attr_name, attr_name)
+                
+                if attr_key in datos:
+                    valor_mostrar = datos[attr_key]
+                    if attr_key in ['seguridad', 'luminosidad']:
+                        formato = "/10"
+                    elif attr_key == 'inclinacion':
+                        formato = "%"
+                    else:
+                        formato = ""
+            
+            # Crear etiqueta final (SIN normalización)
+            if valor_mostrar is not None:
+                if isinstance(valor_mostrar, float):
+                    if valor_mostrar >= 100:
+                        etiquetas[(origen, destino)] = f"{valor_mostrar:.0f}{formato}"
+                    else:
+                        etiquetas[(origen, destino)] = f"{valor_mostrar:.2f}{formato}"
+                else:
+                    etiquetas[(origen, destino)] = f"{valor_mostrar}{formato}"
+        
+        print(f"   Creadas {len(etiquetas)} etiquetas de arcos")
+        
         nx.draw_networkx_edge_labels(self.grafo_actual, self.pos_grafo_actual, 
                                    edge_labels=etiquetas, ax=self.ax, font_size=8)
         
-        # Configurar el gráfico
-        self.ax.set_title("🚴 SIMULACIÓN SOBRE GRAFO REAL", 
-                         fontsize=14, fontweight='bold', color='#212529', pad=15)
+        # Configurar el gráfico con título simplificado
+        titulo = "🚴 RED CICLORUTAS"
+        
+        # Agregar solo el nombre del archivo Excel si está disponible
+        if hasattr(self, 'nombre_archivo_excel') and self.nombre_archivo_excel:
+            titulo += f" | 📁 {self.nombre_archivo_excel}"
+        
+        # Actualizar el label de información en la barra de control
+        self.info_simulacion_label.config(text=f"ℹ️ {titulo}")
+        
+        self.ax.set_title(titulo, fontsize=14, fontweight='bold', color='#212529', pad=15)
         self.ax.set_xlabel("Coordenada X", fontsize=12, fontweight='bold', color='#495057')
         self.ax.set_ylabel("Coordenada Y", fontsize=12, fontweight='bold', color='#495057')
         
@@ -1043,6 +1459,55 @@ class InterfazSimulacion:
         if len(nodo_mas_activo) > 25:
             nodo_mas_activo = nodo_mas_activo[:22] + "..."
         self.stats_labels['nodo_mas_activo'].config(text=nodo_mas_activo)
+        
+        # Información de atributos
+        atributos_disponibles = 0
+        sistema_pesos = "Simple"
+        
+        if hasattr(self, 'grafo_actual') and self.grafo_actual:
+            # Contar atributos disponibles en los arcos
+            atributos_encontrados = set()
+            for edge in self.grafo_actual.edges(data=True):
+                for key in edge[2].keys():
+                    if key not in ['weight']:
+                        atributos_encontrados.add(key)
+            
+            atributos_disponibles = len(atributos_encontrados)
+            
+            # Verificar tipo de sistema de pesos
+            tiene_distancia_real = any('distancia_real' in edge[2] for edge in self.grafo_actual.edges(data=True))
+            tiene_atributos_multiples = len(atributos_encontrados) > 1
+            
+            if tiene_distancia_real and tiene_atributos_multiples:
+                sistema_pesos = "Dinámico"
+            elif tiene_distancia_real:
+                sistema_pesos = "Real"
+            elif tiene_atributos_multiples:
+                sistema_pesos = "Atributos"
+            else:
+                sistema_pesos = "Simple"
+        
+        self.stats_labels['atributos_disponibles'].config(text=str(atributos_disponibles))
+        self.stats_labels['peso_compuesto'].config(
+            text=sistema_pesos,
+            foreground='#28a745' if sistema_pesos in ['Dinámico', 'Real', 'Atributos'] else '#6c757d'
+        )
+        
+        # Información de perfiles y rutas
+        perfiles_disponibles = 0
+        matriz_rutas_activa = "No"
+        
+        if hasattr(self, 'perfiles_df') and self.perfiles_df is not None:
+            perfiles_disponibles = len(self.perfiles_df)
+        
+        if hasattr(self, 'rutas_df') and self.rutas_df is not None:
+            matriz_rutas_activa = "Sí"
+        
+        self.stats_labels['perfiles_disponibles'].config(text=str(perfiles_disponibles))
+        self.stats_labels['matriz_rutas'].config(
+            text=matriz_rutas_activa,
+            foreground='#28a745' if matriz_rutas_activa == "Sí" else '#6c757d'
+        )
 
 
     def cargar_grafo(self):
@@ -1060,6 +1525,19 @@ class InterfazSimulacion:
             nodos_df = pd.read_excel(archivo, sheet_name="NODOS", engine="openpyxl")
             arcos_df = pd.read_excel(archivo, sheet_name="ARCOS", engine="openpyxl")
             
+            # Verificar si hay hojas adicionales
+            excel_file = pd.ExcelFile(archivo)
+            perfiles_df = None
+            rutas_df = None
+            
+            if "PERFILES" in excel_file.sheet_names:
+                perfiles_df = pd.read_excel(archivo, sheet_name="PERFILES", engine="openpyxl")
+                print("✅ Hoja PERFILES encontrada")
+            
+            if "RUTAS" in excel_file.sheet_names:
+                rutas_df = pd.read_excel(archivo, sheet_name="RUTAS", engine="openpyxl")
+                print("✅ Hoja RUTAS encontrada")
+            
             # Crear grafo NetworkX
             G = nx.Graph()
             
@@ -1068,11 +1546,48 @@ class InterfazSimulacion:
                 G.add_node(nodo)
                 print(f"✅ Nodo agregado: {nodo}")
             
-            # Agregar arcos con pesos
+            # Verificar atributos disponibles en arcos
+            atributos_disponibles = []
+            for attr in ['DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION']:
+                if attr in arcos_df.columns:
+                    atributos_disponibles.append(attr)
+            
+            print(f"📊 Atributos encontrados: {atributos_disponibles}")
+            
+            # Preparar datos para cálculo dinámico de pesos
+            if len(atributos_disponibles) > 1:
+                arcos_df = self._calcular_peso_compuesto(arcos_df, atributos_disponibles)
+                print("✅ Datos preparados para cálculo dinámico de pesos")
+            
+            # Agregar arcos con todos los atributos
             for _, fila in arcos_df.iterrows():
-                origen, destino, longitud = fila[0], fila[1], fila[2]
-                G.add_edge(origen, destino, weight=longitud)
-                print(f"✅ Arco agregado: {origen} -> {destino} (distancia: {longitud})")
+                origen, destino = fila[0], fila[1]
+                
+                # Crear diccionario de atributos
+                atributos = {}
+                for col in arcos_df.columns:
+                    if col not in ['ORIGEN', 'DESTINO']:
+                        atributos[col.lower()] = fila[col]
+                
+                # Configurar pesos para diferentes usos:
+                # - weight: para algoritmos de pathfinding (se calculará dinámicamente por usuario)
+                # - distancia_real: para simulación de tiempos (distancia real ajustada)
+                if 'distancia' in atributos:
+                    atributos['weight'] = atributos['distancia']  # Usar distancia como peso base
+                
+                # Asegurar que siempre tengamos distancia_real para simulación
+                if 'distancia_real' not in atributos and 'distancia' in atributos:
+                    atributos['distancia_real'] = atributos['distancia']
+                
+                G.add_edge(origen, destino, **atributos)
+                
+                # Mostrar información del arco
+                info_arco = f"{origen} -> {destino}"
+                if 'distancia' in atributos:
+                    info_arco += f" (dist: {atributos['distancia']:.0f})"
+                if 'peso_compuesto' in atributos:
+                    info_arco += f" (peso: {atributos['peso_compuesto']:.3f})"
+                print(f"✅ Arco agregado: {info_arco}")
             
             # Verificar que el grafo tenga al menos 3 nodos
             if len(G.nodes()) < 3:
@@ -1086,8 +1601,15 @@ class InterfazSimulacion:
             self.grafo_actual = G
             self.pos_grafo_actual = pos
             
-            # Configurar el simulador con el nuevo grafo
-            self.simulador.configurar_grafo(G, pos)
+            # Guardar nombre del archivo Excel
+            self.nombre_archivo_excel = os.path.basename(archivo)
+            
+            # Guardar datos adicionales si están disponibles
+            self.perfiles_df = perfiles_df
+            self.rutas_df = rutas_df
+            
+            # Configurar el simulador con el nuevo grafo, perfiles y rutas
+            self.simulador.configurar_grafo(G, pos, perfiles_df, rutas_df)
             
             # Actualizar visualización
             self.configurar_grafico_con_grafo()
@@ -1100,18 +1622,40 @@ class InterfazSimulacion:
             # Actualizar panel de distribuciones
             self.actualizar_panel_distribuciones()
             
+            # Actualizar panel de perfiles
+            self.actualizar_panel_perfiles()
+            
             # Actualizar información del grafo en el panel de control
             self.actualizar_info_grafo()
             
-            # Mostrar mensaje de éxito
+            # Habilitar/deshabilitar controles de visualización según el tipo de grafo
+            self.actualizar_controles_visualizacion()
+            
+            # Mostrar mensaje de éxito con información detallada
             num_nodos = len(G.nodes())
             num_arcos = len(G.edges())
-            messagebox.showinfo("Grafo Cargado", 
-                              f"✅ Grafo cargado exitosamente!\n\n"
-                              f"📊 Estadísticas:\n"
-                              f"• Nodos: {num_nodos}\n"
-                              f"• Arcos: {num_arcos}\n\n"
-                              f"🚴 La simulación ahora usará las coordenadas reales del grafo")
+            mensaje = f"✅ Grafo cargado exitosamente!\n\n📊 Estadísticas:\n• Nodos: {num_nodos}\n• Arcos: {num_arcos}\n• Atributos: {len(atributos_disponibles)}"
+            
+            if len(atributos_disponibles) > 1:
+                mensaje += f"\n• Peso compuesto: ✅"
+            else:
+                mensaje += f"\n• Peso compuesto: ❌ (solo distancia)"
+            
+            if perfiles_df is not None:
+                mensaje += f"\n• Perfiles: {len(perfiles_df)} disponibles"
+            
+            if rutas_df is not None:
+                mensaje += f"\n• Matriz de rutas: ✅"
+            
+            if perfiles_df is not None and rutas_df is not None:
+                mensaje += f"\n\n🎭 SISTEMA AVANZADO ACTIVADO:"
+                mensaje += f"\n• Perfiles de ciclistas: {len(perfiles_df)} tipos"
+                mensaje += f"\n• Rutas probabilísticas: ✅"
+                mensaje += f"\n• Simulación realista: ✅"
+            else:
+                mensaje += f"\n\n🚴 La simulación ahora usa pesos mejorados"
+            
+            messagebox.showinfo("Grafo Cargado", mensaje)
             
         except FileNotFoundError:
             messagebox.showerror("Error", "No se encontró el archivo especificado")
@@ -1120,6 +1664,98 @@ class InterfazSimulacion:
                                         "Asegúrate de que el archivo tenga las hojas 'NODOS' y 'ARCOS'")
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar el archivo: {str(e)}")
+    
+    def _calcular_peso_compuesto(self, arcos_df, atributos_disponibles):
+        """Prepara los datos para cálculo dinámico de pesos compuestos por usuario"""
+        df_resultado = arcos_df.copy()
+        
+        # NO calcular peso compuesto fijo aquí - se hará dinámicamente por usuario
+        # Solo calcular distancia real para simulación
+        df_resultado['distancia_real'] = self._calcular_distancia_real(arcos_df, atributos_disponibles)
+        
+        print(f"📏 Distancia real calculada:")
+        print(f"   Rango: {df_resultado['distancia_real'].min():.1f} - {df_resultado['distancia_real'].max():.1f} metros")
+        print(f"   Promedio: {df_resultado['distancia_real'].mean():.1f} metros")
+        print(f"ℹ️ Los pesos compuestos se calcularán dinámicamente por perfil de usuario")
+        
+        return df_resultado
+    
+    def _calcular_distancia_real(self, arcos_df, atributos_disponibles):
+        """Calcula la distancia real igual a la distancia original (sin ajustes)"""
+        # La distancia real es igual a la distancia original
+        distancias_reales = arcos_df['DISTANCIA'].copy()
+        
+        print(f"📏 Distancia real = Distancia original (sin ajustes)")
+        print(f"   Rango: {distancias_reales.min():.1f} - {distancias_reales.max():.1f} metros")
+        print(f"   Promedio: {distancias_reales.mean():.1f} metros")
+        print(f"ℹ️ Los otros atributos afectarán la velocidad, no la distancia")
+        
+        return distancias_reales
+    
+    def actualizar_controles_visualizacion(self):
+        """Actualiza la lista desplegable con los atributos disponibles del grafo"""
+        if not self.grafo_actual:
+            # Sin grafo: deshabilitar controles
+            self.combo_atributo.config(state='disabled')
+            self.combo_atributo['values'] = []
+            self.btn_aplicar.config(state='disabled')
+            self.info_simulacion_label.config(text="ℹ️ Carga un grafo para ver sus atributos reales")
+            return
+        
+        # Recopilar todos los atributos disponibles en el grafo
+        atributos_disponibles = set()
+        for edge in self.grafo_actual.edges(data=True):
+            for key in edge[2].keys():
+                if key not in ['weight']:  # Excluir 'weight' ya que es usado internamente
+                    atributos_disponibles.add(key)
+        
+        # Crear lista de opciones para el combobox - SOLO atributos reales del grafo
+        opciones = []
+        
+        # Agregar opciones especiales solo si existen en el grafo
+        if 'distancia_real' in atributos_disponibles:
+            opciones.append("📏 Distancia Real (Simulación)")
+        if 'distancia' in atributos_disponibles:
+            opciones.append("📏 Distancia Original")
+        
+        # Agregar todos los atributos individuales que están realmente en el grafo
+        for attr in sorted(atributos_disponibles):
+            if attr not in ['distancia_real', 'distancia']:  # Excluir solo estos, no peso_compuesto
+                # Agregar emoji según el tipo de atributo
+                if attr.lower() in ['seguridad', 'safety']:
+                    opciones.append(f"🛡️ {attr.title()}")
+                elif attr.lower() in ['luminosidad', 'luminosity', 'light']:
+                    opciones.append(f"💡 {attr.title()}")
+                elif attr.lower() in ['inclinacion', 'inclination', 'slope']:
+                    opciones.append(f"⛰️ {attr.title()}")
+                else:
+                    opciones.append(f"📊 {attr.title()}")
+        
+        # Actualizar combobox
+        self.combo_atributo['values'] = opciones
+        self.combo_atributo.config(state='readonly')
+        
+        # Habilitar botón aplicar
+        self.btn_aplicar.config(state='normal')
+        
+        # Seleccionar "Distancia Real (Simulación)" por defecto si está disponible
+        if opciones:
+            if "📏 Distancia Real (Simulación)" in opciones:
+                self.combo_atributo.set("📏 Distancia Real (Simulación)")
+                # Aplicar automáticamente la visualización
+                self.actualizar_visualizacion_grafo()
+            else:
+                self.combo_atributo.set(opciones[0])
+                # Aplicar automáticamente la visualización
+                self.actualizar_visualizacion_grafo()
+        
+        # Actualizar información
+        num_atributos = len(atributos_disponibles)
+        if num_atributos > 1:
+            self.info_simulacion_label.config(text=f"ℹ️ Simulación: distancias reales | Visualización: {num_atributos} atributos reales")
+        else:
+            self.info_simulacion_label.config(text="ℹ️ Simulación: distancias reales | Visualización: solo distancias")
+    
     def cerrar_aplicacion(self):
         """Maneja el cierre seguro de la aplicación"""
         # Marcar que la ventana está siendo cerrada
