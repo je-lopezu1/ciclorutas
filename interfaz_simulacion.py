@@ -114,58 +114,98 @@ class InterfazSimulacion:
         vel_max_spin = ttk.Spinbox(control_frame, from_=1.0, to=30.0, increment=0.5, textvariable=self.vel_max_var, width=10)
         vel_max_spin.grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
         
+        # Botón para aplicar cambios de velocidad
+        ttk.Button(control_frame, text="✅ Aplicar Velocidades", 
+                  command=self.aplicar_velocidades,
+                  style='Accent.TButton').grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        
         # Información sobre el grafo
-        ttk.Label(control_frame, text="📊 Configuración de Red:", font=('Segoe UI', 10, 'bold')).grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
+        ttk.Label(control_frame, text="📊 Configuración de Red:", font=('Segoe UI', 10, 'bold')).grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(15, 5))
         self.info_grafo_label = ttk.Label(control_frame, text="Sin grafo cargado", font=('Segoe UI', 9), foreground='#6c757d')
-        self.info_grafo_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=2)
+        self.info_grafo_label.grid(row=5, column=0, columnspan=2, sticky=tk.W, pady=2)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
         # Sección de carga de grafo
-        ttk.Label(control_frame, text="📂 GESTIÓN DE GRAFO", font=('Segoe UI', 10, 'bold')).grid(row=6, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
-        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(control_frame, text="📂 GESTIÓN DE GRAFO", font=('Segoe UI', 10, 'bold')).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Button(control_frame, text='📂 CARGAR GRAFO', command=self.cargar_grafo).grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=9, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
         # Sección de control de simulación
-        ttk.Label(control_frame, text="🎮 CONTROL DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Label(control_frame, text="🎮 CONTROL DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
         
         # Botones principales en dos columnas
         ttk.Button(control_frame, text="🔄 NUEVA", command=self.nueva_simulacion, 
-                  style='Accent.TButton').grid(row=10, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+                  style='Accent.TButton').grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
         ttk.Button(control_frame, text="▶️ INICIAR", command=self.iniciar_simulacion, 
-                  style='Accent.TButton').grid(row=11, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
-        
-        ttk.Button(control_frame, text="⏸️ PAUSAR", command=self.pausar_simulacion, 
-                  style='Accent.TButton').grid(row=11, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
-        
-        ttk.Button(control_frame, text="🏁 TERMINAR", command=self.terminar_simulacion, 
                   style='Accent.TButton').grid(row=12, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
         
-        ttk.Button(control_frame, text="⏭️ ADELANTAR", command=self.adelantar_simulacion, 
+        ttk.Button(control_frame, text="⏸️ PAUSAR", command=self.pausar_simulacion, 
                   style='Accent.TButton').grid(row=12, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
         
+        ttk.Button(control_frame, text="🏁 TERMINAR", command=self.terminar_simulacion, 
+                  style='Accent.TButton').grid(row=13, column=0, sticky=(tk.W, tk.E), pady=2, padx=(0, 2))
+        
+        ttk.Button(control_frame, text="⏭️ ADELANTAR", command=self.adelantar_simulacion, 
+                  style='Accent.TButton').grid(row=13, column=1, sticky=(tk.W, tk.E), pady=2, padx=(2, 0))
+        
         ttk.Button(control_frame, text="🔄 REINICIAR", command=self.reiniciar_simulacion, 
-                  style='Accent.TButton').grid(row=13, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
+                  style='Accent.TButton').grid(row=14, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=2)
         
         # Separador
-        ttk.Separator(control_frame, orient='horizontal').grid(row=14, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
+        ttk.Separator(control_frame, orient='horizontal').grid(row=15, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=15)
         
         # Sección de estado
-        ttk.Label(control_frame, text="📊 ESTADO DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=15, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        ttk.Label(control_frame, text="📊 ESTADO DE SIMULACIÓN", font=('Segoe UI', 10, 'bold')).grid(row=16, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
         
         # Estado de la simulación
-        ttk.Label(control_frame, text="Estado:", font=('Segoe UI', 9, 'bold')).grid(row=16, column=0, sticky=tk.W, pady=2)
+        ttk.Label(control_frame, text="Estado:", font=('Segoe UI', 9, 'bold')).grid(row=17, column=0, sticky=tk.W, pady=2)
         self.estado_label = ttk.Label(control_frame, text="DETENIDO", font=('Segoe UI', 9), foreground='#dc3545')
-        self.estado_label.grid(row=16, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        self.estado_label.grid(row=17, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
         # Tiempo actual
-        ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 9, 'bold')).grid(row=17, column=0, sticky=tk.W, pady=2)
+        ttk.Label(control_frame, text="Tiempo:", font=('Segoe UI', 9, 'bold')).grid(row=18, column=0, sticky=tk.W, pady=2)
         self.tiempo_label = ttk.Label(control_frame, text="0.0s", font=('Segoe UI', 9))
-        self.tiempo_label.grid(row=17, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+        self.tiempo_label.grid(row=18, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+    
+    def aplicar_velocidades(self):
+        """Aplica los cambios de velocidad configurados"""
+        try:
+            # Obtener valores de las variables
+            vel_min = self.vel_min_var.get()
+            vel_max = self.vel_max_var.get()
+            
+            # Validar velocidades
+            if vel_min >= vel_max:
+                messagebox.showerror("Error", "La velocidad mínima debe ser menor que la máxima")
+                return
+            
+            if vel_min < 0 or vel_max < 0:
+                messagebox.showerror("Error", "Las velocidades no pueden ser negativas")
+                return
+            
+            # Actualizar configuración
+            self.config.velocidad_min = vel_min
+            self.config.velocidad_max = vel_max
+            
+            # Actualizar simulador si existe
+            if hasattr(self, 'simulador') and self.simulador:
+                self.simulador.config.velocidad_min = vel_min
+                self.simulador.config.velocidad_max = vel_max
+            
+            # Mostrar mensaje de confirmación
+            messagebox.showinfo("Velocidades Aplicadas", 
+                              f"✅ Velocidades actualizadas:\n"
+                              f"   Mínima: {vel_min:.1f} m/s\n"
+                              f"   Máxima: {vel_max:.1f} m/s\n\n"
+                              f"Los cambios se aplicarán en la próxima simulación.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar velocidades: {str(e)}")
     
     def crear_panel_distribuciones(self, parent):
         """Crea el panel de configuración de distribuciones por nodo con pestañas"""
@@ -805,10 +845,15 @@ class InterfazSimulacion:
     
     def actualizar_visualizacion_grafo(self):
         """Actualiza la visualización del grafo según la selección del usuario"""
+        print(f"🔄 Actualizando visualización del grafo...")
+        print(f"   Atributo seleccionado: {self.combo_atributo.get()}")
+        
         if self.grafo_actual and self.pos_grafo_actual:
             self.configurar_grafico_con_grafo()
+            print(f"✅ Grafo actualizado correctamente")
         else:
             self.configurar_grafico_inicial()
+            print(f"⚠️ No hay grafo cargado, mostrando gráfico inicial")
         
     def crear_panel_estadisticas(self, parent):
         """Crea el panel de estadísticas"""
@@ -952,6 +997,7 @@ class InterfazSimulacion:
         # Agregar etiquetas de peso en los arcos según la selección del usuario
         etiquetas = {}
         atributo_seleccionado = self.combo_atributo.get()
+        print(f"   Procesando {len(self.grafo_actual.edges())} arcos con atributo: {atributo_seleccionado}")
         
         for edge in self.grafo_actual.edges(data=True):
             origen, destino, datos = edge
@@ -962,16 +1008,19 @@ class InterfazSimulacion:
                 if 'distancia_real' in datos:
                     valor_mostrar = datos['distancia_real']
                     formato = "m"
-            elif 'distancia' in datos:
-                valor_mostrar = datos['distancia']
-                formato = "m"
-            elif 'weight' in datos and datos['weight'] >= 10.0:
+                elif 'distancia' in datos:
+                    valor_mostrar = datos['distancia']
+                    formato = "m"
+                elif 'weight' in datos and datos['weight'] >= 10.0:
                     valor_mostrar = datos['weight']
                     formato = "m"
                     
             elif "Distancia Original" in atributo_seleccionado:
                 if 'distancia' in datos:
                     valor_mostrar = datos['distancia']
+                    formato = "m"
+                elif 'weight' in datos and datos['weight'] >= 10.0:
+                    valor_mostrar = datos['weight']
                     formato = "m"
                     
             # Nota: "Peso Compuesto" ya no está en las opciones del selector
@@ -1011,6 +1060,8 @@ class InterfazSimulacion:
                         etiquetas[(origen, destino)] = f"{valor_mostrar:.2f}{formato}"
                 else:
                     etiquetas[(origen, destino)] = f"{valor_mostrar}{formato}"
+        
+        print(f"   Creadas {len(etiquetas)} etiquetas de arcos")
         
         nx.draw_networkx_edge_labels(self.grafo_actual, self.pos_grafo_actual, 
                                    edge_labels=etiquetas, ax=self.ax, font_size=8)
@@ -1630,33 +1681,14 @@ class InterfazSimulacion:
         return df_resultado
     
     def _calcular_distancia_real(self, arcos_df, atributos_disponibles):
-        """Calcula la distancia real considerando factores de ajuste pero manteniendo escala real"""
-        distancias_reales = arcos_df['DISTANCIA'].copy()  # Empezar con distancia física real
+        """Calcula la distancia real igual a la distancia original (sin ajustes)"""
+        # La distancia real es igual a la distancia original
+        distancias_reales = arcos_df['DISTANCIA'].copy()
         
-        # Aplicar factores de ajuste basados en otros atributos
-        for idx, fila in arcos_df.iterrows():
-            factor_ajuste = 1.0
-            
-            # Factor de seguridad (valores más altos = menos desviación)
-            if 'SEGURIDAD' in atributos_disponibles:
-                seguridad = fila['SEGURIDAD']
-                # Seguridad 1-10, factor 0.8-1.2
-                factor_ajuste *= 0.8 + (seguridad - 1) * 0.044  # 0.8 + (seg-1) * 0.044
-            
-            # Factor de luminosidad (valores más altos = menos desviación nocturna)
-            if 'LUMINOSIDAD' in atributos_disponibles:
-                luminosidad = fila['LUMINOSIDAD']
-                # Luminosidad 1-10, factor 0.9-1.1
-                factor_ajuste *= 0.9 + (luminosidad - 1) * 0.022  # 0.9 + (lum-1) * 0.022
-            
-            # Factor de inclinación (valores más altos = más tiempo de recorrido)
-            if 'INCLINACION' in atributos_disponibles:
-                inclinacion = fila['INCLINACION']
-                # Inclinación 1-5, factor 1.0-1.5
-                factor_ajuste *= 1.0 + (inclinacion - 1) * 0.125  # 1.0 + (inc-1) * 0.125
-            
-            # Aplicar factor de ajuste a la distancia real
-            distancias_reales.iloc[idx] = distancias_reales.iloc[idx] * factor_ajuste
+        print(f"📏 Distancia real = Distancia original (sin ajustes)")
+        print(f"   Rango: {distancias_reales.min():.1f} - {distancias_reales.max():.1f} metros")
+        print(f"   Promedio: {distancias_reales.mean():.1f} metros")
+        print(f"ℹ️ Los otros atributos afectarán la velocidad, no la distancia")
         
         return distancias_reales
     
@@ -1706,9 +1738,16 @@ class InterfazSimulacion:
         # Habilitar botón aplicar
         self.btn_aplicar.config(state='normal')
         
-        # Seleccionar primera opción por defecto
+        # Seleccionar "Distancia Real (Simulación)" por defecto si está disponible
         if opciones:
-            self.combo_atributo.set(opciones[0])
+            if "📏 Distancia Real (Simulación)" in opciones:
+                self.combo_atributo.set("📏 Distancia Real (Simulación)")
+                # Aplicar automáticamente la visualización
+                self.actualizar_visualizacion_grafo()
+            else:
+                self.combo_atributo.set(opciones[0])
+                # Aplicar automáticamente la visualización
+                self.actualizar_visualizacion_grafo()
         
         # Actualizar información
         num_atributos = len(atributos_disponibles)
