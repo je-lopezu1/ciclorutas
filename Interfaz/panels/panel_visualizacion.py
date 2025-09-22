@@ -130,23 +130,28 @@ class PanelVisualizacion:
         self.ax.spines['left'].set_color('#6c757d')
         self.ax.spines['bottom'].set_color('#6c757d')
         
-        # Dibujar red básica en forma de Y
-        self._dibujar_red_basica()
+        # NO dibujar red básica - solo mostrar mensaje
+        # self._dibujar_red_basica()  # COMENTADO: No dibujar puntos y tramos
         
-        # Scatter plot para ciclistas
+        # Scatter plot para ciclistas (vacío inicialmente)
         self.scatter = self.ax.scatter([], [], s=120, alpha=0.95, edgecolors='white', 
                                      linewidth=2, zorder=10)
         
-        # Mensaje inicial
-        self.ax.text(0.5, 0.5, '🚴 Simulador de Ciclorutas v2.0\n\n' +
-                    'Modo Básico: Simulación en forma de Y\n' +
-                    '• Haz clic en "NUEVA" para crear simulación\n' +
-                    '• Usa "INICIAR" para comenzar\n\n' +
-                    'Modo Avanzado: Carga un grafo Excel\n' +
+        # Mensaje inicial - SOLO mensaje, sin red básica
+        self.ax.text(0.5, 0.5, '📂 Carga un grafo Excel para comenzar la simulación\n\n' +
+                    'El grafo debe tener:\n' +
                     '• Hoja "NODOS" con lista de nodos\n' +
-                    '• Hoja "ARCOS" con origen, destino y peso', 
-                    transform=self.ax.transAxes, fontsize=10, ha='center', va='center',
+                    '• Hoja "ARCOS" con origen, destino y peso\n\n' +
+                    'Una vez cargado el grafo, podrás:\n' +
+                    '• Configurar distribuciones por nodo\n' +
+                    '• Iniciar la simulación en tiempo real\n' +
+                    '• Visualizar ciclistas en movimiento', 
+                    transform=self.ax.transAxes, fontsize=11, ha='center', va='center',
                     bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.7))
+        
+        # Configurar límites del gráfico para centrar el mensaje
+        self.ax.set_xlim(0, 1)
+        self.ax.set_ylim(0, 1)
         
         self.canvas.draw()
     

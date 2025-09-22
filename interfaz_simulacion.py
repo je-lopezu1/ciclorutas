@@ -974,16 +974,24 @@ class InterfazSimulacion:
         self.ax.spines['left'].set_color('#6c757d')
         self.ax.spines['bottom'].set_color('#6c757d')
         
-        # Scatter plot para ciclistas
+        # Scatter plot para ciclistas (vacío inicialmente)
         self.scatter = self.ax.scatter([], [], s=100, alpha=0.9, edgecolors='none', linewidth=0, zorder=5)
         
-        # Mensaje inicial
+        # Mensaje inicial - SOLO mensaje, sin puntos ni tramos
         self.ax.text(0.5, 0.5, '📂 Carga un grafo Excel para comenzar la simulación\n\n' +
                     'El grafo debe tener:\n' +
                     '• Hoja "NODOS" con lista de nodos\n' +
-                    '• Hoja "ARCOS" con origen, destino y peso', 
+                    '• Hoja "ARCOS" con origen, destino y peso\n\n' +
+                    'Una vez cargado el grafo, podrás:\n' +
+                    '• Configurar distribuciones por nodo\n' +
+                    '• Iniciar la simulación en tiempo real\n' +
+                    '• Visualizar ciclistas en movimiento', 
                     transform=self.ax.transAxes, fontsize=11, ha='center', va='center',
                     bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.7))
+        
+        # Configurar límites del gráfico para centrar el mensaje
+        self.ax.set_xlim(0, 1)
+        self.ax.set_ylim(0, 1)
         
         self.canvas.draw()
         
