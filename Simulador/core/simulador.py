@@ -59,6 +59,7 @@ class SimuladorCiclorutas:
         self.perfiles_df = None  # DataFrame con perfiles de ciclistas
         self.rutas_df = None  # DataFrame con matriz de probabilidades de destino
         self.perfiles_ciclistas = {}  # Dict[ciclista_id, perfil] para rastrear perfil de cada ciclista
+        self.contador_perfiles = {}  # Dict[perfil_id, contador] para rastrear uso de perfiles
         
         # Cache de rendimiento
         self.rangos_atributos = {}  # Rangos pre-calculados de atributos
@@ -100,6 +101,10 @@ class SimuladorCiclorutas:
         # Configurar perfiles y rutas si están disponibles
         self.perfiles_df = perfiles_df
         self.rutas_df = rutas_df
+        
+        # Validar probabilidades de perfiles si están disponibles
+        if self.perfiles_df is not None:
+            self._validar_probabilidades_perfiles()
         
         # Pre-calcular rangos al cargar el grafo
         self._precalcular_rangos_atributos()
@@ -151,6 +156,32 @@ class SimuladorCiclorutas:
         self.rangos_atributos = GrafoUtils.precalcular_rangos_atributos(self.grafo)
         self.rangos_calculados = True
         print(f"✅ Rangos pre-calculados para {len(self.rangos_atributos)} atributos")
+    
+    def _validar_probabilidades_perfiles(self):
+        """Valida que las probabilidades de los perfiles sumen 1.0"""
+        if self.perfiles_df is None or 'PROBABILIDAD' not in self.perfiles_df.columns:
+            print("ℹ️ No hay datos de probabilidades de perfiles para validar")
+            return
+        
+        probabilidades = self.perfiles_df['PROBABILIDAD'].values
+        suma_probabilidades = np.sum(probabilidades)
+        
+        print(f"📊 Validando probabilidades de perfiles:")
+        print(f"   - Suma total: {suma_probabilidades:.4f}")
+        
+        # Verificar si las probabilidades suman 1.0 (con tolerancia de 0.01)
+        if abs(suma_probabilidades - 1.0) > 0.01:
+            print(f"⚠️ Advertencia: Las probabilidades suman {suma_probabilidades:.4f}, no 1.0")
+            print("   Se normalizarán automáticamente durante la simulación")
+        else:
+            print("✅ Las probabilidades suman correctamente 1.0")
+        
+        # Mostrar distribución de probabilidades
+        print("   Distribución de probabilidades por perfil:")
+        for _, row in self.perfiles_df.iterrows():
+            perfil_id = int(row['PERFILES'])
+            prob = row['PROBABILIDAD']
+            print(f"   - Perfil {perfil_id}: {prob:.2f} ({prob*100:.1f}%)")
     
     def _configurar_limites_adaptativos(self):
         """Configura límites según el tamaño del grafo"""
@@ -269,6 +300,10 @@ class SimuladorCiclorutas:
         self.velocidades = []
         self.procesos = []
         self.ciclista_id_counter = 0
+        
+        # Limpiar contadores de perfiles
+        self.contador_perfiles = {}
+        self.perfiles_ciclistas = {}
         
         # Crear entorno SimPy
         self.env = simpy.Environment()
@@ -509,6 +544,12 @@ class SimuladorCiclorutas:
         perfil = self._seleccionar_perfil_ciclista()
         self.perfiles_ciclistas[ciclista_id] = perfil
         
+        # Rastrear uso de perfiles para estadísticas
+        perfil_id = perfil.get('id', 0)
+        if perfil_id not in self.contador_perfiles:
+            self.contador_perfiles[perfil_id] = 0
+        self.contador_perfiles[perfil_id] += 1
+        
         # Seleccionar destino usando matriz de rutas
         nodo_destino = self._seleccionar_destino(nodo_origen)
         
@@ -537,21 +578,41 @@ class SimuladorCiclorutas:
         return nodo_origen, nodo_destino, ruta_nodos
     
     def _seleccionar_perfil_ciclista(self) -> dict:
-        """Selecciona un perfil aleatorio para un nuevo ciclista"""
+        """Selecciona un perfil para un nuevo ciclista basado en las probabilidades de la tabla"""
         if self.perfiles_df is None:
             # Perfil por defecto si no hay perfiles disponibles
+            # NOTA: inclinación no se incluye en decisión de ruta, solo afecta velocidad
             return {
                 'id': 0,
                 'pesos': {
-                    'distancia': 0.4,
+                    'distancia': 0.5,
                     'seguridad': 0.3,
-                    'luminosidad': 0.2,
-                    'inclinacion': 0.1
+                    'luminosidad': 0.2
+                    # inclinacion: Solo afecta velocidad, no decisión de ruta
                 }
             }
         
-        # Seleccionar perfil aleatorio
-        perfil_id = int(np.random.choice(self.perfiles_df['PERFILES']))
+        # Verificar que existe la columna PROBABILIDAD
+        if 'PROBABILIDAD' not in self.perfiles_df.columns:
+            print("⚠️ Advertencia: No se encontró columna PROBABILIDAD, usando selección uniforme")
+            perfil_id = int(np.random.choice(self.perfiles_df['PERFILES']))
+        else:
+            # Usar probabilidades de la tabla para seleccionar perfil
+            perfiles = self.perfiles_df['PERFILES'].values
+            probabilidades = self.perfiles_df['PROBABILIDAD'].values
+            
+            # Normalizar probabilidades para asegurar que sumen 1.0
+            suma_probabilidades = np.sum(probabilidades)
+            if suma_probabilidades > 0:
+                probabilidades_normalizadas = probabilidades / suma_probabilidades
+            else:
+                # Si todas las probabilidades son 0, usar distribución uniforme
+                probabilidades_normalizadas = np.ones(len(perfiles)) / len(perfiles)
+                print("⚠️ Advertencia: Todas las probabilidades son 0, usando distribución uniforme")
+            
+            # Seleccionar perfil basado en probabilidades
+            perfil_id = int(np.random.choice(perfiles, p=probabilidades_normalizadas))
+        
         perfil_data = self.perfiles_df[self.perfiles_df['PERFILES'] == perfil_id].iloc[0]
         
         return {
@@ -559,8 +620,8 @@ class SimuladorCiclorutas:
             'pesos': {
                 'distancia': perfil_data['DISTANCIA'],
                 'seguridad': perfil_data['SEGURIDAD'],
-                'luminosidad': perfil_data['LUMINOSIDAD'],
-                'inclinacion': perfil_data['INCLINACION']
+                'luminosidad': perfil_data['LUMINOSIDAD']
+                # inclinacion: Solo afecta velocidad, no decisión de ruta
             }
         }
     
@@ -583,8 +644,22 @@ class SimuladorCiclorutas:
             nodos_destino = [col for col in self.rutas_df.columns if col != 'NODO']
             probabilidades = [fila_origen[nodo] for nodo in nodos_destino]
             
-            # Seleccionar destino basado en probabilidades
-            return str(np.random.choice(nodos_destino, p=probabilidades))
+            # Validar y normalizar probabilidades
+            suma_probabilidades = np.sum(probabilidades)
+            if suma_probabilidades <= 0:
+                print(f"⚠️ Advertencia: Probabilidades de destino para {nodo_origen} suman {suma_probabilidades}")
+                # Fallback: selección uniforme
+                return str(np.random.choice(nodos_destino))
+            
+            # Normalizar probabilidades para que sumen 1.0
+            if abs(suma_probabilidades - 1.0) > 0.01:
+                probabilidades_normalizadas = np.array(probabilidades) / suma_probabilidades
+                print(f"ℹ️ Probabilidades de destino para {nodo_origen} normalizadas: {suma_probabilidades:.4f} → 1.0")
+            else:
+                probabilidades_normalizadas = probabilidades
+            
+            # Seleccionar destino basado en probabilidades normalizadas
+            return str(np.random.choice(nodos_destino, p=probabilidades_normalizadas))
             
         except Exception as e:
             print(f"⚠️ Error seleccionando destino: {e}")
@@ -841,6 +916,13 @@ class SimuladorCiclorutas:
             'pool_estadisticas': self.pool_ciclistas.obtener_estadisticas()
         })
         
+        # Agregar estadísticas de distribución de perfiles
+        stats.update({
+            'distribucion_perfiles': self.contador_perfiles.copy(),
+            'total_ciclistas_con_perfil': sum(self.contador_perfiles.values()),
+            'perfil_mas_usado': self._obtener_perfil_mas_usado()
+        })
+        
         return stats
     
     def _obtener_ruta_mas_usada(self) -> str:
@@ -869,6 +951,17 @@ class SimuladorCiclorutas:
         
         nodo_mas_activo = max(self.ciclistas_por_nodo.items(), key=lambda x: x[1])
         return f"Nodo {nodo_mas_activo[0]} ({nodo_mas_activo[1]} ciclistas)"
+    
+    def _obtener_perfil_mas_usado(self) -> str:
+        """Obtiene el perfil más utilizado"""
+        if not self.contador_perfiles:
+            return "N/A"
+        
+        perfil_mas_usado = max(self.contador_perfiles.items(), key=lambda x: x[1])
+        total_ciclistas = sum(self.contador_perfiles.values())
+        porcentaje = (perfil_mas_usado[1] / total_ciclistas) * 100 if total_ciclistas > 0 else 0
+        
+        return f"Perfil {perfil_mas_usado[0]} ({perfil_mas_usado[1]} ciclistas, {porcentaje:.1f}%)"
     
     def configurar_distribuciones_nodos(self, distribuciones: Dict[str, Dict]):
         """Configura las distribuciones de probabilidad para cada nodo"""

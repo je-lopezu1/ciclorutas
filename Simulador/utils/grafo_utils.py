@@ -98,6 +98,9 @@ class GrafoUtils:
                                    velocidad_max_config: float = None) -> float:
         """Calcula la velocidad ajustada SOLO por inclinación
         
+        NOTA: La inclinación NO afecta la decisión de ruta, solo la velocidad de movimiento.
+        La decisión de ruta se basa únicamente en distancia, seguridad y luminosidad.
+        
         Args:
             velocidad_base: Velocidad base del ciclista (m/s)
             atributos_arco: Atributos del arco (solo inclinación afecta velocidad)
@@ -176,10 +179,16 @@ class GrafoUtils:
         # Recopilar todos los valores una sola vez
         for edge in grafo.edges(data=True):
             for attr, valor in edge[2].items():
-                if attr not in ['weight'] and isinstance(valor, (int, float)):
+                if isinstance(valor, (int, float)):
                     if attr not in atributos_valores:
                         atributos_valores[attr] = []
                     atributos_valores[attr].append(valor)
+            
+            # También incluir 'weight' como 'distancia' si no hay atributo 'distancia' explícito
+            if 'weight' in edge[2] and 'distancia' not in edge[2]:
+                if 'distancia' not in atributos_valores:
+                    atributos_valores['distancia'] = []
+                atributos_valores['distancia'].append(edge[2]['weight'])
         
         # Calcular rangos una sola vez
         for attr, valores in atributos_valores.items():

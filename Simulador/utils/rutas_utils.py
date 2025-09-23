@@ -72,32 +72,44 @@ class RutasUtils:
             atributos = grafo[u][v]
             peso_compuesto = 0.0
             
-            # Peso base: distancia
+            # Obtener distancia real
             distancia = atributos.get('distancia', atributos.get('weight', 1.0))
-            peso_compuesto += perfil.get('distancia', 0.4) * distancia
             
-            # Atributos adicionales
+            # Escalar distancia de 1-10 usando el tramo más largo como referencia (10)
+            if 'distancia' in rangos_atributos:
+                min_dist, max_dist = rangos_atributos['distancia']
+                if max_dist > min_dist:
+                    distancia_escalada = 1 + ((distancia - min_dist) / (max_dist - min_dist)) * 9  # Escala 1-10
+                else:
+                    distancia_escalada = 5.5  # Valor medio si no hay variación
+            else:
+                distancia_escalada = 5.5  # Valor medio por defecto
+            
+            # Calcular peso compuesto con todos los atributos en escala 1-10
             for atributo, peso_perfil in perfil.items():
-                if atributo == 'distancia':
-                    continue
+                if atributo == 'inclinacion':
+                    continue  # Excluir inclinación de la decisión de ruta
                 
-                if atributo in atributos:
+                if atributo == 'distancia':
+                    # Para distancia: mayor valor = peor (invertir)
+                    peso_compuesto += peso_perfil * (11 - distancia_escalada)  # Invertir: 10->1, 1->10
+                elif atributo in atributos:
                     valor = atributos[atributo]
-                    # Normalizar valor según rango
+                    # Normalizar valor según rango (ya viene en escala 1-10)
                     if atributo in rangos_atributos:
                         min_val, max_val = rangos_atributos[atributo]
                         if max_val > min_val:
-                            valor_normalizado = (valor - min_val) / (max_val - min_val)
+                            valor_normalizado = 1 + ((valor - min_val) / (max_val - min_val)) * 9  # Escala 1-10
                         else:
-                            valor_normalizado = 0.5
+                            valor_normalizado = 5.5
                     else:
-                        valor_normalizado = valor / 10.0  # Asumir escala 0-10
+                        valor_normalizado = valor  # Asumir que ya está en escala 1-10
                     
                     # Invertir para atributos positivos (mayor valor = menor peso)
                     if atributo in ['seguridad', 'luminosidad']:
-                        valor_normalizado = 1.0 - valor_normalizado
+                        valor_normalizado = 11 - valor_normalizado  # Invertir: 10->1, 1->10
                     
-                    peso_compuesto += peso_perfil * valor_normalizado * distancia
+                    peso_compuesto += peso_perfil * valor_normalizado
             
             pesos_compuestos[(u, v)] = peso_compuesto
         
@@ -193,35 +205,47 @@ class RutasUtils:
             if grafo.has_edge(u, v):
                 atributos = grafo[u][v]
                 
-                # Distancia
+                # Distancia real (para estadísticas)
                 distancia = atributos.get('distancia', atributos.get('weight', 1.0))
                 distancia_total += distancia
                 
-                # Peso compuesto
-                peso_segmento = perfil.get('distancia', 0.4) * distancia
+                # Escalar distancia de 1-10 usando el tramo más largo como referencia
+                if 'distancia' in rangos_atributos:
+                    min_dist, max_dist = rangos_atributos['distancia']
+                    if max_dist > min_dist:
+                        distancia_escalada = 1 + ((distancia - min_dist) / (max_dist - min_dist)) * 9  # Escala 1-10
+                    else:
+                        distancia_escalada = 5.5
+                else:
+                    distancia_escalada = 5.5
                 
-                # Atributos adicionales
+                # Peso compuesto con escalado uniforme 1-10
+                peso_segmento = 0.0
+                
                 for atributo, peso_perfil in perfil.items():
-                    if atributo == 'distancia':
-                        continue
+                    if atributo == 'inclinacion':
+                        continue  # Excluir inclinación de la decisión de ruta
                     
-                    if atributo in atributos:
+                    if atributo == 'distancia':
+                        # Para distancia: mayor valor = peor (invertir)
+                        peso_segmento += peso_perfil * (11 - distancia_escalada)
+                    elif atributo in atributos:
                         valor = atributos[atributo]
-                        # Normalizar
+                        # Normalizar valor según rango (escala 1-10)
                         if atributo in rangos_atributos:
                             min_val, max_val = rangos_atributos[atributo]
                             if max_val > min_val:
-                                valor_normalizado = (valor - min_val) / (max_val - min_val)
+                                valor_normalizado = 1 + ((valor - min_val) / (max_val - min_val)) * 9  # Escala 1-10
                             else:
-                                valor_normalizado = 0.5
+                                valor_normalizado = 5.5
                         else:
-                            valor_normalizado = valor / 10.0
+                            valor_normalizado = valor  # Asumir que ya está en escala 1-10
                         
-                        # Invertir para atributos positivos
+                        # Invertir para atributos positivos (mayor valor = menor peso)
                         if atributo in ['seguridad', 'luminosidad']:
-                            valor_normalizado = 1.0 - valor_normalizado
+                            valor_normalizado = 11 - valor_normalizado
                         
-                        peso_segmento += peso_perfil * valor_normalizado * distancia
+                        peso_segmento += peso_perfil * valor_normalizado
                         
                         # Acumular para promedio
                         if atributo not in atributos_promedio:
