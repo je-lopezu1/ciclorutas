@@ -330,27 +330,58 @@ class SimuladorCiclorutas:
         # Esperar tiempo de arribo
         yield self.env.timeout(random.uniform(1.0, 3.0))
         
-        # Definir trayectorias básicas para cada ruta
+        # Definir trayectorias básicas para cada ruta con inclinaciones simuladas
         trayectorias = {
-            "A→B": [(0, 0), (25, 0), (50, 0), (50, 15), (50, 30)],
-            "A→C": [(0, 0), (25, 0), (50, 0), (50, -15), (50, -30)],
-            "B→A": [(50, 30), (50, 15), (50, 0), (25, 0), (0, 0)],
-            "C→A": [(50, -30), (50, -15), (50, 0), (25, 0), (0, 0)]
+            "A→B": [
+                ((0, 0), 0),    # Punto inicial, inclinación 0%
+                ((25, 0), 2),   # Segmento plano con ligera inclinación
+                ((50, 0), 5),   # Segmento con inclinación 5%
+                ((50, 15), 3),  # Segmento con inclinación 3%
+                ((50, 30), 0)   # Punto final, inclinación 0%
+            ],
+            "A→C": [
+                ((0, 0), 0),     # Punto inicial, inclinación 0%
+                ((25, 0), 2),    # Segmento plano con ligera inclinación
+                ((50, 0), 4),    # Segmento con inclinación 4%
+                ((50, -15), 6),  # Segmento con inclinación 6%
+                ((50, -30), 0)   # Punto final, inclinación 0%
+            ],
+            "B→A": [
+                ((50, 30), 0),   # Punto inicial, inclinación 0%
+                ((50, 15), 3),   # Segmento con inclinación 3%
+                ((50, 0), 5),    # Segmento con inclinación 5%
+                ((25, 0), 2),    # Segmento plano con ligera inclinación
+                ((0, 0), 0)      # Punto final, inclinación 0%
+            ],
+            "C→A": [
+                ((50, -30), 0),  # Punto inicial, inclinación 0%
+                ((50, -15), 6),  # Segmento con inclinación 6%
+                ((50, 0), 4),    # Segmento con inclinación 4%
+                ((25, 0), 2),    # Segmento plano con ligera inclinación
+                ((0, 0), 0)      # Punto final, inclinación 0%
+            ]
         }
         
-        trayectoria = trayectorias.get(ruta, [(0, 0), (50, 0)])
+        trayectoria = trayectorias.get(ruta, [((0, 0), 0), ((50, 0), 0)])
         
         # Mover a través de la trayectoria
         for i in range(len(trayectoria) - 1):
-            punto_actual = trayectoria[i]
-            punto_siguiente = trayectoria[i + 1]
+            punto_actual, inclinacion_actual = trayectoria[i]
+            punto_siguiente, inclinacion_siguiente = trayectoria[i + 1]
             
             # Calcular distancia
             distancia = np.sqrt((punto_siguiente[0] - punto_actual[0])**2 + 
                               (punto_siguiente[1] - punto_actual[1])**2)
             
-            # Calcular tiempo de movimiento
-            tiempo_movimiento = distancia / velocidad
+            # Calcular velocidad ajustada por inclinación
+            atributos_arco = {'inclinacion': inclinacion_siguiente}
+            velocidad_ajustada = GrafoUtils.calcular_velocidad_ajustada(velocidad, atributos_arco)
+            
+            # Actualizar velocidad del ciclista para estadísticas
+            self.velocidades[id] = velocidad_ajustada
+            
+            # Calcular tiempo de movimiento con velocidad ajustada
+            tiempo_movimiento = distancia / velocidad_ajustada
             
             # Interpolar movimiento
             pasos = max(1, int(tiempo_movimiento / 0.5))  # 0.5 segundos por paso
@@ -606,15 +637,16 @@ class SimuladorCiclorutas:
             # Obtener distancia real del arco
             distancia_real = GrafoUtils.obtener_distancia_arco(self.grafo, nodo_actual, nodo_siguiente)
             
-            # Obtener atributos del arco para ajustar velocidad
+            # Obtener atributos del arco para ajustar velocidad y tiempo
             atributos_arco = GrafoUtils.obtener_atributos_arco(self.grafo, nodo_actual, nodo_siguiente)
             velocidad_ajustada = GrafoUtils.calcular_velocidad_ajustada(velocidad, atributos_arco)
+            factor_tiempo = GrafoUtils.calcular_factor_tiempo_desplazamiento(atributos_arco)
             
             # Actualizar velocidad del ciclista para estadísticas
             self.velocidades[id] = velocidad_ajustada
             
-            # Movimiento interpolado suave entre nodos con velocidad ajustada
-            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad_ajustada, id)
+            # Movimiento interpolado suave entre nodos con velocidad ajustada y factor de tiempo
+            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad_ajustada, id, factor_tiempo)
         
         # Marcar ciclista como completado cuando termine su ruta
         self.estado_ciclistas[id] = 'completado'
@@ -623,13 +655,25 @@ class SimuladorCiclorutas:
         self.coordenadas[id] = (-1000, -1000)  # Posición fuera del área visible
     
     def _interpolar_movimiento(self, origen: Tuple[float, float], destino: Tuple[float, float], 
-                             distancia: float, velocidad: float, ciclista_id: int):
-        """Interpola el movimiento suave entre dos puntos del grafo"""
+                             distancia: float, velocidad: float, ciclista_id: int, 
+                             factor_tiempo: float = 1.0):
+        """Interpola el movimiento suave entre dos puntos del grafo
+        
+        Args:
+            origen: Coordenadas de origen
+            destino: Coordenadas de destino
+            distancia: Distancia real del arco
+            velocidad: Velocidad ajustada del ciclista
+            ciclista_id: ID del ciclista
+            factor_tiempo: Factor multiplicador para el tiempo (seguridad + iluminación)
+        """
         if distancia <= 0 or velocidad <= 0:
             return
         
-        # Reducir frecuencia de actualización para mejor rendimiento
-        tiempo_total = distancia / velocidad
+        # Calcular tiempo total con factor de tiempo de desplazamiento
+        tiempo_base = distancia / velocidad
+        tiempo_total = tiempo_base * factor_tiempo
+        
         pasos = max(1, min(int(tiempo_total / 0.5), 200))  # Máximo 200 pasos
         
         # Pre-calcular incrementos para eficiencia

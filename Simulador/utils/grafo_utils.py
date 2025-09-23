@@ -96,54 +96,76 @@ class GrafoUtils:
     def calcular_velocidad_ajustada(velocidad_base: float, atributos_arco: dict, 
                                    velocidad_min_config: float = None, 
                                    velocidad_max_config: float = None) -> float:
-        """Calcula la velocidad ajustada basada en los atributos del arco
+        """Calcula la velocidad ajustada SOLO por inclinación
         
         Args:
             velocidad_base: Velocidad base del ciclista (m/s)
-            atributos_arco: Atributos del arco (seguridad, luminosidad, inclinación)
+            atributos_arco: Atributos del arco (solo inclinación afecta velocidad)
             velocidad_min_config: Velocidad mínima configurada (m/s)
             velocidad_max_config: Velocidad máxima configurada (m/s)
         
         Returns:
-            Velocidad ajustada respetando los límites de configuración
+            Velocidad ajustada solo por inclinación (reducción porcentual)
         """
         if not atributos_arco:
             return velocidad_base
         
-        # Factores de ajuste basados en atributos
-        factor_seguridad = 1.0
-        factor_luminosidad = 1.0
+        # Solo la inclinación afecta la velocidad
         factor_inclinacion = 1.0
         
-        # Ajuste por seguridad (valores más altos = más confianza = velocidad ligeramente mayor)
-        if 'seguridad' in atributos_arco:
-            seguridad = atributos_arco['seguridad']
-            # Seguridad 5-9, factor 0.8-1.2
-            factor_seguridad = 0.8 + (seguridad - 5) * 0.1
-        
-        # Ajuste por luminosidad (valores más altos = mejor visibilidad = velocidad ligeramente mayor)
-        if 'luminosidad' in atributos_arco:
-            luminosidad = atributos_arco['luminosidad']
-            # Luminosidad 4-8, factor 0.9-1.1
-            factor_luminosidad = 0.9 + (luminosidad - 4) * 0.05
-        
-        # Ajuste por inclinación (valores más altos = más pendiente = velocidad menor)
+        # Ajuste por inclinación: reducción porcentual directa
         if 'inclinacion' in atributos_arco:
             inclinacion = atributos_arco['inclinacion']
-            # Inclinación 1.2-3.0, factor 1.0-0.7
-            # Asegurar que el factor no sea negativo
-            factor_inclinacion = max(0.1, 1.0 - (inclinacion - 1.2) * 0.167)
+            # La inclinación ya viene como porcentaje directo (5 = 5%, 10 = 10%, etc.)
+            # Limitar entre 0% y 50% para evitar reducciones excesivas
+            porcentaje_reduccion = max(0, min(50, inclinacion))
+            factor_inclinacion = 1.0 - (porcentaje_reduccion / 100.0)
         
-        # Aplicar todos los factores
-        velocidad_ajustada = velocidad_base * factor_seguridad * factor_luminosidad * factor_inclinacion
+        # Aplicar solo el factor de inclinación
+        velocidad_ajustada = velocidad_base * factor_inclinacion
         
         # Limitar la velocidad ajustada respetando la configuración del usuario
         if velocidad_min_config is not None and velocidad_max_config is not None:
             # Usar límites de configuración si están disponibles
             return max(velocidad_min_config, min(velocidad_max_config, velocidad_ajustada))
         else:
-            # Fallback: usar límites relativos a la velocidad base (comportamiento anterior)
-            return max(velocidad_base * 0.5, min(velocidad_base * 1.5, velocidad_ajustada))
+            # Fallback: usar límites relativos a la velocidad base
+            return max(velocidad_base * 0.3, min(velocidad_base * 1.0, velocidad_ajustada))
+    
+    @staticmethod
+    def calcular_factor_tiempo_desplazamiento(atributos_arco: dict) -> float:
+        """Calcula el factor de tiempo de desplazamiento basado en seguridad e iluminación
+        
+        Args:
+            atributos_arco: Atributos del arco (seguridad, luminosidad)
+        
+        Returns:
+            Factor multiplicador para el tiempo de desplazamiento (>1 = más lento, <1 = más rápido)
+        """
+        if not atributos_arco:
+            return 1.0
+        
+        # Factores de ajuste para tiempo de desplazamiento
+        factor_seguridad = 1.0
+        factor_luminosidad = 1.0
+        
+        # Ajuste por seguridad (valores más bajos = menos confianza = más tiempo)
+        if 'seguridad' in atributos_arco:
+            seguridad = atributos_arco['seguridad']
+            # Seguridad 5-9, factor 1.3-0.8 (menos seguridad = más tiempo)
+            factor_seguridad = 1.3 - (seguridad - 5) * 0.125
+        
+        # Ajuste por luminosidad (valores más bajos = menos visibilidad = más tiempo)
+        if 'luminosidad' in atributos_arco:
+            luminosidad = atributos_arco['luminosidad']
+            # Luminosidad 4-8, factor 1.2-0.9 (menos luminosidad = más tiempo)
+            factor_luminosidad = 1.2 - (luminosidad - 4) * 0.075
+        
+        # Aplicar ambos factores (multiplicativo)
+        factor_tiempo = factor_seguridad * factor_luminosidad
+        
+        # Limitar el factor entre 0.5 y 2.0 (máximo 50% más rápido o 100% más lento)
+        return max(0.5, min(2.0, factor_tiempo))
     
     @staticmethod
     def precalcular_rangos_atributos(grafo: nx.Graph) -> Dict[str, Tuple[float, float]]:
