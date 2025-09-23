@@ -214,14 +214,28 @@ class SimuladorCiclorutas:
         # Convertir perfiles a formato requerido
         perfiles = []
         for _, perfil_data in self.perfiles_df.iterrows():
+            # Solo incluir atributos que existen en el perfil
+            pesos = {}
+            
+            # Mapeo de columnas Excel a claves internas
+            atributos_disponibles = {
+                'DISTANCIA': 'distancia',
+                'SEGURIDAD': 'seguridad', 
+                'LUMINOSIDAD': 'luminosidad',
+                'INCLINACION': 'inclinacion'
+            }
+            
+            # Cargar solo los atributos que existen en el DataFrame
+            for col_excel, clave_interna in atributos_disponibles.items():
+                if col_excel in perfil_data:
+                    pesos[clave_interna] = perfil_data[col_excel]
+                    print(f"✅ Atributo {clave_interna} cargado desde {col_excel}")
+                else:
+                    print(f"⚠️ Atributo {clave_interna} no encontrado en perfiles (se ignorará)")
+            
             perfil = {
                 'id': int(perfil_data['PERFILES']),
-                'pesos': {
-                    'distancia': perfil_data['DISTANCIA'],
-                    'seguridad': perfil_data['SEGURIDAD'],
-                    'luminosidad': perfil_data['LUMINOSIDAD'],
-                    'inclinacion': perfil_data['INCLINACION']
-                }
+                'pesos': pesos
             }
             perfiles.append(perfil)
         

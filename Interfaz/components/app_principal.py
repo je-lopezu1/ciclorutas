@@ -216,7 +216,10 @@ class InterfazSimulacion:
         # Actualizar panel de distribuciones
         distribuciones_actuales = self.simulador.obtener_distribuciones_nodos()
         self.panel_distribuciones.actualizar_panel_distribuciones(self.grafo_actual, distribuciones_actuales)
-        self.panel_distribuciones.actualizar_panel_perfiles(self.perfiles_df)
+        
+        # Obtener atributos disponibles para perfiles
+        atributos_perfiles_disponibles = self._obtener_atributos_perfiles_disponibles()
+        self.panel_distribuciones.actualizar_panel_perfiles(self.perfiles_df, atributos_perfiles_disponibles)
         
         # Actualizar panel de estadísticas
         self.actualizar_estadisticas()
@@ -233,6 +236,42 @@ class InterfazSimulacion:
                     atributos_disponibles.add(key)
         
         return list(atributos_disponibles)
+    
+    def _obtener_atributos_perfiles_disponibles(self) -> List[str]:
+        """Obtiene la lista de atributos disponibles tanto en el grafo como en los perfiles"""
+        if not self.grafo_actual:
+            return []
+        
+        # Obtener atributos del grafo
+        atributos_grafo = set()
+        for edge in self.grafo_actual.edges(data=True):
+            for key in edge[2].keys():
+                if key not in ['weight']:
+                    atributos_grafo.add(key)
+        
+        # Obtener atributos de perfiles si existen
+        atributos_perfiles = set()
+        if self.perfiles_df is not None:
+            # Mapeo de columnas Excel a claves internas
+            mapeo_columnas = {
+                'DISTANCIA': 'distancia',
+                'SEGURIDAD': 'seguridad',
+                'LUMINOSIDAD': 'luminosidad', 
+                'INCLINACION': 'inclinacion'
+            }
+            
+            for col_excel, clave_interna in mapeo_columnas.items():
+                if col_excel in self.perfiles_df.columns:
+                    atributos_perfiles.add(clave_interna)
+        
+        # Retornar solo los atributos que están tanto en el grafo como en los perfiles
+        atributos_comunes = atributos_grafo.intersection(atributos_perfiles)
+        
+        # Si no hay perfiles, usar todos los atributos del grafo
+        if not atributos_perfiles:
+            atributos_comunes = atributos_grafo
+        
+        return list(atributos_comunes)
     
     def nueva_simulacion(self):
         """Crea una nueva simulación con los parámetros actuales"""

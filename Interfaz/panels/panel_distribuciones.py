@@ -156,9 +156,10 @@ class PanelDistribuciones:
         self.frame_distribuciones.update_idletasks()
         self.canvas_distribuciones.configure(scrollregion=self.canvas_distribuciones.bbox("all"))
     
-    def actualizar_panel_perfiles(self, perfiles_df: Optional[pd.DataFrame]):
+    def actualizar_panel_perfiles(self, perfiles_df: Optional[pd.DataFrame], atributos_disponibles: List[str] = None):
         """Actualiza el panel de perfiles de ciclistas"""
         self.perfiles_df = perfiles_df
+        self.atributos_disponibles = atributos_disponibles or []
         
         # Limpiar controles existentes
         for widget in self.frame_perfiles.winfo_children():
@@ -327,11 +328,32 @@ class PanelDistribuciones:
         pesos_frame = EstiloUtils.crear_frame_con_estilo(perfil_frame)
         pesos_frame.pack(fill="x")
         
-        # Crear controles para cada peso
-        pesos = ['DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION']
-        colores = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+        # Crear controles para cada peso - solo los atributos disponibles
+        mapeo_atributos = {
+            'distancia': ('DISTANCIA', '#FF6B6B'),
+            'seguridad': ('SEGURIDAD', '#4ECDC4'),
+            'luminosidad': ('LUMINOSIDAD', '#45B7D1'),
+            'inclinacion': ('INCLINACION', '#96CEB4')
+        }
         
-        for i, (peso, color) in enumerate(zip(pesos, colores)):
+        # Filtrar solo los atributos que están disponibles
+        atributos_ui = []
+        for attr_interno in self.atributos_disponibles:
+            if attr_interno in mapeo_atributos:
+                col_excel, color = mapeo_atributos[attr_interno]
+                if col_excel in perfil_data:
+                    atributos_ui.append((col_excel, color))
+        
+        # Si no hay atributos disponibles, mostrar mensaje
+        if not atributos_ui:
+            EstiloUtils.crear_label_con_estilo(
+                pesos_frame,
+                "⚠️ No hay atributos disponibles para este perfil",
+                'Info.TLabel'
+            ).pack(pady=10)
+            return
+        
+        for i, (peso, color) in enumerate(atributos_ui):
             # Frame para cada peso
             peso_frame = EstiloUtils.crear_frame_con_estilo(pesos_frame)
             peso_frame.grid(row=0, column=i, padx=10, pady=5, sticky="ew")
@@ -470,63 +492,83 @@ class PanelDistribuciones:
             'Header.TLabel'
         ).pack(pady=(0, 15))
         
-        # Variables para los pesos
+        # Variables para los pesos - solo los atributos disponibles
         pesos_vars = {}
-        pesos = ['DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION']
-        colores = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+        mapeo_atributos = {
+            'distancia': ('DISTANCIA', '#FF6B6B'),
+            'seguridad': ('SEGURIDAD', '#4ECDC4'),
+            'luminosidad': ('LUMINOSIDAD', '#45B7D1'),
+            'inclinacion': ('INCLINACION', '#96CEB4')
+        }
+        
+        # Filtrar solo los atributos que están disponibles
+        atributos_ui = []
+        for attr_interno in self.atributos_disponibles:
+            if attr_interno in mapeo_atributos:
+                col_excel, color = mapeo_atributos[attr_interno]
+                if col_excel in perfil_data:
+                    atributos_ui.append((col_excel, color))
         
         # Frame para pesos de atributos
         pesos_frame = EstiloUtils.crear_label_frame_con_estilo(main_frame, "⚖️ Pesos de Atributos")
         pesos_frame.pack(fill="x", pady=(0, 15))
         
-        # Crear grid de controles más compacto
-        for i, (peso, color) in enumerate(zip(pesos, colores)):
-            # Frame para cada peso (2 columnas)
-            row = i // 2
-            col = i % 2
-            
-            peso_frame = EstiloUtils.crear_frame_con_estilo(pesos_frame)
-            peso_frame.grid(row=row, column=col, padx=10, pady=8, sticky="ew")
-            pesos_frame.columnconfigure(col, weight=1)
-            
-            # Label del peso con color
-            peso_label = EstiloUtils.crear_label_con_estilo(
-                peso_frame, 
-                f"{peso.title()}", 
-                'Subheader.TLabel'
-            )
-            peso_label.pack()
-            
-            # Variable para el peso
-            var = tk.DoubleVar(value=perfil_data[peso])
-            pesos_vars[peso] = var
-            
-            # Frame para controles del peso
-            controls_frame = EstiloUtils.crear_frame_con_estilo(peso_frame)
-            controls_frame.pack(fill="x", pady=2)
-            
-            # Slider más pequeño
-            slider = ttk.Scale(controls_frame, from_=0.0, to=1.0, variable=var, 
-                              orient="horizontal", length=120)
-            slider.pack(side=tk.LEFT, fill="x", expand=True)
-            
-            # Valor numérico
-            valor_label = EstiloUtils.crear_label_con_estilo(
-                controls_frame, 
-                f"{var.get():.2f}", 
+        # Si no hay atributos disponibles, mostrar mensaje
+        if not atributos_ui:
+            EstiloUtils.crear_label_con_estilo(
+                pesos_frame,
+                "⚠️ No hay atributos disponibles para este perfil",
                 'Info.TLabel'
-            )
-            valor_label.pack(side=tk.RIGHT, padx=(5, 0))
-            
-            # Input numérico directo
-            spinbox = ttk.Spinbox(controls_frame, from_=0.0, to=1.0, increment=0.01, 
-                                 textvariable=var, width=8, format="%.2f")
-            spinbox.pack(side=tk.RIGHT, padx=(5, 0))
-            
-            # Actualizar valor cuando cambie el slider o spinbox
-            def update_valor(peso=peso, label=valor_label, var=var):
-                label.config(text=f"{var.get():.2f}")
-            var.trace('w', lambda *args, p=peso, l=valor_label, v=var: update_valor(p, l, v))
+            ).pack(pady=10)
+        else:
+            # Crear grid de controles más compacto
+            for i, (peso, color) in enumerate(atributos_ui):
+                # Frame para cada peso (2 columnas)
+                row = i // 2
+                col = i % 2
+                
+                peso_frame = EstiloUtils.crear_frame_con_estilo(pesos_frame)
+                peso_frame.grid(row=row, column=col, padx=10, pady=8, sticky="ew")
+                pesos_frame.columnconfigure(col, weight=1)
+                
+                # Label del peso con color
+                peso_label = EstiloUtils.crear_label_con_estilo(
+                    peso_frame, 
+                    f"{peso.title()}", 
+                    'Subheader.TLabel'
+                )
+                peso_label.pack()
+                
+                # Variable para el peso
+                var = tk.DoubleVar(value=perfil_data[peso])
+                pesos_vars[peso] = var
+                
+                # Frame para controles del peso
+                controls_frame = EstiloUtils.crear_frame_con_estilo(peso_frame)
+                controls_frame.pack(fill="x", pady=2)
+                
+                # Slider más pequeño
+                slider = ttk.Scale(controls_frame, from_=0.0, to=1.0, variable=var, 
+                                  orient="horizontal", length=120)
+                slider.pack(side=tk.LEFT, fill="x", expand=True)
+                
+                # Valor numérico
+                valor_label = EstiloUtils.crear_label_con_estilo(
+                    controls_frame, 
+                    f"{var.get():.2f}", 
+                    'Info.TLabel'
+                )
+                valor_label.pack(side=tk.RIGHT, padx=(5, 0))
+                
+                # Input numérico directo
+                spinbox = ttk.Spinbox(controls_frame, from_=0.0, to=1.0, increment=0.01, 
+                                     textvariable=var, width=8, format="%.2f")
+                spinbox.pack(side=tk.RIGHT, padx=(5, 0))
+                
+                # Actualizar valor cuando cambie el slider o spinbox
+                def update_valor(peso=peso, label=valor_label, var=var):
+                    label.config(text=f"{var.get():.2f}")
+                var.trace('w', lambda *args, p=peso, l=valor_label, v=var: update_valor(p, l, v))
         
         # Frame para resumen y validación
         resumen_frame = EstiloUtils.crear_label_frame_con_estilo(main_frame, "📊 Resumen")
