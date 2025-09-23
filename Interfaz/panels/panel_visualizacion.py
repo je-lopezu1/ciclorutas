@@ -35,7 +35,7 @@ class PanelVisualizacion:
         # Frame principal
         self.frame_principal = EstiloUtils.crear_label_frame_con_estilo(
             self.parent, 
-            "📊 VISUALIZACIÓN EN TIEMPO REAL"
+            "[GRAFICO] VISUALIZACIÓN EN TIEMPO REAL"
         )
         self.frame_principal.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
@@ -63,7 +63,7 @@ class PanelVisualizacion:
         # Selector de atributo para visualización
         EstiloUtils.crear_label_con_estilo(
             controles_frame, 
-            "🎯 Mostrar:", 
+            "[OBJETIVO] Mostrar:", 
             'Subheader.TLabel'
         ).grid(row=0, column=0, sticky=tk.W, padx=(0, 10))
         
@@ -74,7 +74,7 @@ class PanelVisualizacion:
         # Botón para aplicar cambios
         self.btn_aplicar = EstiloUtils.crear_button_con_estilo(
             controles_frame, 
-            "✅ Aplicar", 
+            "[OK] Aplicar", 
             'Accent.TButton',
             command=self._aplicar_visualizacion
         )
@@ -83,19 +83,23 @@ class PanelVisualizacion:
         # Información sobre la simulación
         self.info_simulacion_label = EstiloUtils.crear_label_con_estilo(
             controles_frame, 
-            "ℹ️ Simulación: distancias reales | Usa 'Aplicar' para actualizar", 
+            "[INFO] Simulación: distancias reales | Usa 'Aplicar' para actualizar", 
             'Info.TLabel'
         )
         self.info_simulacion_label.grid(row=0, column=3, sticky=(tk.W, tk.E), padx=(15, 0))
     
     def _crear_figura_matplotlib(self):
         """Crea la figura de matplotlib"""
-        # Crear figura
+        # Crear figura con configuración optimizada
         self.fig, self.ax = plt.subplots(figsize=(10, 6))
         
-        # Configurar estilo de matplotlib
+        # Configurar estilo de matplotlib optimizado
         plt.style.use('default')
         self.ax.set_facecolor('#f8f9fa')
+        
+        # Optimizaciones de rendimiento
+        self.fig.patch.set_facecolor('#f8f9fa')
+        self.ax.set_autoscale_on(False)  # Desactivar autoescalado para mejor rendimiento
         
         # Crear canvas
         self.canvas = FigureCanvasTkAgg(self.fig, self.frame_principal)
@@ -103,6 +107,10 @@ class PanelVisualizacion:
         
         # Configurar eventos
         self.canvas.mpl_connect('button_press_event', self._on_click)
+        
+        # Variables para control de actualización
+        self._ultima_actualizacion = 0
+        self._intervalo_actualizacion = 0.1  # Actualizar máximo cada 100ms
     
     def _on_click(self, event):
         """Maneja clics en el gráfico"""
@@ -118,7 +126,7 @@ class PanelVisualizacion:
     def configurar_grafico_inicial(self):
         """Configura el gráfico inicial sin grafo cargado"""
         self.ax.clear()
-        self.ax.set_title("🚴 SIMULADOR DE CICLORUTAS v2.0", 
+        self.ax.set_title("[BICICLETA] SIMULADOR DE CICLORUTAS v2.0", 
                          fontsize=14, fontweight='bold', color='#212529', pad=15)
         self.ax.set_xlabel("Distancia (metros)", fontsize=12, fontweight='bold', color='#495057')
         self.ax.set_ylabel("Desviación (metros)", fontsize=12, fontweight='bold', color='#495057')
@@ -138,7 +146,7 @@ class PanelVisualizacion:
                                      linewidth=2, zorder=10)
         
         # Mensaje inicial - SOLO mensaje, sin red básica
-        self.ax.text(0.5, 0.5, '📂 Carga un grafo Excel para comenzar la simulación\n\n' +
+        self.ax.text(0.5, 0.5, '[ARCHIVO] Carga un grafo Excel para comenzar la simulación\n\n' +
                     'El grafo debe tener:\n' +
                     '• Hoja "NODOS" con lista de nodos\n' +
                     '• Hoja "ARCOS" con origen, destino y peso\n\n' +
@@ -153,7 +161,7 @@ class PanelVisualizacion:
         self.ax.set_xlim(0, 1)
         self.ax.set_ylim(0, 1)
         
-        self.canvas.draw()
+        self.canvas.draw_idle()
     
     def _dibujar_red_basica(self):
         """Dibuja la red básica en forma de Y"""
@@ -204,9 +212,9 @@ class PanelVisualizacion:
         self._agregar_etiquetas_arcos()
         
         # Configurar el gráfico
-        titulo = "🚴 RED CICLORUTAS"
+        titulo = "[BICICLETA] RED CICLORUTAS"
         if nombre_archivo:
-            titulo += f" | 📁 {nombre_archivo}"
+            titulo += f" | [ARCHIVO] {nombre_archivo}"
         
         self.ax.set_title(titulo, fontsize=14, fontweight='bold', color='#212529', pad=15)
         self.ax.set_xlabel("Coordenada X", fontsize=12, fontweight='bold', color='#495057')
@@ -222,7 +230,7 @@ class PanelVisualizacion:
         self.scatter = self.ax.scatter([], [], s=120, alpha=0.95, edgecolors='white', 
                                      linewidth=2, zorder=10)
         
-        self.canvas.draw()
+        self.canvas.draw_idle()
     
     def _agregar_etiquetas_arcos(self):
         """Agrega etiquetas a los arcos del grafo"""
@@ -295,6 +303,14 @@ class PanelVisualizacion:
         if not hasattr(self, 'scatter'):
             return
         
+        # Control de frecuencia de actualización para optimizar rendimiento
+        import time
+        tiempo_actual = time.time()
+        if tiempo_actual - self._ultima_actualizacion < self._intervalo_actualizacion:
+            return  # Saltar esta actualización si es muy frecuente
+        
+        self._ultima_actualizacion = tiempo_actual
+        
         # Si no se proporcionan datos, usar datos vacíos
         if ciclistas_activos is None:
             ciclistas_activos = {
@@ -308,46 +324,105 @@ class PanelVisualizacion:
         try:
             if not ciclistas_activos['coordenadas']:
                 # No hay ciclistas activos para mostrar
-                self.scatter.set_offsets([])
-                self.canvas.draw()
+                import numpy as np
+                self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                self.canvas.draw_idle()
                 return
             
             # Verificar que las coordenadas tengan el formato correcto
             coordenadas = ciclistas_activos['coordenadas']
+            
             if not coordenadas or len(coordenadas) == 0:
-                self.scatter.set_offsets([])
-                self.canvas.draw()
+                import numpy as np
+                self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                self.canvas.draw_idle()
                 return
             
-            # Verificar que las coordenadas sean una lista de tuplas
-            if not isinstance(coordenadas, list) or not coordenadas:
-                self.scatter.set_offsets([])
-                self.canvas.draw()
+            # Verificar que las coordenadas sean una lista
+            if not isinstance(coordenadas, list):
+                print(f"⚠️ Coordenadas no es una lista: {type(coordenadas)}")
+                import numpy as np
+                self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                self.canvas.draw_idle()
+                return
+            
+            # Verificar que la lista no esté vacía
+            if len(coordenadas) == 0:
+                import numpy as np
+                self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                self.canvas.draw_idle()
                 return
             
             # Verificar que el primer elemento sea una tupla válida
-            if not isinstance(coordenadas[0], (tuple, list)) or len(coordenadas[0]) != 2:
-                print(f"⚠️ Formato de coordenadas inválido: {type(coordenadas[0])}")
-                self.scatter.set_offsets([])
-                self.canvas.draw()
+            # Manejar tanto listas como arrays de numpy
+            try:
+                primer_elemento = coordenadas[0]
+                if not isinstance(primer_elemento, (tuple, list)) or len(primer_elemento) != 2:
+                    print(f"⚠️ Formato de coordenadas inválido: {type(primer_elemento)} - {primer_elemento}")
+                    import numpy as np
+                    self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                    self.canvas.draw_idle()
+                    return
+            except (IndexError, TypeError) as e:
+                print(f"⚠️ Error accediendo a coordenadas[0]: {e}")
+                import numpy as np
+                self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                self.canvas.draw_idle()
                 return
             
             # Extraer coordenadas de ciclistas activos
             try:
-                x, y = zip(*coordenadas)
+                # Convertir a lista si es un array de numpy
+                if hasattr(coordenadas, 'tolist'):
+                    coordenadas = coordenadas.tolist()
+                elif not isinstance(coordenadas, list):
+                    coordenadas = list(coordenadas)
+                
+                # Verificar que todas las coordenadas sean tuplas válidas
+                coordenadas_validas = []
+                for coord in coordenadas:
+                    if isinstance(coord, (tuple, list)) and len(coord) == 2:
+                        try:
+                            x_val = float(coord[0])
+                            y_val = float(coord[1])
+                            coordenadas_validas.append((x_val, y_val))
+                        except (ValueError, TypeError):
+                            print(f"⚠️ Coordenada inválida ignorada: {coord}")
+                            continue
+                    else:
+                        print(f"⚠️ Formato de coordenada inválido ignorado: {coord}")
+                        continue
+                
+                if not coordenadas_validas:
+                    print("⚠️ No hay coordenadas válidas para mostrar")
+                    import numpy as np
+                    self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                    self.canvas.draw_idle()
+                    return
+                
+                x, y = zip(*coordenadas_validas)
             except (ValueError, TypeError) as e:
                 print(f"⚠️ Error procesando coordenadas: {e}")
-                self.scatter.set_offsets([])
-                self.canvas.draw()
+                import numpy as np
+                self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+                self.canvas.draw_idle()
                 return
             
             # Actualizar posiciones de los ciclistas activos
             self.scatter.set_offsets(list(zip(x, y)))
-            self.scatter.set_color(ciclistas_activos['colores'])
+            
+            # Ajustar colores para que coincidan con el número de coordenadas válidas
+            num_coordenadas_validas = len(coordenadas_validas)
+            colores_ajustados = ciclistas_activos['colores'][:num_coordenadas_validas]
+            if len(colores_ajustados) < num_coordenadas_validas:
+                # Si no hay suficientes colores, usar el último color disponible
+                color_default = colores_ajustados[-1] if colores_ajustados else '#6C757D'
+                colores_ajustados.extend([color_default] * (num_coordenadas_validas - len(colores_ajustados)))
+            
+            self.scatter.set_color(colores_ajustados)
             
             # Configurar apariencia de los ciclistas activos
-            num_ciclistas_activos = len(ciclistas_activos['coordenadas'])
-            self.scatter.set_sizes([120] * num_ciclistas_activos)
+            self.scatter.set_sizes([120] * num_coordenadas_validas)
             self.scatter.set_alpha(0.95)
             
             # Configurar bordes según si hay grafo o no
@@ -360,8 +435,8 @@ class PanelVisualizacion:
                 self.scatter.set_edgecolors('white')
                 self.scatter.set_linewidth(2)
             
-            # Actualizar canvas
-            self.canvas.draw()
+            # Actualizar canvas de forma optimizada
+            self.canvas.draw_idle()  # draw_idle es más eficiente que draw()
             
         except Exception as e:
             print(f"⚠️ Error actualizando visualización: {e}")
@@ -378,7 +453,7 @@ class PanelVisualizacion:
             if 'Simulador de Ciclorutas v2.0' in text.get_text():
                 text.remove()
                 break
-        self.canvas.draw()
+        self.canvas.draw_idle()
     
     def actualizar_controles_visualizacion(self, atributos_disponibles: List[str]):
         """Actualiza la lista desplegable con los atributos disponibles"""
@@ -387,7 +462,7 @@ class PanelVisualizacion:
             self.combo_atributo.config(state='disabled')
             self.combo_atributo['values'] = []
             self.btn_aplicar.config(state='disabled')
-            self.info_simulacion_label.config(text="ℹ️ Carga un grafo para ver sus atributos reales")
+            self.info_simulacion_label.config(text="[INFO] Carga un grafo para ver sus atributos reales")
             return
         
         # Crear lista de opciones para el combobox
@@ -395,22 +470,22 @@ class PanelVisualizacion:
         
         # Agregar opciones especiales solo si existen en el grafo
         if 'distancia_real' in atributos_disponibles:
-            opciones.append("📏 Distancia Real (Simulación)")
+            opciones.append("[DISTANCIA] Distancia Real (Simulación)")
         if 'distancia' in atributos_disponibles:
-            opciones.append("📏 Distancia Original")
+            opciones.append("[DISTANCIA] Distancia Original")
         
         # Agregar todos los atributos individuales que están realmente en el grafo
         for attr in sorted(atributos_disponibles):
             if attr not in ['distancia_real', 'distancia']:
-                # Agregar emoji según el tipo de atributo
+                # Agregar prefijo según el tipo de atributo
                 if attr.lower() in ['seguridad', 'safety']:
-                    opciones.append(f"🛡️ {attr.title()}")
+                    opciones.append(f"[SEGURIDAD] {attr.title()}")
                 elif attr.lower() in ['luminosidad', 'luminosity', 'light']:
-                    opciones.append(f"💡 {attr.title()}")
+                    opciones.append(f"[LUZ] {attr.title()}")
                 elif attr.lower() in ['inclinacion', 'inclination', 'slope']:
-                    opciones.append(f"⛰️ {attr.title()}")
+                    opciones.append(f"[MONTAÑA] {attr.title()}")
                 else:
-                    opciones.append(f"📊 {attr.title()}")
+                    opciones.append(f"[DATOS] {attr.title()}")
         
         # Actualizar combobox
         self.combo_atributo['values'] = opciones
@@ -421,17 +496,17 @@ class PanelVisualizacion:
         
         # Seleccionar "Distancia Real (Simulación)" por defecto si está disponible
         if opciones:
-            if "📏 Distancia Real (Simulación)" in opciones:
-                self.combo_atributo.set("📏 Distancia Real (Simulación)")
+            if "[DISTANCIA] Distancia Real (Simulación)" in opciones:
+                self.combo_atributo.set("[DISTANCIA] Distancia Real (Simulación)")
             else:
                 self.combo_atributo.set(opciones[0])
         
         # Actualizar información
         num_atributos = len(atributos_disponibles)
         if num_atributos > 1:
-            self.info_simulacion_label.config(text=f"ℹ️ Simulación: distancias reales | Visualización: {num_atributos} atributos reales")
+            self.info_simulacion_label.config(text=f"[INFO] Simulación: distancias reales | Visualización: {num_atributos} atributos reales")
         else:
-            self.info_simulacion_label.config(text="ℹ️ Simulación: distancias reales | Visualización: solo distancias")
+            self.info_simulacion_label.config(text="[INFO] Simulación: distancias reales | Visualización: solo distancias")
     
     def obtener_atributo_seleccionado(self) -> str:
         """Retorna el atributo actualmente seleccionado"""
@@ -444,8 +519,9 @@ class PanelVisualizacion:
     def limpiar_visualizacion(self):
         """Limpia la visualización actual"""
         if hasattr(self, 'scatter'):
-            self.scatter.set_offsets([])
-            self.canvas.draw()
+            import numpy as np
+            self.scatter.set_offsets(np.empty((0, 2)))  # Array 2D vacío
+            self.canvas.draw_idle()
     
     def redibujar_grafo(self):
         """Redibuja el grafo con la configuración actual"""

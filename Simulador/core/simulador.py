@@ -10,6 +10,7 @@ import random
 import numpy as np
 import networkx as nx
 import time
+import math
 from typing import List, Tuple, Dict, Optional, Any
 
 from ..models.ciclista import Ciclista, PoolCiclistas
@@ -856,11 +857,20 @@ class SimuladorCiclorutas:
         for i in range(min_length):
             # Solo incluir si el ciclista está activo
             if i in self.estado_ciclistas and self.estado_ciclistas[i] == 'activo':
-                # Asegurar que las coordenadas sean una tupla de floats
+                # Asegurar que las coordenadas sean una tupla de floats válida
                 coords = self.coordenadas[i]
-                if hasattr(coords, '__iter__') and len(coords) == 2:
-                    coords_tuple = (float(coords[0]), float(coords[1]))
-                else:
+                coords_tuple = (0.0, 0.0)  # Valor por defecto
+                
+                try:
+                    if hasattr(coords, '__iter__') and len(coords) == 2:
+                        x_val = float(coords[0])
+                        y_val = float(coords[1])
+                        # Verificar que los valores sean números válidos
+                        if not (math.isnan(x_val) or math.isnan(y_val) or 
+                               math.isinf(x_val) or math.isinf(y_val)):
+                            coords_tuple = (x_val, y_val)
+                except (ValueError, TypeError, IndexError) as e:
+                    print(f"⚠️ Error procesando coordenadas del ciclista {i}: {e}")
                     coords_tuple = (0.0, 0.0)
                 
                 ciclistas_activos['coordenadas'].append(coords_tuple)
