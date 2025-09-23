@@ -16,6 +16,7 @@ from ..models.ciclista import Ciclista, PoolCiclistas
 from ..distributions.distribucion_nodo import DistribucionNodo, GestorDistribuciones
 from ..utils.grafo_utils import GrafoUtils
 from ..utils.rutas_utils import RutasUtils
+from ..utils.estadisticas_utils import EstadisticasUtils
 from .configuracion import ConfiguracionSimulacion
 
 
@@ -871,111 +872,17 @@ class SimuladorCiclorutas:
         return ciclistas_activos
     
     def obtener_estadisticas(self) -> Dict:
-        """Retorna estadísticas de la simulación"""
-        # Contar ciclistas activos
-        ciclistas_activos = sum(1 for estado in self.estado_ciclistas.values() if estado == 'activo')
-        ciclistas_completados = sum(1 for estado in self.estado_ciclistas.values() if estado == 'completado')
-        
-        # Obtener velocidades solo de ciclistas activos
-        velocidades_activas = []
-        for i, velocidad in enumerate(self.velocidades):
-            if i in self.estado_ciclistas and self.estado_ciclistas[i] == 'activo':
-                velocidades_activas.append(velocidad)
-        
-        stats = {
-            'total_ciclistas': len(self.coordenadas),
-            'ciclistas_activos': ciclistas_activos,
-            'ciclistas_completados': ciclistas_completados,
-            'velocidad_promedio': np.mean(velocidades_activas) if velocidades_activas else 0,
-            'velocidad_minima': min(velocidades_activas) if velocidades_activas else 0,
-            'velocidad_maxima': max(velocidades_activas) if velocidades_activas else 0,
-            'usando_grafo_real': self.usar_grafo_real,
-            'duracion_simulacion': self.config.duracion_simulacion
-        }
-        
-        # Agregar estadísticas del grafo si está disponible
-        if self.usar_grafo_real and self.grafo:
-            stats.update({
-                'grafo_nodos': len(self.grafo.nodes()),
-                'grafo_arcos': len(self.grafo.edges()),
-                'grafo_conectado': nx.is_connected(self.grafo)
-            })
-            
-            # Calcular distancia promedio de arcos
-            if self.grafo.edges():
-                distancias = [self.grafo[u][v].get('weight', 0) for u, v in self.grafo.edges()]
-                stats['distancia_promedio_arcos'] = np.mean(distancias) if distancias else 0
-            
-            # Estadísticas de distribuciones
-            stats_distribuciones = self.gestor_distribuciones.obtener_estadisticas()
-            stats.update(stats_distribuciones)
-        
-        # Agregar estadísticas de rutas
-        stats.update({
-            'rutas_utilizadas': len(self.rutas_utilizadas),
-            'total_viajes': sum(self.rutas_utilizadas.values()) if self.rutas_utilizadas else 0,
-            'ruta_mas_usada': self._obtener_ruta_mas_usada(),
-            'rutas_por_frecuencia': self._obtener_rutas_por_frecuencia()
-        })
-        
-        # Agregar estadísticas de ciclistas por nodo
-        stats.update({
-            'ciclistas_por_nodo': self.ciclistas_por_nodo.copy(),
-            'nodo_mas_activo': self._obtener_nodo_mas_activo()
-        })
-        
-        # Agregar estadísticas del pool y memoria
-        stats.update({
-            'estadisticas_persistentes': self.estadisticas_persistentes.copy(),
-            'pool_estadisticas': self.pool_ciclistas.obtener_estadisticas()
-        })
-        
-        # Agregar estadísticas de distribución de perfiles
-        stats.update({
-            'distribucion_perfiles': self.contador_perfiles.copy(),
-            'total_ciclistas_con_perfil': sum(self.contador_perfiles.values()),
-            'perfil_mas_usado': self._obtener_perfil_mas_usado()
-        })
-        
-        return stats
+        """Retorna estadísticas de la simulación usando el módulo desacoplado"""
+        return EstadisticasUtils.calcular_estadisticas_completas(self)
     
-    def _obtener_ruta_mas_usada(self) -> str:
-        """Obtiene la ruta más utilizada"""
-        if not self.rutas_utilizadas:
-            return "N/A"
-        
-        ruta_mas_usada = max(self.rutas_utilizadas.items(), key=lambda x: x[1])
-        return f"{ruta_mas_usada[0]} ({ruta_mas_usada[1]} viajes)"
+    def obtener_estadisticas_tiempo_real(self) -> Dict:
+        """Retorna estadísticas en tiempo real para visualización"""
+        return EstadisticasUtils.calcular_estadisticas_tiempo_real(self)
     
-    def _obtener_rutas_por_frecuencia(self) -> list:
-        """Obtiene las rutas ordenadas por frecuencia de uso"""
-        if not self.rutas_utilizadas:
-            return []
-        
-        # Ordenar rutas por frecuencia (descendente)
-        rutas_ordenadas = sorted(self.rutas_utilizadas.items(), key=lambda x: x[1], reverse=True)
-        
-        # Retornar las top 5 rutas
-        return rutas_ordenadas[:5]
+    def generar_reporte_detallado(self) -> str:
+        """Genera un reporte detallado de la simulación"""
+        return EstadisticasUtils.generar_reporte_detallado(self)
     
-    def _obtener_nodo_mas_activo(self) -> str:
-        """Obtiene el nodo que ha generado más ciclistas"""
-        if not self.ciclistas_por_nodo:
-            return "N/A"
-        
-        nodo_mas_activo = max(self.ciclistas_por_nodo.items(), key=lambda x: x[1])
-        return f"Nodo {nodo_mas_activo[0]} ({nodo_mas_activo[1]} ciclistas)"
-    
-    def _obtener_perfil_mas_usado(self) -> str:
-        """Obtiene el perfil más utilizado"""
-        if not self.contador_perfiles:
-            return "N/A"
-        
-        perfil_mas_usado = max(self.contador_perfiles.items(), key=lambda x: x[1])
-        total_ciclistas = sum(self.contador_perfiles.values())
-        porcentaje = (perfil_mas_usado[1] / total_ciclistas) * 100 if total_ciclistas > 0 else 0
-        
-        return f"Perfil {perfil_mas_usado[0]} ({perfil_mas_usado[1]} ciclistas, {porcentaje:.1f}%)"
     
     def configurar_distribuciones_nodos(self, distribuciones: Dict[str, Dict]):
         """Configura las distribuciones de probabilidad para cada nodo"""
