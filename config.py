@@ -27,7 +27,9 @@ APP_CONFIG = {
     'tamaño_ventana': (1400, 900),
     'tamaño_minimo': (800, 600),
     'centrar_ventana': True,
-    'resizable': True
+    'resizable': True,
+    'responsive': True,
+    'paneles_opcionales': True
 }
 
 # =============================================================================
@@ -186,6 +188,36 @@ ATRIBUTOS_PERFILES = {
 }
 
 # =============================================================================
+# CONFIGURACIÓN DE RESPONSIVIDAD
+# =============================================================================
+
+# Configuración de responsividad
+RESPONSIVE_CONFIG = {
+    'breakpoints': {
+        'pequeno': 1000,      # Ancho menor a 1000px
+        'mediano': 1400,      # Ancho menor a 1400px
+        'grande': 1920        # Ancho mayor a 1920px
+    },
+    'alturas': {
+        'muy_pequeno': 600,   # Altura menor a 600px
+        'pequeno': 800,       # Altura menor a 800px
+        'normal': 1000        # Altura mayor a 1000px
+    },
+    'paneles': {
+        'estadisticas': {
+            'altura_compacta': 80,
+            'altura_normal': 120,
+            'altura_expandida': 200
+        },
+        'pesos': {
+            'pantalla_pequena': {'control': 1, 'visualizacion': 3, 'distribuciones': 1},
+            'pantalla_mediana': {'control': 1, 'visualizacion': 2, 'distribuciones': 1},
+            'pantalla_grande': {'control': 1, 'visualizacion': 2, 'distribuciones': 1}
+        }
+    }
+}
+
+# =============================================================================
 # CONFIGURACIÓN DE RENDIMIENTO
 # =============================================================================
 
@@ -338,6 +370,7 @@ def obtener_configuracion_completa() -> Dict[str, Any]:
         'archivos': EXCEL_CONFIG,
         'distribuciones': TIPOS_DISTRIBUCION,
         'perfiles': ATRIBUTOS_PERFILES,
+        'responsive': RESPONSIVE_CONFIG,
         'rendimiento': RENDIMIENTO_CONFIG,
         'logging': LOGGING_CONFIG,
         'interfaz': {
@@ -364,7 +397,8 @@ def obtener_configuracion_por_modulo(modulo: str) -> Dict[str, Any]:
             'colores': COLORES_SISTEMA,
             'fuentes': FUENTES_CONFIG,
             'padding': PADDING_CONFIG,
-            'estilos': ESTILOS_WIDGETS
+            'estilos': ESTILOS_WIDGETS,
+            'responsive': RESPONSIVE_CONFIG
         },
         'archivos': {
             'excel': EXCEL_CONFIG,

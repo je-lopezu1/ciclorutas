@@ -59,14 +59,22 @@ class EstadisticasUtils:
         return stats
     
     @staticmethod
-    def calcular_estadisticas_rutas(rutas_utilizadas: Dict, rutas_por_ciclista: Dict) -> Dict:
+    def calcular_estadisticas_rutas(rutas_utilizadas: Dict, rutas_por_ciclista: Dict, arcos_utilizados: Dict = None) -> Dict:
         """Calcula estadísticas relacionadas con las rutas"""
-        return {
+        stats = {
             'rutas_utilizadas': len(rutas_utilizadas),
             'total_viajes': sum(rutas_utilizadas.values()) if rutas_utilizadas else 0,
             'ruta_mas_usada': EstadisticasUtils._obtener_ruta_mas_usada(rutas_utilizadas),
             'rutas_por_frecuencia': EstadisticasUtils._obtener_rutas_por_frecuencia(rutas_utilizadas)
         }
+        
+        # Agregar estadística del tramo más concurrido si hay datos de arcos
+        if arcos_utilizados:
+            stats['tramo_mas_concurrido'] = EstadisticasUtils._obtener_tramo_mas_concurrido(arcos_utilizados)
+        else:
+            stats['tramo_mas_concurrido'] = 'N/A'
+        
+        return stats
     
     @staticmethod
     def calcular_estadisticas_nodos(ciclistas_por_nodo: Dict) -> Dict:
@@ -118,7 +126,8 @@ class EstadisticasUtils:
         # Estadísticas de rutas
         stats.update(EstadisticasUtils.calcular_estadisticas_rutas(
             simulador.rutas_utilizadas, 
-            simulador.rutas_por_ciclista
+            simulador.rutas_por_ciclista,
+            simulador.arcos_utilizados
         ))
         
         # Estadísticas de nodos
@@ -147,6 +156,15 @@ class EstadisticasUtils:
         
         ruta_mas_usada = max(rutas_utilizadas.items(), key=lambda x: x[1])
         return f"{ruta_mas_usada[0]} ({ruta_mas_usada[1]} viajes)"
+    
+    @staticmethod
+    def _obtener_tramo_mas_concurrido(arcos_utilizados: Dict) -> str:
+        """Obtiene el tramo/arco más concurrido"""
+        if not arcos_utilizados:
+            return "N/A"
+        
+        tramo_mas_concurrido = max(arcos_utilizados.items(), key=lambda x: x[1])
+        return f"{tramo_mas_concurrido[0]} ({tramo_mas_concurrido[1]} ciclistas)"
     
     @staticmethod
     def _obtener_rutas_por_frecuencia(rutas_utilizadas: Dict) -> List:

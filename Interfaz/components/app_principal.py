@@ -36,6 +36,7 @@ class InterfazSimulacion:
         self.root = root
         self.root.title("🚴 Simulador de Ciclorutas - Control Avanzado")
         self.root.geometry("1400x900")
+        self.root.minsize(800, 600)  # Tamaño mínimo para responsividad
         self.root.configure(bg=EstiloUtils.COLORES['gris_claro'])
         
         # Configuración por defecto
@@ -54,6 +55,10 @@ class InterfazSimulacion:
         self.hilo_simulacion = None
         self.ventana_cerrada = False
         
+        # Variables para paneles opcionales
+        self.panel_estadisticas_visible = True
+        self.panel_distribuciones_visible = True
+        
         # Cache de datos de interfaz
         self._cache_interfaz = None
         self._ultima_actualizacion_cache = 0
@@ -61,6 +66,9 @@ class InterfazSimulacion:
         
         # Configurar manejo de cierre de ventana
         self.root.protocol("WM_DELETE_WINDOW", self.cerrar_aplicacion)
+        
+        # Configurar redimensionamiento
+        self.root.bind('<Configure>', self._on_window_resize)
         
         # Configurar estilo
         EstiloUtils.configurar_estilo_ttk()
@@ -71,23 +79,29 @@ class InterfazSimulacion:
         # Inicializar simulación
         self.simulador.inicializar_simulacion()
         self.actualizar_visualizacion()
+        
+        # Actualizar estadísticas iniciales
+        self.actualizar_estadisticas()
     
     def crear_interfaz(self):
-        """Crea todos los elementos de la interfaz"""
+        """Crea todos los elementos de la interfaz con diseño responsive"""
         # Frame principal
         main_frame = EstiloUtils.crear_frame_con_estilo(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Configurar grid
+        # Configurar grid responsivo
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(0, weight=1)
-        main_frame.rowconfigure(1, weight=0)  # Estadísticas no expanden verticalmente
+        main_frame.rowconfigure(1, weight=0)  # Barra de herramientas no expande
         
-        # Crear PanedWindow para paneles redimensionables
+        # Crear barra de herramientas superior
+        self._crear_barra_herramientas(main_frame)
+        
+        # Crear PanedWindow principal para paneles redimensionables
         self.paned_main = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
-        self.paned_main.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.paned_main.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
         
         # Crear callbacks para los paneles
         callbacks = self._crear_callbacks()
@@ -96,17 +110,63 @@ class InterfazSimulacion:
         self.panel_control = PanelControl(self.paned_main, callbacks)
         self.paned_main.add(self.panel_control.frame_principal, weight=1)
         
-        # Panel de distribuciones (centro)
-        self.panel_distribuciones = PanelDistribuciones(self.paned_main, callbacks)
-        self.paned_main.add(self.panel_distribuciones.frame_principal, weight=1)
-        
-        # Panel de visualización (derecha)
+        # Panel de visualización (centro) - siempre visible
         self.panel_visualizacion = PanelVisualizacion(self.paned_main, callbacks)
         self.paned_main.add(self.panel_visualizacion.frame_principal, weight=2)
         
-        # Panel de estadísticas (abajo) - fuera del PanedWindow para ancho completo
+        # Panel de distribuciones (derecha) - opcional
+        self.panel_distribuciones = PanelDistribuciones(self.paned_main, callbacks)
+        if self.panel_distribuciones_visible:
+            self.paned_main.add(self.panel_distribuciones.frame_principal, weight=1)
+        
+        # Panel de estadísticas (abajo) - opcional y redimensionable
         self.panel_estadisticas = PanelEstadisticas(main_frame, callbacks)
-        self.panel_estadisticas.frame_principal.pack(fill=tk.BOTH, expand=True, pady=5)
+        if self.panel_estadisticas_visible:
+            self.panel_estadisticas.frame_principal.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+    
+    def _crear_barra_herramientas(self, parent):
+        """Crea la barra de herramientas superior con controles de paneles"""
+        toolbar_frame = EstiloUtils.crear_frame_con_estilo(parent, 'Control.TFrame')
+        toolbar_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        # Botón para mostrar/ocultar panel de estadísticas
+        self.btn_toggle_estadisticas = EstiloUtils.crear_button_con_estilo(
+            toolbar_frame, 
+            "📊 Estadísticas", 
+            'Accent.TButton',
+            command=self._toggle_panel_estadisticas
+        )
+        self.btn_toggle_estadisticas.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Botón para mostrar/ocultar panel de distribuciones
+        self.btn_toggle_distribuciones = EstiloUtils.crear_button_con_estilo(
+            toolbar_frame, 
+            "📈 Distribuciones", 
+            'Accent.TButton',
+            command=self._toggle_panel_distribuciones
+        )
+        self.btn_toggle_distribuciones.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Separador
+        separator = EstiloUtils.crear_separador(toolbar_frame, 'vertical')
+        separator.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
+        # Información de estado de la ventana
+        self.label_info_ventana = EstiloUtils.crear_label_con_estilo(
+            toolbar_frame, 
+            "🖥️ Ventana: 1400x900", 
+            'Info.TLabel'
+        )
+        self.label_info_ventana.pack(side=tk.RIGHT, padx=(5, 0))
+        
+        # Botón para maximizar/restaurar
+        self.btn_maximizar = EstiloUtils.crear_button_con_estilo(
+            toolbar_frame, 
+            "⛶ Maximizar", 
+            'TButton',
+            command=self._toggle_maximizar
+        )
+        self.btn_maximizar.pack(side=tk.RIGHT, padx=(5, 0))
     
     def _crear_callbacks(self) -> Dict[str, Callable]:
         """Crea los callbacks para comunicación entre paneles"""
@@ -369,7 +429,13 @@ class InterfazSimulacion:
             # Actualizar interfaz con datos
             self.panel_control.actualizar_estado(estado['estado'], estado['tiempo_actual'])
             self.panel_visualizacion.actualizar_visualizacion(ciclistas_activos)
-            self.panel_estadisticas.actualizar_estadisticas(estadisticas)
+            
+            # Actualizar estadísticas con validación
+            if estadisticas and isinstance(estadisticas, dict):
+                self.panel_estadisticas.actualizar_estadisticas(estadisticas)
+            else:
+                print("⚠️ Advertencia: Estadísticas no válidas, usando valores por defecto")
+                self.panel_estadisticas.limpiar_estadisticas()
             
         except tk.TclError:
             # Widget ya fue destruido
@@ -484,9 +550,38 @@ class InterfazSimulacion:
             self.panel_visualizacion.configurar_grafico_inicial()
     
     def actualizar_estadisticas(self):
-        """Actualiza las estadísticas mostradas"""
-        stats = self.simulador.obtener_estadisticas()
-        self.panel_estadisticas.actualizar_estadisticas(stats)
+        """Actualiza las estadísticas mostradas con validación mejorada"""
+        try:
+            # Obtener estadísticas del simulador
+            stats = self.simulador.obtener_estadisticas()
+            
+            # Validar que las estadísticas no sean None
+            if stats is None:
+                print("Advertencia: El simulador no retorno estadisticas")
+                stats = {}
+            
+            # Agregar información adicional del estado actual
+            estado_actual = self.simulador.obtener_estado_actual()
+            stats['estado_simulacion'] = estado_actual.get('estado', 'detenido')
+            stats['tiempo_actual'] = estado_actual.get('tiempo_actual', 0)
+            
+            # Agregar información del grafo si está disponible
+            if self.grafo_actual:
+                stats['grafo_cargado'] = True
+                stats['grafo_nodos'] = len(self.grafo_actual.nodes())
+                stats['grafo_arcos'] = len(self.grafo_actual.edges())
+                stats['usando_grafo_real'] = True
+            else:
+                stats['grafo_cargado'] = False
+                stats['usando_grafo_real'] = False
+            
+            # Actualizar el panel de estadísticas
+            self.panel_estadisticas.actualizar_estadisticas(stats)
+            
+        except Exception as e:
+            print(f"Error actualizando estadisticas: {e}")
+            # Mostrar estadísticas por defecto en caso de error
+            self.panel_estadisticas.limpiar_estadisticas()
     
     def click_grafico(self, x: float, y: float):
         """Maneja clics en el gráfico"""
@@ -524,6 +619,108 @@ class InterfazSimulacion:
         
         # Destruir la ventana
         self.root.destroy()
+    
+    def _toggle_panel_estadisticas(self):
+        """Alterna la visibilidad del panel de estadísticas"""
+        self.panel_estadisticas_visible = not self.panel_estadisticas_visible
+        
+        if self.panel_estadisticas_visible:
+            self.panel_estadisticas.frame_principal.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+            self.btn_toggle_estadisticas.config(text="📊 Ocultar Estadísticas")
+        else:
+            self.panel_estadisticas.frame_principal.pack_forget()
+            self.btn_toggle_estadisticas.config(text="📊 Mostrar Estadísticas")
+        
+        # Ajustar layout
+        self._ajustar_layout_responsivo()
+    
+    def _toggle_panel_distribuciones(self):
+        """Alterna la visibilidad del panel de distribuciones"""
+        self.panel_distribuciones_visible = not self.panel_distribuciones_visible
+        
+        if self.panel_distribuciones_visible:
+            # Insertar el panel al final (derecha)
+            self.paned_main.add(self.panel_distribuciones.frame_principal, weight=1)
+            self.btn_toggle_distribuciones.config(text="📈 Ocultar Distribuciones")
+        else:
+            # Remover el panel del PanedWindow
+            self.paned_main.forget(self.panel_distribuciones.frame_principal)
+            self.btn_toggle_distribuciones.config(text="📈 Mostrar Distribuciones")
+        
+        # Ajustar layout
+        self._ajustar_layout_responsivo()
+    
+    def _toggle_maximizar(self):
+        """Alterna entre maximizado y restaurado"""
+        if self.root.state() == 'zoomed':
+            self.root.state('normal')
+            self.btn_maximizar.config(text="⛶ Maximizar")
+        else:
+            self.root.state('zoomed')
+            self.btn_maximizar.config(text="⛶ Restaurar")
+        
+        # Actualizar información de ventana después de un breve delay
+        self.root.after(100, self._actualizar_info_ventana)
+    
+    def _on_window_resize(self, event):
+        """Maneja el redimensionamiento de la ventana"""
+        if event.widget == self.root:
+            # Actualizar información de ventana
+            self._actualizar_info_ventana()
+            
+            # Ajustar layout responsivo
+            self._ajustar_layout_responsivo()
+    
+    def _actualizar_info_ventana(self):
+        """Actualiza la información de tamaño de ventana"""
+        try:
+            width = self.root.winfo_width()
+            height = self.root.winfo_height()
+            self.label_info_ventana.config(text=f"🖥️ Ventana: {width}x{height}")
+        except tk.TclError:
+            pass  # Ventana ya fue destruida
+    
+    def _ajustar_layout_responsivo(self):
+        """Ajusta el layout según el tamaño de la ventana"""
+        try:
+            width = self.root.winfo_width()
+            height = self.root.winfo_height()
+            
+            # Ajustar pesos de paneles según el tamaño
+            if width < 1000:  # Pantalla pequeña
+                # En pantallas pequeñas, dar más espacio a visualización
+                if hasattr(self, 'paned_main'):
+                    # Ajustar pesos dinámicamente: control, visualización, distribuciones
+                    self._ajustar_pesos_paneles(1, 3, 1)
+            elif width < 1400:  # Pantalla mediana
+                self._ajustar_pesos_paneles(1, 2, 1)
+            else:  # Pantalla grande
+                self._ajustar_pesos_paneles(1, 2, 1)
+            
+            # Ajustar altura del panel de estadísticas
+            if self.panel_estadisticas_visible:
+                self.panel_estadisticas.ajustar_tamaño_responsivo(width, height)
+                    
+        except tk.TclError:
+            pass  # Ventana ya fue destruida
+    
+    def _ajustar_pesos_paneles(self, peso_control, peso_visualizacion, peso_distribuciones):
+        """Ajusta los pesos de los paneles en el PanedWindow"""
+        try:
+            if hasattr(self, 'paned_main'):
+                # Obtener paneles actuales
+                paneles = self.paned_main.panes()
+                
+                if len(paneles) >= 2:
+                    # Ajustar pesos: Control (0), Visualización (1), Distribuciones (2)
+                    self.paned_main.paneconfig(paneles[0], weight=peso_control)
+                    if len(paneles) >= 3 and self.panel_distribuciones_visible:
+                        self.paned_main.paneconfig(paneles[1], weight=peso_visualizacion)
+                        self.paned_main.paneconfig(paneles[2], weight=peso_distribuciones)
+                    else:
+                        self.paned_main.paneconfig(paneles[1], weight=peso_visualizacion)
+        except tk.TclError:
+            pass  # PanedWindow ya fue destruido
 
 
 def main():

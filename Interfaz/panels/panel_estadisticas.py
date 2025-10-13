@@ -2,18 +2,18 @@
 Panel de estadísticas de la simulación.
 
 Este módulo contiene el panel de estadísticas que muestra métricas
-en tiempo real de la simulación.
+en tiempo real de la simulación con scroll y mejor organización.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, scrolledtext
 from typing import Dict, List, Any, Callable
 
 from ..utils.estilo_utils import EstiloUtils
 
 
 class PanelEstadisticas:
-    """Panel de estadísticas con métricas en tiempo real"""
+    """Panel de estadísticas con métricas en tiempo real y scroll"""
     
     def __init__(self, parent, callbacks: Dict[str, Callable]):
         self.parent = parent
@@ -22,11 +22,16 @@ class PanelEstadisticas:
         # Diccionario para almacenar referencias a los labels
         self.stats_labels = {}
         
+        # Variables para control de scroll
+        self.canvas = None
+        self.scrollbar = None
+        self.scrollable_frame = None
+        
         # Crear el panel
         self.crear_panel()
     
     def crear_panel(self):
-        """Crea el panel de estadísticas principal"""
+        """Crea el panel de estadísticas principal con scroll"""
         # Frame principal
         self.frame_principal = EstiloUtils.crear_label_frame_con_estilo(
             self.parent, 
@@ -34,315 +39,350 @@ class PanelEstadisticas:
         )
         self.frame_principal.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
+        # Configurar altura mínima y máxima
+        self.frame_principal.config(height=250)
+        
+        # Crear sistema de scroll
+        self._crear_sistema_scroll()
+        
         # Crear el contenido del panel
         self._crear_contenido_estadisticas()
     
+    def _crear_sistema_scroll(self):
+        """Crea el sistema de scroll para el panel de estadísticas"""
+        # Crear canvas para scroll
+        self.canvas = tk.Canvas(self.frame_principal, bg=EstiloUtils.COLORES['gris_claro'])
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Crear scrollbar
+        self.scrollbar = ttk.Scrollbar(self.frame_principal, orient=tk.VERTICAL, command=self.canvas.yview)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Configurar canvas con scrollbar
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Crear frame scrollable
+        self.scrollable_frame = EstiloUtils.crear_frame_con_estilo(self.canvas)
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # Configurar eventos de scroll
+        self.scrollable_frame.bind("<Configure>", self._on_frame_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        
+        # Habilitar scroll con rueda del mouse
+        self._bind_mousewheel()
+    
+    def _on_frame_configure(self, event):
+        """Actualiza la región de scroll cuando el frame cambia de tamaño"""
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    
+    def _on_canvas_configure(self, event):
+        """Ajusta el ancho del frame scrollable al canvas"""
+        canvas_width = event.width
+        self.canvas.itemconfig(self.canvas.find_all()[0], width=canvas_width)
+    
+    def _bind_mousewheel(self):
+        """Vincula el scroll del mouse al canvas"""
+        def _on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _bind_to_mousewheel(event):
+            self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        def _unbind_from_mousewheel(event):
+            self.canvas.unbind_all("<MouseWheel>")
+        
+        self.canvas.bind('<Enter>', _bind_to_mousewheel)
+        self.canvas.bind('<Leave>', _unbind_from_mousewheel)
+    
+    def _crear_seccion_estado_simulacion(self):
+        """Crea la sección de estado de la simulación"""
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=0, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(5, 10))
+        
+        ttk.Label(titulo_frame, text="⚡ ESTADO DE SIMULACIÓN", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Fila 1: Estado y tiempo
+        ttk.Label(self.scrollable_frame, text="Estado:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        self.stats_labels['estado_simulacion'] = EstiloUtils.crear_label_con_estilo(
+            self.scrollable_frame, "DETENIDO", 'Info.TLabel'
+        )
+        self.stats_labels['estado_simulacion'].grid(row=1, column=1, sticky=tk.W, padx=(0, 20), pady=2)
+        
+        ttk.Label(self.scrollable_frame, text="Tiempo Actual:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=1, column=2, sticky=tk.W, padx=5, pady=2)
+        self.stats_labels['tiempo_actual'] = EstiloUtils.crear_label_con_estilo(
+            self.scrollable_frame, "0.0s", 'Info.TLabel'
+        )
+        self.stats_labels['tiempo_actual'].grid(row=1, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+    
     def _crear_contenido_estadisticas(self):
-        """Crea el contenido principal del panel de estadísticas"""
-        # Frame interno para estadísticas
-        stats_inner = EstiloUtils.crear_frame_con_estilo(self.frame_principal)
-        stats_inner.pack(fill=tk.BOTH, expand=True)
+        """Crea el contenido principal del panel de estadísticas con mejor organización"""
+        if not self.scrollable_frame:
+            return
         
-        # Configurar grid responsivo
-        EstiloUtils.configurar_grid_responsivo(stats_inner, 10)
+        # Configurar grid responsivo en el frame scrollable
+        EstiloUtils.configurar_grid_responsivo(self.scrollable_frame, 4)
         
-        # Crear secciones de estadísticas
-        self._crear_seccion_estadisticas_basicas(stats_inner, 0)
-        self._crear_seccion_estadisticas_grafo(stats_inner, 1)
-        self._crear_seccion_estadisticas_distribuciones(stats_inner, 2)
-        self._crear_seccion_estadisticas_rutas(stats_inner, 3)
-        self._crear_seccion_estadisticas_adicionales(stats_inner, 4)
-        self._crear_seccion_estadisticas_atributos(stats_inner, 5)
-        self._crear_seccion_estadisticas_perfiles(stats_inner, 6)
+        # Crear secciones de estadísticas organizadas (solo tiempo y ciclistas)
+        self._crear_seccion_estado_simulacion()
+        self._crear_seccion_estadisticas_basicas()
+        self._crear_seccion_estadisticas_rutas()
+        self._crear_seccion_estadisticas_adicionales()
+        
+        # Actualizar scroll después de crear contenido
+        self.scrollable_frame.update_idletasks()
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
     
-    def _crear_seccion_estadisticas_basicas(self, parent, fila_inicio):
+    def _crear_seccion_estadisticas_basicas(self):
         """Crea la sección de estadísticas básicas"""
-        # Primera fila - Estadísticas básicas
-        ttk.Label(parent, text="Ciclistas Activos:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5)
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=2, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        
+        ttk.Label(titulo_frame, text="🚴 ESTADÍSTICAS BÁSICAS", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Fila 1: Ciclistas y velocidades
+        ttk.Label(self.scrollable_frame, text="Ciclistas Activos:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['total_ciclistas'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
+            self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['total_ciclistas'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['total_ciclistas'].grid(row=3, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Velocidad Promedio:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5)
+        ttk.Label(self.scrollable_frame, text="Velocidad Promedio:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=3, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['velocidad_promedio'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0.0 m/s", 'Info.TLabel'
+            self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
-        self.stats_labels['velocidad_promedio'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['velocidad_promedio'].grid(row=3, column=3, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Velocidad Mín:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=4, sticky=tk.W, padx=5)
+        # Fila 2: Velocidades min/max
+        ttk.Label(self.scrollable_frame, text="Velocidad Mín:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['velocidad_min'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0.0 m/s", 'Info.TLabel'
+            self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
-        self.stats_labels['velocidad_min'].grid(row=fila_inicio, column=5, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['velocidad_min'].grid(row=4, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Velocidad Máx:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=6, sticky=tk.W, padx=5)
+        ttk.Label(self.scrollable_frame, text="Velocidad Máx:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['velocidad_max'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0.0 m/s", 'Info.TLabel'
+            self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
-        self.stats_labels['velocidad_max'].grid(row=fila_inicio, column=7, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['velocidad_max'].grid(row=4, column=3, sticky=tk.W, padx=(0, 20), pady=2)
     
-    def _crear_seccion_estadisticas_grafo(self, parent, fila_inicio):
+    def _crear_seccion_estadisticas_grafo(self):
         """Crea la sección de estadísticas del grafo"""
-        # Segunda fila - Estadísticas del grafo
-        ttk.Label(parent, text="Nodos del Grafo:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5, pady=5)
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=3, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        
+        ttk.Label(titulo_frame, text="🕸️ ESTADÍSTICAS DEL GRAFO", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Fila 1: Nodos y arcos
+        ttk.Label(self.scrollable_frame, text="Nodos del Grafo:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['grafo_nodos'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
+            self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['grafo_nodos'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['grafo_nodos'].grid(row=4, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Arcos del Grafo:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.scrollable_frame, text="Arcos del Grafo:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['grafo_arcos'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
+            self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['grafo_arcos'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['grafo_arcos'].grid(row=4, column=3, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Modo:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=4, sticky=tk.W, padx=5, pady=5)
+        # Fila 2: Modo de simulación
+        ttk.Label(self.scrollable_frame, text="Modo de Simulación:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=5, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['modo_simulacion'] = EstiloUtils.crear_label_con_estilo(
-            parent, "Original", 'Info.TLabel'
+            self.scrollable_frame, "Original", 'Info.TLabel'
         )
-        self.stats_labels['modo_simulacion'].grid(row=fila_inicio, column=5, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['modo_simulacion'].grid(row=5, column=1, sticky=tk.W, padx=(0, 20), pady=2)
     
-    def _crear_seccion_estadisticas_distribuciones(self, parent, fila_inicio):
+    def _crear_seccion_estadisticas_distribuciones(self):
         """Crea la sección de estadísticas de distribuciones"""
-        # Tercera fila - Estadísticas de distribuciones
-        ttk.Label(parent, text="Distribuciones:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5)
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=6, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        
+        ttk.Label(titulo_frame, text="📊 DISTRIBUCIONES DE PROBABILIDAD", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Fila 1: Distribuciones y tasa
+        ttk.Label(self.scrollable_frame, text="Distribuciones Configuradas:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=7, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['distribuciones_configuradas'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
+            self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['distribuciones_configuradas'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['distribuciones_configuradas'].grid(row=7, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Tasa Promedio:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5)
+        ttk.Label(self.scrollable_frame, text="Tasa de Arribo Promedio:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=7, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['tasa_arribo_promedio'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0.0", 'Info.TLabel'
+            self.scrollable_frame, "0.0", 'Info.TLabel'
         )
-        self.stats_labels['tasa_arribo_promedio'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['tasa_arribo_promedio'].grid(row=7, column=3, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Duración:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=4, sticky=tk.W, padx=5)
+        # Fila 2: Duración
+        ttk.Label(self.scrollable_frame, text="Duración de Simulación:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=8, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['duracion_simulacion'] = EstiloUtils.crear_label_con_estilo(
-            parent, "300s", 'Info.TLabel'
+            self.scrollable_frame, "300s", 'Info.TLabel'
         )
-        self.stats_labels['duracion_simulacion'].grid(row=fila_inicio, column=5, sticky=tk.W, padx=(0, 20))
+        self.stats_labels['duracion_simulacion'].grid(row=8, column=1, sticky=tk.W, padx=(0, 20), pady=2)
     
-    def _crear_seccion_estadisticas_rutas(self, parent, fila_inicio):
+    def _crear_seccion_estadisticas_rutas(self):
         """Crea la sección de estadísticas de rutas"""
-        # Cuarta fila - Estadísticas de rutas
-        ttk.Label(parent, text="Rutas Utilizadas:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5, pady=5)
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=5, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        
+        ttk.Label(titulo_frame, text="🛣️ ESTADÍSTICAS DE RUTAS", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Fila 1: Rutas utilizadas y total viajes
+        ttk.Label(self.scrollable_frame, text="Rutas Utilizadas:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=6, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['rutas_utilizadas'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
+            self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['rutas_utilizadas'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['rutas_utilizadas'].grid(row=6, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Total Viajes:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.scrollable_frame, text="Total Viajes:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=6, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['total_viajes'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
+            self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['total_viajes'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['total_viajes'].grid(row=6, column=3, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Ruta Más Usada:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=4, sticky=tk.W, padx=5, pady=5)
+        # Fila 2: Ruta más usada
+        ttk.Label(self.scrollable_frame, text="Ruta Más Usada:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=7, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['ruta_mas_usada'] = EstiloUtils.crear_label_con_estilo(
-            parent, "N/A", 'Info.TLabel'
+            self.scrollable_frame, "N/A", 'Info.TLabel'
         )
-        self.stats_labels['ruta_mas_usada'].grid(row=fila_inicio, column=5, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['ruta_mas_usada'].grid(row=7, column=1, columnspan=3, sticky=tk.W, padx=(0, 20), pady=2)
+        
+        # Fila 3: Tramo más concurrido (NUEVA ESTADÍSTICA)
+        ttk.Label(self.scrollable_frame, text="Tramo Más Concurrido:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=8, column=0, sticky=tk.W, padx=5, pady=2)
+        self.stats_labels['tramo_mas_concurrido'] = EstiloUtils.crear_label_con_estilo(
+            self.scrollable_frame, "N/A", 'Info.TLabel'
+        )
+        self.stats_labels['tramo_mas_concurrido'].grid(row=8, column=1, columnspan=3, sticky=tk.W, padx=(0, 20), pady=2)
     
-    def _crear_seccion_estadisticas_adicionales(self, parent, fila_inicio):
+    def _crear_seccion_estadisticas_adicionales(self):
         """Crea la sección de estadísticas adicionales"""
-        # Quinta fila - Estadísticas adicionales
-        ttk.Label(parent, text="Ciclistas Completados:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5, pady=5)
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=9, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        
+        ttk.Label(titulo_frame, text="📈 ESTADÍSTICAS ADICIONALES", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Fila 1: Ciclistas completados y nodo más activo
+        ttk.Label(self.scrollable_frame, text="Ciclistas Completados:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=10, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['ciclistas_completados'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Success.TLabel'
+            self.scrollable_frame, "0", 'Success.TLabel'
         )
-        self.stats_labels['ciclistas_completados'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['ciclistas_completados'].grid(row=10, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
-        ttk.Label(parent, text="Nodo Más Activo:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5, pady=5)
+        ttk.Label(self.scrollable_frame, text="Nodo Más Activo:", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=10, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['nodo_mas_activo'] = EstiloUtils.crear_label_con_estilo(
-            parent, "N/A", 'Info.TLabel'
+            self.scrollable_frame, "N/A", 'Info.TLabel'
         )
-        self.stats_labels['nodo_mas_activo'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20), pady=5)
+        self.stats_labels['nodo_mas_activo'].grid(row=10, column=3, sticky=tk.W, padx=(0, 20), pady=2)
     
-    def _crear_seccion_estadisticas_atributos(self, parent, fila_inicio):
-        """Crea la sección de estadísticas de atributos"""
-        # Sexta fila - Información de atributos
-        ttk.Label(parent, text="Atributos:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5, pady=5)
-        self.stats_labels['atributos_disponibles'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
-        )
-        self.stats_labels['atributos_disponibles'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20), pady=5)
-        
-        ttk.Label(parent, text="Sistema Pesos:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5, pady=5)
-        self.stats_labels['peso_compuesto'] = EstiloUtils.crear_label_con_estilo(
-            parent, "Simple", 'Info.TLabel'
-        )
-        self.stats_labels['peso_compuesto'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20), pady=5)
-    
-    def _crear_seccion_estadisticas_perfiles(self, parent, fila_inicio):
-        """Crea la sección de estadísticas de perfiles"""
-        # Séptima fila - Información de perfiles y rutas
-        ttk.Label(parent, text="Perfiles:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=0, sticky=tk.W, padx=5, pady=5)
-        self.stats_labels['perfiles_disponibles'] = EstiloUtils.crear_label_con_estilo(
-            parent, "0", 'Info.TLabel'
-        )
-        self.stats_labels['perfiles_disponibles'].grid(row=fila_inicio, column=1, sticky=tk.W, padx=(0, 20), pady=5)
-        
-        ttk.Label(parent, text="Matriz Rutas:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=fila_inicio, column=2, sticky=tk.W, padx=5, pady=5)
-        self.stats_labels['matriz_rutas'] = EstiloUtils.crear_label_con_estilo(
-            parent, "No", 'Info.TLabel'
-        )
-        self.stats_labels['matriz_rutas'].grid(row=fila_inicio, column=3, sticky=tk.W, padx=(0, 20), pady=5)
     
     def actualizar_estadisticas(self, stats: Dict[str, Any]):
-        """Actualiza las estadísticas mostradas"""
+        """Actualiza las estadísticas mostradas con validación mejorada"""
         try:
-            # Estadísticas básicas
-            self._actualizar_estadistica('total_ciclistas', stats.get('ciclistas_activos', 0))
-            self._actualizar_estadistica('velocidad_promedio', f"{stats.get('velocidad_promedio', 0):.1f} m/s")
-            self._actualizar_estadistica('velocidad_min', f"{stats.get('velocidad_minima', 0):.1f} m/s")
-            self._actualizar_estadistica('velocidad_max', f"{stats.get('velocidad_maxima', 0):.1f} m/s")
-            self._actualizar_estadistica('duracion_simulacion', f"{stats.get('duracion_simulacion', 300):.0f}s")
+            # Validar que stats no sea None
+            if not stats:
+                print("⚠️ Advertencia: No se recibieron estadísticas para actualizar")
+                return
             
-            # Estadísticas del grafo
-            if stats.get('usando_grafo_real', False):
-                self._actualizar_estadistica('grafo_nodos', stats.get('grafo_nodos', 0))
-                self._actualizar_estadistica('grafo_arcos', stats.get('grafo_arcos', 0))
-                self._actualizar_estadistica('modo_simulacion', "Grafo Real", 'exito')
-                
-                # Estadísticas de distribuciones
-                self._actualizar_estadistica('distribuciones_configuradas', stats.get('distribuciones_configuradas', 0))
-                tasa_promedio = stats.get('tasa_arribo_promedio', 0)
-                self._actualizar_estadistica('tasa_arribo_promedio', f"{tasa_promedio:.2f}")
-            else:
-                self._actualizar_estadistica('grafo_nodos', "0")
-                self._actualizar_estadistica('grafo_arcos', "0")
-                self._actualizar_estadistica('modo_simulacion', "Sistema Original", 'info')
-                self._actualizar_estadistica('distribuciones_configuradas', "0")
-                self._actualizar_estadistica('tasa_arribo_promedio', "0.0")
+            # Estado de simulación
+            estado = stats.get('estado_simulacion', 'detenido').upper()
+            self._actualizar_estadistica('estado_simulacion', estado, 
+                                       'exito' if estado == 'EJECUTANDO' else 'info')
+            tiempo_actual = self._validar_numero(stats.get('tiempo_actual', 0))
+            self._actualizar_estadistica('tiempo_actual', f"{tiempo_actual:.1f}s")
+            
+            # Estadísticas básicas con validación
+            self._actualizar_estadistica('total_ciclistas', self._validar_numero(stats.get('ciclistas_activos', 0)))
+            self._actualizar_estadistica('velocidad_promedio', f"{self._validar_velocidad(stats.get('velocidad_promedio', 0)):.1f} m/s")
+            self._actualizar_estadistica('velocidad_min', f"{self._validar_velocidad(stats.get('velocidad_minima', 0)):.1f} m/s")
+            self._actualizar_estadistica('velocidad_max', f"{self._validar_velocidad(stats.get('velocidad_maxima', 0)):.1f} m/s")
+            self._actualizar_estadistica('duracion_simulacion', f"{self._validar_numero(stats.get('duracion_simulacion', 300)):.0f}s")
+            
+            # No mostrar estadísticas del grafo ni distribuciones (eliminadas)
             
             # Estadísticas de rutas
-            self._actualizar_estadistica('rutas_utilizadas', stats.get('rutas_utilizadas', 0))
-            self._actualizar_estadistica('total_viajes', stats.get('total_viajes', 0))
+            self._actualizar_estadistica('rutas_utilizadas', self._validar_numero(stats.get('rutas_utilizadas', 0)))
+            self._actualizar_estadistica('total_viajes', self._validar_numero(stats.get('total_viajes', 0)))
             
             # Ruta más usada (truncar si es muy larga)
             ruta_mas_usada = stats.get('ruta_mas_usada', 'N/A')
-            if len(ruta_mas_usada) > 30:
+            if isinstance(ruta_mas_usada, str) and len(ruta_mas_usada) > 30:
                 ruta_mas_usada = ruta_mas_usada[:27] + "..."
-            self._actualizar_estadistica('ruta_mas_usada', ruta_mas_usada)
+            self._actualizar_estadistica('ruta_mas_usada', str(ruta_mas_usada))
+            
+            # Tramo más concurrido (NUEVA ESTADÍSTICA)
+            tramo_mas_concurrido = stats.get('tramo_mas_concurrido', 'N/A')
+            if isinstance(tramo_mas_concurrido, str) and len(tramo_mas_concurrido) > 30:
+                tramo_mas_concurrido = tramo_mas_concurrido[:27] + "..."
+            self._actualizar_estadistica('tramo_mas_concurrido', str(tramo_mas_concurrido))
             
             # Ciclistas completados
-            self._actualizar_estadistica('ciclistas_completados', stats.get('ciclistas_completados', 0), 'exito')
+            self._actualizar_estadistica('ciclistas_completados', self._validar_numero(stats.get('ciclistas_completados', 0)), 'exito')
             
             # Nodo más activo (truncar si es muy largo)
             nodo_mas_activo = stats.get('nodo_mas_activo', 'N/A')
-            if len(nodo_mas_activo) > 25:
+            if isinstance(nodo_mas_activo, str) and len(nodo_mas_activo) > 25:
                 nodo_mas_activo = nodo_mas_activo[:22] + "..."
-            self._actualizar_estadistica('nodo_mas_activo', nodo_mas_activo)
+            self._actualizar_estadistica('nodo_mas_activo', str(nodo_mas_activo))
             
-            # Información de atributos (si está disponible)
-            self._actualizar_atributos_disponibles(stats)
-            
-            # Información de perfiles y rutas (si está disponible)
-            self._actualizar_perfiles_rutas(stats)
+            # No se actualizan atributos ni perfiles (eliminados)
             
         except Exception as e:
             print(f"⚠️ Error actualizando estadísticas: {e}")
+            # Mostrar valores por defecto en caso de error
+            self._mostrar_valores_por_defecto()
     
-    def _actualizar_estadistica(self, key: str, valor: Any, tipo: str = 'normal'):
-        """Actualiza una estadística específica"""
-        if key in self.stats_labels:
-            EstiloUtils.aplicar_estilo_estadistica(self.stats_labels[key], valor, tipo)
+    def _validar_numero(self, valor: Any) -> float:
+        """Valida y convierte un valor a número"""
+        try:
+            if valor is None:
+                return 0.0
+            return float(valor)
+        except (ValueError, TypeError):
+            return 0.0
     
-    def _actualizar_atributos_disponibles(self, stats: Dict[str, Any]):
-        """Actualiza la información de atributos disponibles"""
-        # Obtener información del grafo actual si está disponible
-        grafo_actual = self.callbacks.get('obtener_grafo_actual', lambda: None)()
-        if grafo_actual:
-            # Contar atributos disponibles en los arcos
-            atributos_encontrados = set()
-            for edge in grafo_actual.edges(data=True):
-                for key in edge[2].keys():
-                    if key not in ['weight']:
-                        atributos_encontrados.add(key)
-            
-            num_atributos = len(atributos_encontrados)
-            
-            # Verificar tipo de sistema de pesos
-            tiene_distancia_real = any('distancia_real' in edge[2] for edge in grafo_actual.edges(data=True))
-            tiene_atributos_multiples = len(atributos_encontrados) > 1
-            
-            if tiene_distancia_real and tiene_atributos_multiples:
-                sistema_pesos = "Dinámico"
-            elif tiene_distancia_real:
-                sistema_pesos = "Real"
-            elif tiene_atributos_multiples:
-                sistema_pesos = "Atributos"
-            else:
-                sistema_pesos = "Simple"
-            
-            self._actualizar_estadistica('atributos_disponibles', str(num_atributos))
-            self._actualizar_estadistica('peso_compuesto', sistema_pesos, 
-                                       'exito' if sistema_pesos in ['Dinámico', 'Real', 'Atributos'] else 'info')
-        else:
-            self._actualizar_estadistica('atributos_disponibles', "0")
-            self._actualizar_estadistica('peso_compuesto', "Simple", 'info')
+    def _validar_velocidad(self, valor: Any) -> float:
+        """Valida y convierte un valor de velocidad"""
+        try:
+            if valor is None:
+                return 0.0
+            vel = float(valor)
+            # Asegurar que la velocidad esté en un rango razonable
+            return max(0.0, min(vel, 50.0))  # Entre 0 y 50 m/s
+        except (ValueError, TypeError):
+            return 0.0
     
-    def _actualizar_perfiles_rutas(self, stats: Dict[str, Any]):
-        """Actualiza la información de perfiles y rutas"""
-        # Obtener información de perfiles y rutas si están disponibles
-        num_perfiles = 0
-        tiene_matriz = False
-        
-        perfiles_df = self.callbacks.get('obtener_perfiles_df', lambda: None)()
-        rutas_df = self.callbacks.get('obtener_rutas_df', lambda: None)()
-        
-        if perfiles_df is not None:
-            num_perfiles = len(perfiles_df)
-        
-        if rutas_df is not None:
-            tiene_matriz = True
-        
-        self._actualizar_estadistica('perfiles_disponibles', str(num_perfiles))
-        self._actualizar_estadistica('matriz_rutas', "Sí" if tiene_matriz else "No", 
-                                   'exito' if tiene_matriz else 'info')
-    
-    def establecer_atributos_disponibles(self, num_atributos: int, sistema_pesos: str):
-        """Establece la información de atributos disponibles"""
-        self._actualizar_estadistica('atributos_disponibles', str(num_atributos))
-        
-        # Determinar color según el tipo de sistema
-        if sistema_pesos in ['Dinámico', 'Real', 'Atributos']:
-            self._actualizar_estadistica('peso_compuesto', sistema_pesos, 'exito')
-        else:
-            self._actualizar_estadistica('peso_compuesto', sistema_pesos, 'info')
-    
-    def establecer_perfiles_rutas(self, num_perfiles: int, tiene_matriz: bool):
-        """Establece la información de perfiles y rutas"""
-        self._actualizar_estadistica('perfiles_disponibles', str(num_perfiles))
-        
-        if tiene_matriz:
-            self._actualizar_estadistica('matriz_rutas', "Sí", 'exito')
-        else:
-            self._actualizar_estadistica('matriz_rutas', "No", 'info')
-    
-    def limpiar_estadisticas(self):
-        """Limpia todas las estadísticas"""
+    def _mostrar_valores_por_defecto(self):
+        """Muestra valores por defecto en caso de error"""
         valores_por_defecto = {
             'total_ciclistas': "0",
             'velocidad_promedio': "0.0 m/s",
@@ -350,7 +390,7 @@ class PanelEstadisticas:
             'velocidad_max': "0.0 m/s",
             'grafo_nodos': "0",
             'grafo_arcos': "0",
-            'modo_simulacion': "Original",
+            'modo_simulacion': "Error",
             'distribuciones_configuradas': "0",
             'tasa_arribo_promedio': "0.0",
             'duracion_simulacion': "300s",
@@ -360,7 +400,7 @@ class PanelEstadisticas:
             'ciclistas_completados': "0",
             'nodo_mas_activo': "N/A",
             'atributos_disponibles': "0",
-            'peso_compuesto': "Simple",
+            'peso_compuesto': "Error",
             'perfiles_disponibles': "0",
             'matriz_rutas': "No"
         }
@@ -368,6 +408,38 @@ class PanelEstadisticas:
         for key, valor in valores_por_defecto.items():
             if key in self.stats_labels:
                 self.stats_labels[key].config(text=valor)
+    
+    def _actualizar_estadistica(self, key: str, valor: Any, tipo: str = 'normal'):
+        """Actualiza una estadística específica"""
+        if key in self.stats_labels:
+            EstiloUtils.aplicar_estilo_estadistica(self.stats_labels[key], valor, tipo)
+    
+    
+    def limpiar_estadisticas(self):
+        """Limpia todas las estadísticas"""
+        valores_por_defecto = {
+            'estado_simulacion': "DETENIDO",
+            'tiempo_actual': "0.0s",
+            'total_ciclistas': "0",
+            'velocidad_promedio': "0.0 m/s",
+            'velocidad_min': "0.0 m/s",
+            'velocidad_max': "0.0 m/s",
+            'duracion_simulacion': "300s",
+            'rutas_utilizadas': "0",
+            'total_viajes': "0",
+            'ruta_mas_usada': "N/A",
+            'tramo_mas_concurrido': "N/A",
+            'ciclistas_completados': "0",
+            'nodo_mas_activo': "N/A"
+        }
+        
+        for key, valor in valores_por_defecto.items():
+            if key in self.stats_labels:
+                self.stats_labels[key].config(text=valor)
+        
+        # Actualizar scroll después de limpiar
+        if self.canvas:
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
     
     def obtener_estadisticas_actuales(self) -> Dict[str, str]:
         """Retorna las estadísticas actuales mostradas"""
@@ -390,3 +462,48 @@ class PanelEstadisticas:
             'estadisticas': self.obtener_estadisticas_actuales(),
             'num_labels': len(self.stats_labels)
         }
+    
+    def configurar_modo_compacto(self, compacto: bool = True):
+        """Configura el panel en modo compacto o expandido"""
+        if compacto:
+            # Modo compacto: mostrar solo estadísticas esenciales
+            self._mostrar_estadisticas_esenciales()
+            self.frame_principal.config(height=120)
+        else:
+            # Modo expandido: mostrar todas las estadísticas
+            self._mostrar_todas_estadisticas()
+            self.frame_principal.config(height=200)
+    
+    def _mostrar_estadisticas_esenciales(self):
+        """Muestra solo las estadísticas más importantes"""
+        # Ocultar secciones menos importantes
+        secciones_ocultar = [
+            'atributos_disponibles', 'peso_compuesto',
+            'perfiles_disponibles', 'matriz_rutas'
+        ]
+        
+        for key in secciones_ocultar:
+            if key in self.stats_labels:
+                # Ocultar el label y su etiqueta
+                self.stats_labels[key].pack_forget()
+    
+    def _mostrar_todas_estadisticas(self):
+        """Muestra todas las estadísticas"""
+        # Recrear el contenido completo
+        self._crear_contenido_estadisticas()
+    
+    def ajustar_tamaño_responsivo(self, ancho_ventana: int, alto_ventana: int):
+        """Ajusta el tamaño del panel según las dimensiones de la ventana"""
+        if alto_ventana < 600:
+            # Pantalla muy pequeña: modo ultra compacto
+            self.frame_principal.config(height=150)
+        elif alto_ventana < 800:
+            # Pantalla pequeña: modo compacto
+            self.frame_principal.config(height=200)
+        else:
+            # Pantalla normal: modo expandido
+            self.frame_principal.config(height=250)
+        
+        # Actualizar scroll después de cambiar tamaño
+        if self.canvas:
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))

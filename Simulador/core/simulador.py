@@ -53,6 +53,10 @@ class SimuladorCiclorutas:
         self.rutas_utilizadas = {}  # Dict[ruta_str, contador] para contar uso de rutas
         self.rutas_por_ciclista = {}  # Dict[ciclista_id, ruta_info] para rastrear rutas individuales
         
+        # Sistema de rastreo de arcos/tramos
+        self.arcos_utilizados = {}  # Dict[arco_str, contador] para contar uso de arcos
+        self.arcos_por_ciclista = {}  # Dict[ciclista_id, lista_arcos] para rastrear arcos por ciclista
+        
         # Sistema de rastreo de estado de ciclistas
         self.estado_ciclistas = {}  # Dict[ciclista_id, estado] para rastrear si están activos o completados
         self.ciclistas_por_nodo = {}  # Dict[nodo_origen, contador] para contar ciclistas por nodo de origen
@@ -332,7 +336,7 @@ class SimuladorCiclorutas:
             # Crear simulación básica sin grafo
             self.env.process(self._generador_ciclistas_basico())
             self.env.process(self._detener_por_tiempo())
-            print("ℹ️ Simulación básica iniciada. Carga un grafo para simulación avanzada.")
+            print("Simulacion basica iniciada. Carga un grafo para simulacion avanzada.")
         
         self.estado = "detenido"
         self.tiempo_actual = 0
@@ -491,6 +495,20 @@ class SimuladorCiclorutas:
                         self.rutas_utilizadas[ruta_detallada] = 0
                     self.rutas_utilizadas[ruta_detallada] += 1
                     
+                    # Rastrear arcos/tramos utilizados
+                    arcos_ciclista = []
+                    for i in range(len(ruta_nodos) - 1):
+                        nodo_origen = ruta_nodos[i]
+                        nodo_destino = ruta_nodos[i + 1]
+                        arco_str = f"{nodo_origen}->{nodo_destino}"
+                        
+                        # Actualizar contador de arcos utilizados
+                        if arco_str not in self.arcos_utilizados:
+                            self.arcos_utilizados[arco_str] = 0
+                        self.arcos_utilizados[arco_str] += 1
+                        
+                        arcos_ciclista.append(arco_str)
+                    
                     # Almacenar información de la ruta para este ciclista
                     self.rutas_por_ciclista[ciclista_id] = {
                         'origen': origen,
@@ -498,6 +516,9 @@ class SimuladorCiclorutas:
                         'ruta_detallada': ruta_detallada,
                         'ruta_simple': ruta_str
                     }
+                    
+                    # Almacenar arcos utilizados por este ciclista
+                    self.arcos_por_ciclista[ciclista_id] = arcos_ciclista
                     
                     # Marcar ciclista como activo
                     self.estado_ciclistas[ciclista_id] = 'activo'
