@@ -233,7 +233,8 @@ class InterfazSimulacion:
             self.nombre_archivo_excel = os.path.basename(archivo)
             
             # Configurar el simulador con el nuevo grafo
-            self.simulador.configurar_grafo(grafo, pos_grafo, perfiles_df, rutas_df)
+            nombre_grafo = os.path.splitext(self.nombre_archivo_excel)[0]
+            self.simulador.configurar_grafo(grafo, pos_grafo, perfiles_df, rutas_df, nombre_grafo)
             
             # Reinicializar la simulación para que esté lista para ejecutar
             self.simulador.inicializar_simulacion()
@@ -475,15 +476,23 @@ class InterfazSimulacion:
         self.simulacion_activa = False
         self.simulador.estado = "completada"
         
+        # Generar archivo Excel con resultados
+        ruta_excel = self.simulador.generar_resultados_manual()
+        
         # Actualizar interfaz
         if not self.ventana_cerrada and self.root.winfo_exists():
             try:
                 self.panel_control.actualizar_estado("TERMINADA", self.simulador.tiempo_actual)
                 self.actualizar_interfaz()
                 
-                messagebox.showinfo("Simulación Terminada", 
-                                  "¡La simulación ha sido terminada exitosamente!\n\n"
-                                  "Todos los ciclistas han completado sus rutas.")
+                mensaje = "¡La simulación ha sido terminada exitosamente!\n\n"
+                mensaje += "Todos los ciclistas han completado sus rutas.\n\n"
+                if ruta_excel:
+                    mensaje += f"📊 Archivo Excel generado:\n{ruta_excel}"
+                else:
+                    mensaje += "⚠️ No se pudo generar el archivo Excel"
+                
+                messagebox.showinfo("Simulación Terminada", mensaje)
             except tk.TclError:
                 pass
     
@@ -498,11 +507,19 @@ class InterfazSimulacion:
             self.panel_control.actualizar_estado("COMPLETADA", self.simulador.tiempo_actual)
             self.actualizar_estadisticas()
             
-            messagebox.showinfo("Simulación Completada", 
-                              "¡La simulación ha terminado! Puedes:\n\n"
-                              "• Hacer clic en 'NUEVA' para crear una nueva simulación\n"
-                              "• Hacer clic en 'REINICIAR' para repetir la misma simulación\n"
-                              "• Modificar parámetros y crear una nueva simulación")
+            # Generar archivo Excel con resultados
+            ruta_excel = self.simulador.generar_resultados_manual()
+            
+            mensaje = "¡La simulación ha terminado! Puedes:\n\n"
+            mensaje += "• Hacer clic en 'NUEVA' para crear una nueva simulación\n"
+            mensaje += "• Hacer clic en 'REINICIAR' para repetir la misma simulación\n"
+            mensaje += "• Modificar parámetros y crear una nueva simulación\n\n"
+            if ruta_excel:
+                mensaje += f"📊 Archivo Excel generado:\n{ruta_excel}"
+            else:
+                mensaje += "⚠️ No se pudo generar el archivo Excel"
+            
+            messagebox.showinfo("Simulación Completada", mensaje)
         except tk.TclError:
             pass
     

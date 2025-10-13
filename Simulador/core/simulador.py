@@ -18,6 +18,7 @@ from ..distributions.distribucion_nodo import DistribucionNodo, GestorDistribuci
 from ..utils.grafo_utils import GrafoUtils
 from ..utils.rutas_utils import RutasUtils
 from ..utils.estadisticas_utils import EstadisticasUtils
+from ..utils.generador_excel import GeneradorExcel
 from .configuracion import ConfiguracionSimulacion
 
 
@@ -89,8 +90,12 @@ class SimuladorCiclorutas:
             'total_viajes_completados': 0,
             'total_distancia_recorrida': 0.0
         }
+        
+        # Generador de Excel para resultados
+        self.generador_excel = GeneradorExcel()
+        self.nombre_grafo_actual = "simulacion"
     
-    def configurar_grafo(self, grafo: nx.Graph, posiciones: Dict, perfiles_df=None, rutas_df=None):
+    def configurar_grafo(self, grafo: nx.Graph, posiciones: Dict, perfiles_df=None, rutas_df=None, nombre_grafo: str = "simulacion"):
         """Configura el grafo NetworkX y sus posiciones para la simulación"""
         if not GrafoUtils.validar_grafo(grafo):
             print("⚠️ Advertencia: El grafo no es válido")
@@ -100,6 +105,7 @@ class SimuladorCiclorutas:
         self.grafo = grafo
         self.pos_grafo = posiciones
         self.usar_grafo_real = True
+        self.nombre_grafo_actual = nombre_grafo
         
         # Guardar referencia al grafo base para cache
         self.grafo_base = grafo.copy()
@@ -465,6 +471,9 @@ class SimuladorCiclorutas:
         yield self.env.timeout(self.config.duracion_simulacion)
         self.estado = "completada"
         print(f"✅ Simulación completada después de {self.config.duracion_simulacion} segundos")
+        
+        # Generar archivo Excel con resultados
+        self._generar_resultados_excel()
     
     def _generador_ciclistas_realista(self):
         """Genera ciclistas de manera realista usando las distribuciones de arribo"""
@@ -935,3 +944,21 @@ class SimuladorCiclorutas:
         self.rutas_por_perfil = {}
         self.pool_ciclistas.reiniciar_pool()
         print("✅ Cache de optimizaciones limpiado")
+    
+    def _generar_resultados_excel(self):
+        """Genera el archivo Excel con los resultados de la simulación"""
+        try:
+            print("📊 Generando archivo Excel con resultados...")
+            ruta_archivo = self.generador_excel.generar_archivo_resultados(
+                self, 
+                self.nombre_grafo_actual
+            )
+            print(f"✅ Archivo Excel generado exitosamente: {ruta_archivo}")
+            return ruta_archivo
+        except Exception as e:
+            print(f"❌ Error generando archivo Excel: {e}")
+            return None
+    
+    def generar_resultados_manual(self) -> str:
+        """Método público para generar resultados Excel manualmente"""
+        return self._generar_resultados_excel()
