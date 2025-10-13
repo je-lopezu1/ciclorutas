@@ -22,19 +22,19 @@ class EstadisticasUtils:
         ciclistas_activos = sum(1 for estado in estado_ciclistas.values() if estado == 'activo')
         ciclistas_completados = sum(1 for estado in estado_ciclistas.values() if estado == 'completado')
         
-        # Obtener velocidades solo de ciclistas activos
-        velocidades_activas = []
+        # Obtener velocidades de TODOS los ciclistas (activos y completados)
+        velocidades_todos = []
         for i, velocidad in enumerate(velocidades):
-            if i in estado_ciclistas and estado_ciclistas[i] == 'activo':
-                velocidades_activas.append(velocidad)
+            if i in estado_ciclistas and estado_ciclistas[i] in ['activo', 'completado']:
+                velocidades_todos.append(velocidad)
         
         return {
             'total_ciclistas': len(coordenadas),
             'ciclistas_activos': ciclistas_activos,
             'ciclistas_completados': ciclistas_completados,
-            'velocidad_promedio': np.mean(velocidades_activas) if velocidades_activas else 0,
-            'velocidad_minima': min(velocidades_activas) if velocidades_activas else 0,
-            'velocidad_maxima': max(velocidades_activas) if velocidades_activas else 0,
+            'velocidad_promedio': np.mean(velocidades_todos) if velocidades_todos else 0,
+            'velocidad_minima': min(velocidades_todos) if velocidades_todos else 0,
+            'velocidad_maxima': max(velocidades_todos) if velocidades_todos else 0,
             'usando_grafo_real': hasattr(config, 'usar_grafo_real') and config.usar_grafo_real,
             'duracion_simulacion': getattr(config, 'duracion_simulacion', 0)
         }
