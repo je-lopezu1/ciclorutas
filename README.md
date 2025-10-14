@@ -1,196 +1,269 @@
-# 🚴 SIMULADOR DE CICLORUTAS - SISTEMA COMPLETO 🚴
+# 🚴 Simulador de Ciclorutas v2.0
 
-Un simulador avanzado de ciclorutas con interfaz gráfica moderna, que permite simular el movimiento de ciclistas en una red de carreteras en forma de Y.
+Sistema completo de simulación de redes de ciclorutas con interfaz gráfica modular y control avanzado.
 
 ## 🎯 Características Principales
 
-- **Simulación en Tiempo Real**: Visualización en vivo del movimiento de ciclistas
-- **Interfaz Gráfica Moderna**: UI intuitiva con tkinter y matplotlib
-- **Control Completo**: Iniciar, pausar, detener y adelantar simulación
-- **Parámetros Configurables**: Número de ciclistas, velocidades y distancias
-- **Estadísticas en Vivo**: Métricas actualizadas en tiempo real
-- **Arquitectura Modular**: Lógica de simulación separada de la interfaz
+- **Simulación en tiempo real** de ciclistas en redes complejas de ciclorutas
+- **Interfaz gráfica modular** con componentes reutilizables y mantenibles
+- **Carga de grafos desde Excel** con soporte para múltiples atributos
+- **Sistema de distribuciones de probabilidad** para modelar arribos realistas
+- **Perfiles de ciclistas personalizables** con preferencias de ruta
+- **Visualización dinámica** con matplotlib mostrando movimiento en tiempo real
+- **Estadísticas detalladas** actualizadas en tiempo real
+- **Arquitectura escalable** con separación clara de responsabilidades
 
 ## 🏗️ Arquitectura del Sistema
 
+### Estructura Modular
+
 ```
 ciclorutas/
-├── main.py                      # 🚀 Archivo principal de ejecución
-├── simulacion_ciclorutas.py    # ⚙️ Lógica de simulación (SimPy)
-├── interfaz_simulacion.py      # 🖥️ Interfaz gráfica (tkinter)
-├── Sim inicial.py              # 📊 Simulación original (referencia)
-├── requirements.txt            # 📦 Dependencias del proyecto
-└── README.md                  # 📖 Este archivo
+├── main.py                          # Punto de entrada del sistema
+├── config.py                        # Configuración centralizada
+├── requirements.txt                 # Dependencias del proyecto
+├── README.md                        # Documentación del proyecto
+├── Simulador/                       # Módulo del motor de simulación
+│   ├── __init__.py
+│   ├── core/                        # Componentes principales
+│   │   ├── __init__.py
+│   │   ├── simulador.py            # Motor principal de simulación
+│   │   └── configuracion.py        # Configuración de simulación
+│   ├── models/                      # Modelos de datos
+│   │   ├── __init__.py
+│   │   └── ciclista.py             # Modelo de ciclista y pool
+│   ├── distributions/               # Distribuciones de probabilidad
+│   │   ├── __init__.py
+│   │   └── distribucion_nodo.py    # Distribuciones por nodo
+│   └── utils/                       # Utilidades del simulador
+│       ├── __init__.py
+│       └── grafo_utils.py          # Utilidades para grafos NetworkX
+└── Interfaz/                        # Módulo de la interfaz gráfica
+    ├── __init__.py
+    ├── components/                  # Componentes principales
+    │   ├── __init__.py
+    │   └── app_principal.py        # Aplicación principal
+    ├── panels/                      # Paneles de la interfaz
+    │   ├── __init__.py
+    │   ├── panel_control.py        # Panel de control
+    │   ├── panel_visualizacion.py  # Panel de visualización
+    │   ├── panel_estadisticas.py   # Panel de estadísticas
+    │   └── panel_distribuciones.py # Panel de distribuciones
+    └── utils/                       # Utilidades de la interfaz
+        ├── __init__.py
+        ├── estilo_utils.py         # Utilidades de estilo
+        └── archivo_utils.py        # Utilidades de archivos
 ```
 
-## 🚀 Instalación y Configuración
+### Componentes Principales
 
-### Requisitos Previos
-- **Python 3.7 o superior**
-- **pip** (gestor de paquetes de Python)
+#### 🎮 Simulador (Paquete Simulador)
+- **`SimuladorCiclorutas`**: Motor principal de simulación con SimPy
+- **`ConfiguracionSimulacion`**: Gestión centralizada de configuración
+- **`Ciclista`**: Modelo optimizado de ciclista individual
+- **`PoolCiclistas`**: Sistema de reutilización de objetos para eficiencia
+- **`DistribucionNodo`**: Sistema de distribuciones de probabilidad por nodo
+- **`GrafoUtils`**: Utilidades para manejo de grafos NetworkX
 
-### Pasos de Instalación
+#### 🖥️ Interfaz (Paquete Interfaz)
+- **`InterfazSimulacion`**: Aplicación principal de la interfaz
+- **`PanelControl`**: Control de parámetros y botones de simulación
+- **`PanelVisualizacion`**: Visualización en tiempo real con matplotlib
+- **`PanelEstadisticas`**: Estadísticas detalladas en tiempo real
+- **`PanelDistribuciones`**: Configuración de distribuciones y perfiles
+- **`EstiloUtils`**: Utilidades de estilo y tema
+- **`ArchivoUtils`**: Utilidades para carga y validación de archivos
 
-1. **Clonar o descargar el proyecto**
+## 🚀 Instalación y Uso
+
+### Requisitos del Sistema
+
+- Python 3.7 o superior
+- Dependencias: simpy, matplotlib, numpy, pandas, networkx, scipy, tkinter
+
+### Instalación de Dependencias
+
    ```bash
-   # Si tienes git:
-   git clone <url-del-repositorio>
-   cd ciclorutas
-   
-   # O simplemente descarga los archivos en una carpeta
+pip install simpy matplotlib numpy pandas networkx scipy
    ```
 
-2. **Instalar dependencias**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Ejecución
 
-3. **Verificar instalación**
-   ```bash
-   python main.py
-   ```
-
-## 🎮 Uso del Sistema
-
-### Ejecución Principal
 ```bash
 python main.py
 ```
 
-### Flujo de Trabajo Típico
+## 📁 Formato de Archivos Excel
 
-1. **Configurar Parámetros**
-   - Número de ciclistas (5-100)
-   - Velocidad mínima y máxima (1.0-30.0 m/s)
-   - Distancias A, B y C (15.0-100.0 m)
+### Estructura Requerida
 
-2. **Crear Nueva Simulación**
-   - Hacer clic en "🔄 NUEVA SIMULACIÓN"
-   - Los parámetros se aplican automáticamente
+El sistema soporta archivos Excel con las siguientes hojas:
 
-3. **Controlar la Simulación**
-   - **▶️ INICIAR**: Comienza la simulación
-   - **⏸️ PAUSAR**: Pausa temporalmente
-   - **⏹️ DETENER**: Detiene completamente
-   - **⏭️ ADELANTAR**: Avanza 10 pasos rápidamente
+#### Hoja "NODOS" (Obligatoria)
+| NODO | ID | NOMBRE |
+|------|----|---------|
+| A    | 1  | Nodo A  |
+| B    | 2  | Nodo B  |
 
-4. **Repetir el Proceso**
-   - Modificar parámetros según sea necesario
-   - Crear nuevas simulaciones
-   - Comparar resultados
+#### Hoja "ARCOS" (Obligatoria)
+| ORIGEN | DESTINO | DISTANCIA | SEGURIDAD | LUMINOSIDAD | INCLINACION |
+|--------|---------|-----------|-----------|-------------|-------------|
+| A      | B       | 50        | 8         | 7           | 1.5         |
+| B      | C       | 30        | 6         | 5           | 2.0         |
 
-## 🔧 Parámetros Configurables
+#### Hoja "PERFILES" (Opcional)
+| PERFILES | DISTANCIA | SEGURIDAD | LUMINOSIDAD | INCLINACION |
+|----------|-----------|-----------|-------------|-------------|
+| 1        | 0.4       | 0.3       | 0.2         | 0.1         |
+| 2        | 0.2       | 0.5       | 0.2         | 0.1         |
 
-| Parámetro | Rango | Descripción |
-|-----------|-------|-------------|
-| **Número de Ciclistas** | 5-100 | Cantidad de entidades en la simulación |
-| **Velocidad Mínima** | 1.0-20.0 m/s | Velocidad más baja de los ciclistas |
-| **Velocidad Máxima** | 1.0-30.0 m/s | Velocidad más alta de los ciclistas |
-| **Distancia A** | 20.0-100.0 m | Longitud del tramo principal A→X |
-| **Distancia B** | 15.0-80.0 m | Longitud del tramo X→B |
-| **Distancia C** | 15.0-80.0 m | Longitud del tramo X→C |
+#### Hoja "RUTAS" (Opcional)
+| NODO | A    | B    | C    |
+|------|------|------|------|
+| A    | 0.0  | 0.6  | 0.4  |
+| B    | 0.3  | 0.0  | 0.7  |
 
-## 📊 Visualización
+## 🎮 Controles Disponibles
 
-### Geometría de la Red
-- **Tramo A→X**: Camino principal horizontal (gris)
-- **Tramo X→B**: Bifurcación hacia arriba (azul)
-- **Tramo X→C**: Bifurcación hacia abajo (magenta)
+### Parámetros de Simulación
+- **Velocidad mínima**: 1.0-20.0 m/s
+- **Velocidad máxima**: 1.0-30.0 m/s
+- **Duración de simulación**: 60-3600 segundos
+- **Distribuciones de probabilidad** por nodo
+- **Perfiles de ciclistas** personalizables
 
-### Colores de Ciclistas
-- **A→B**: Naranja brillante (#FF6B35) - Muy llamativo y energético
-- **A→C**: Rojo vibrante (#FF1744) - Intenso y dinámico
-- **B→A**: Verde neón (#00E676) - Brillante y fresco
-- **C→A**: Azul eléctrico (#2979FF) - Intenso y moderno
+### Controles de Simulación
+- **NUEVA**: Crear nueva simulación con parámetros actuales
+- **INICIAR**: Iniciar la simulación
+- **PAUSAR/REANUDAR**: Pausar o reanudar la simulación
+- **TERMINAR**: Terminar la simulación llevándola al final
+- **ADELANTAR**: Adelantar la simulación 10 pasos
+- **REINICIAR**: Reiniciar la simulación actual
 
-## 🎨 Características de la Interfaz
+### Controles de Visualización
+- **Cargar Grafo**: Cargar red de ciclorutas desde Excel
+- **Seleccionar Atributo**: Visualizar diferentes atributos del grafo
+- **Aplicar Visualización**: Actualizar la visualización
 
-- **Panel de Control**: Configuración de parámetros y botones de control
-- **Visualización en Tiempo Real**: Gráfico matplotlib integrado
-- **Panel de Estadísticas**: Métricas actualizadas dinámicamente
-- **Diseño Responsivo**: Se adapta a diferentes tamaños de ventana
-- **Colores Modernos**: Paleta de colores profesional y atractiva
+## 📊 Estadísticas en Tiempo Real
 
-## 🔍 Solución de Problemas
+### Estadísticas Básicas
+- **Ciclistas Activos**: Número de ciclistas actualmente en movimiento
+- **Velocidad Promedio**: Velocidad promedio de todos los ciclistas
+- **Velocidad Mínima/Máxima**: Rango de velocidades actual
+- **Tiempo de Simulación**: Tiempo transcurrido desde el inicio
 
-### Error de Dependencias
-```bash
-# Si aparece error de módulos faltantes:
-pip install simpy matplotlib numpy
+### Estadísticas del Grafo
+- **Nodos del Grafo**: Número total de nodos en la red
+- **Arcos del Grafo**: Número total de conexiones
+- **Modo de Simulación**: Grafo real vs. sistema original
+- **Atributos Disponibles**: Número de atributos en el grafo
+
+### Estadísticas de Distribuciones
+- **Distribuciones Configuradas**: Número de nodos con distribuciones
+- **Tasa de Arribo Promedio**: Tasa promedio de llegada de ciclistas
+- **Duración**: Duración configurada de la simulación
+
+### Estadísticas de Rutas
+- **Rutas Utilizadas**: Número de rutas diferentes utilizadas
+- **Total de Viajes**: Número total de viajes completados
+- **Ruta Más Usada**: Ruta con mayor frecuencia de uso
+- **Nodo Más Activo**: Nodo que genera más ciclistas
+
+## 🔧 Configuración Avanzada
+
+### Configuración Centralizada
+
+El archivo `config.py` contiene toda la configuración del sistema:
+
+```python
+# Parámetros de simulación
+SIMULACION_DEFAULTS = {
+    'velocidad_minima': 10.0,
+    'velocidad_maxima': 15.0,
+    'duracion_simulacion': 300.0,
+    'max_ciclistas_simultaneos': 1000
+}
+
+# Configuración de visualización
+MATPLOTLIB_CONFIG = {
+    'figsize': (10, 6),
+    'tamano_ciclista': 120,
+    'alpha_ciclista': 0.95
+}
 ```
 
-### Error de tkinter
-```bash
-# En sistemas Linux, puede necesitar:
-sudo apt-get install python3-tk
+### Personalización de Distribuciones
 
-# En macOS con Homebrew:
-brew install python-tk
+```python
+# Configurar distribución exponencial para un nodo
+simulador.actualizar_distribucion_nodo('A', 'exponencial', {'lambda': 0.5})
+
+# Configurar distribución uniforme para otro nodo
+simulador.actualizar_distribucion_nodo('B', 'uniforme', {'min': 1.0, 'max': 5.0})
 ```
 
-### Error de Matplotlib (zorder en leyenda)
-```bash
-# Si aparece error: "Legend.__init__() got an unexpected keyword argument 'zorder'"
-# El código ya está corregido, pero si persiste:
-pip install --upgrade matplotlib
+### Personalización de Perfiles
+
+```python
+# Crear perfil personalizado
+perfil = {
+    'distancia': 0.4,
+    'seguridad': 0.3,
+    'luminosidad': 0.2,
+    'inclinacion': 0.1
+}
 ```
 
-### Error de Fuentes (Emojis no soportados)
-```bash
-# Si aparecen warnings sobre glifos faltantes:
-# El sistema automáticamente usa texto simple en lugar de emojis
-# No afecta la funcionalidad del simulador
-```
+## 📈 Rendimiento y Optimización
 
-### Rendimiento Lento
-- Reducir el número de ciclistas
-- Aumentar el intervalo de actualización
-- Cerrar otras aplicaciones pesadas
+### Características de Rendimiento
 
-### Verificar Instalación
-```bash
-# Ejecutar archivo de pruebas:
-python test_simulador.py
+- **Sistema de Pool de Objetos**: Reutilización eficiente de ciclistas
+- **Gestión de Memoria Inteligente**: Limpieza automática de ciclistas antiguos
+- **Cache de Datos**: Actualización optimizada de la interfaz
+- **Límites Adaptativos**: Configuración automática según el tamaño del grafo
+- **Control de Frecuencia**: Actualización de interfaz cada 50ms
 
-# Si todas las pruebas pasan, el sistema está listo
-```
+### Límites del Sistema
 
-## 🚧 Limitaciones Actuales
+- **Máximo de ciclistas**: 5000 ciclistas simultáneos
+- **Duración máxima**: 3600 segundos (1 hora)
+- **Tamaño de grafo**: Sin límite práctico
+- **Frecuencia de actualización**: 20 FPS para visualización suave
 
-- Simulación limitada a geometría en forma de Y
-- No incluye colisiones entre ciclistas
-- Velocidades constantes durante el trayecto
-- No incluye factores externos (clima, tráfico)
+## 🐛 Solución de Problemas
 
-## 🔮 Mejoras Futuras
+### Problemas Comunes
 
-- [ ] Múltiples geometrías de red
-- [ ] Sistema de colisiones y congestión
-- [ ] Factores ambientales y de tráfico
-- [ ] Exportación de datos y reportes
-- [ ] Simulación en 3D
-- [ ] Análisis de patrones de tráfico
+1. **Error de dependencias**: Instala todas las dependencias con `pip install -r requirements.txt`
+2. **Ventana no se abre**: Verifica que tkinter esté instalado correctamente
+3. **Simulación lenta**: Reduce el número de ciclistas o ajusta los límites
+4. **Error de carga de archivo**: Verifica el formato del archivo Excel
 
-## 📝 Licencia
+### Logs y Debugging
 
-Este proyecto está desarrollado con fines educativos y de investigación.
+El sistema incluye logging detallado para debugging. Revisa la consola para mensajes informativos.
 
 ## 🤝 Contribuciones
 
-Las contribuciones son bienvenidas. Por favor:
-1. Fork el proyecto
-2. Crea una rama para tu feature
-3. Commit tus cambios
-4. Push a la rama
-5. Abre un Pull Request
+Este es un proyecto de simulación académica. Las contribuciones son bienvenidas para:
 
-## 📞 Soporte
+- Mejoras en la interfaz gráfica
+- Optimizaciones de rendimiento
+- Nuevas características de simulación
+- Documentación y ejemplos
+- Nuevos tipos de distribuciones
+- Mejoras en la visualización
 
-Para soporte técnico o preguntas:
-- Revisa la documentación
-- Abre un issue en el repositorio
-- Contacta al equipo de desarrollo
+## 📄 Licencia
+
+Este proyecto está bajo licencia MIT. Ver el archivo LICENSE para más detalles.
+
+## 👨‍💻 Autor
+
+Sistema de Simulación de Ciclorutas - Proyecto Académico v2.0
 
 ---
 
-**🚴 ¡Disfruta simulando ciclorutas! 🚴**
+**¡Disfruta simulando redes de ciclorutas! 🚴‍♂️🚴‍♀️**
