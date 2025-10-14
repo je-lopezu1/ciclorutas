@@ -93,6 +93,11 @@ class SimuladorCiclorutas:
         
         # Generador de Excel para resultados
         self.generador_excel = GeneradorExcel()
+        
+        # Flag para controlar generación de Excel (evitar duplicación)
+        self.excel_generado = False
+        self.ruta_excel_generado = None
+        
         self.nombre_grafo_actual = "simulacion"
     
     def configurar_grafo(self, grafo: nx.Graph, posiciones: Dict, perfiles_df=None, rutas_df=None, nombre_grafo: str = "simulacion"):
@@ -326,6 +331,10 @@ class SimuladorCiclorutas:
         self.velocidades = []
         self.procesos = []
         self.ciclista_id_counter = 0
+        
+        # Resetear flag de Excel para nueva simulación
+        self.excel_generado = False
+        self.ruta_excel_generado = None
         
         # Limpiar contadores de perfiles
         self.contador_perfiles = {}
@@ -947,12 +956,22 @@ class SimuladorCiclorutas:
     
     def _generar_resultados_excel(self):
         """Genera el archivo Excel con los resultados de la simulación"""
+        # Verificar si ya se generó el Excel para evitar duplicación
+        if self.excel_generado:
+            print("ℹ️ Archivo Excel ya fue generado anteriormente, evitando duplicación")
+            return self.ruta_excel_generado
+            
         try:
             print("📊 Generando archivo Excel con resultados...")
             ruta_archivo = self.generador_excel.generar_archivo_resultados(
                 self, 
                 self.nombre_grafo_actual
             )
+            
+            # Marcar como generado y almacenar ruta para evitar duplicación
+            self.excel_generado = True
+            self.ruta_excel_generado = ruta_archivo
+            
             print(f"✅ Archivo Excel generado exitosamente: {ruta_archivo}")
             return ruta_archivo
         except Exception as e:

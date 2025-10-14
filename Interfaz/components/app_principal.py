@@ -488,7 +488,11 @@ class InterfazSimulacion:
                 mensaje = "¡La simulación ha sido terminada exitosamente!\n\n"
                 mensaje += "Todos los ciclistas han completado sus rutas.\n\n"
                 if ruta_excel:
-                    mensaje += f"📊 Archivo Excel generado:\n{ruta_excel}"
+                    nombre_archivo = os.path.basename(ruta_excel)
+                    mensaje += f"📊 Archivo Excel generado:\n{nombre_archivo}"
+                elif self.simulador.excel_generado and self.simulador.ruta_excel_generado:
+                    nombre_archivo = os.path.basename(self.simulador.ruta_excel_generado)
+                    mensaje += f"📊 Archivo Excel generado automáticamente:\n{nombre_archivo}"
                 else:
                     mensaje += "⚠️ No se pudo generar el archivo Excel"
                 
@@ -515,7 +519,11 @@ class InterfazSimulacion:
             mensaje += "• Hacer clic en 'REINICIAR' para repetir la misma simulación\n"
             mensaje += "• Modificar parámetros y crear una nueva simulación\n\n"
             if ruta_excel:
-                mensaje += f"📊 Archivo Excel generado:\n{ruta_excel}"
+                nombre_archivo = os.path.basename(ruta_excel)
+                mensaje += f"📊 Archivo Excel generado:\n{nombre_archivo}"
+            elif self.simulador.excel_generado and self.simulador.ruta_excel_generado:
+                nombre_archivo = os.path.basename(self.simulador.ruta_excel_generado)
+                mensaje += f"📊 Archivo Excel generado automáticamente:\n{nombre_archivo}"
             else:
                 mensaje += "⚠️ No se pudo generar el archivo Excel"
             
