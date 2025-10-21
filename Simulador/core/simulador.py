@@ -572,14 +572,37 @@ class SimuladorCiclorutas:
         
         for nodo in nodos:
             distribucion = distribuciones[nodo]
-            if distribucion.obtener_tipo() in ['exponencial', 'poisson']:
-                tasas.append(distribucion.obtener_parametros().get('lambda', 0.5))
+            tipo = distribucion.obtener_tipo()
+            params = distribucion.obtener_parametros()
+            
+            if tipo == 'exponencial':
+                tasas.append(params.get('lambda', 0.5))
+            elif tipo == 'normal':
+                # Para normal, usar la media como tasa aproximada
+                tasas.append(1.0 / params.get('media', 3.0))
+            elif tipo == 'lognormal':
+                # Para log-normal, usar la media de la distribución log-normal
+                mu = params.get('mu', 0.0)
+                sigma = params.get('sigma', 1.0)
+                media_lognormal = np.exp(mu + sigma**2 / 2)
+                tasas.append(1.0 / media_lognormal)
+            elif tipo == 'gamma':
+                # Para gamma, usar la media de la distribución gamma
+                forma = params.get('forma', 2.0)
+                escala = params.get('escala', 1.0)
+                media_gamma = forma * escala
+                tasas.append(1.0 / media_gamma)
+            elif tipo == 'weibull':
+                # Para Weibull, usar la media de la distribución Weibull
+                forma = params.get('forma', 2.0)
+                escala = params.get('escala', 1.0)
+                # Media de Weibull = escala * Γ(1 + 1/forma)
+                from scipy.special import gamma as gamma_func
+                media_weibull = escala * gamma_func(1 + 1/forma)
+                tasas.append(1.0 / media_weibull)
             else:
-                # Para uniforme, usar tasa promedio
-                params = distribucion.obtener_parametros()
-                min_val = params.get('min', 1.0)
-                max_val = params.get('max', 5.0)
-                tasas.append(2.0 / ((min_val + max_val) / 2))  # Aproximación
+                # Fallback para distribuciones no reconocidas
+                tasas.append(0.5)
         
         # Selección ponderada por tasas
         if tasas:

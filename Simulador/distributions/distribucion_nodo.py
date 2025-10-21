@@ -99,14 +99,112 @@ class DistribucionUniforme(DistribucionBase):
         return f"Uniforme ({self.parametros['min']:.1f}-{self.parametros['max']:.1f}s)"
 
 
+class DistribucionNormal(DistribucionBase):
+    """Distribución normal (gaussiana) para tiempos de arribo"""
+    
+    def _validar_parametros(self):
+        """Valida parámetros para distribución normal"""
+        self.parametros.setdefault('media', 3.0)
+        self.parametros.setdefault('desviacion', 1.0)
+        if self.parametros['desviacion'] <= 0:
+            self.parametros['desviacion'] = 1.0
+    
+    def generar_tiempo_arribo(self) -> float:
+        """Genera tiempo de arribo usando distribución normal"""
+        try:
+            tiempo = np.random.normal(self.parametros['media'], self.parametros['desviacion'])
+            return max(0.1, tiempo)  # Asegurar valor positivo mínimo
+        except Exception:
+            return 1.0  # Fallback
+    
+    def obtener_descripcion(self) -> str:
+        """Retorna descripción de la distribución normal"""
+        return f"Normal (μ={self.parametros['media']:.2f}, σ={self.parametros['desviacion']:.2f})"
+
+
+class DistribucionLogNormal(DistribucionBase):
+    """Distribución log-normal para tiempos de arribo"""
+    
+    def _validar_parametros(self):
+        """Valida parámetros para distribución log-normal"""
+        self.parametros.setdefault('mu', 0.0)  # Parámetro de localización
+        self.parametros.setdefault('sigma', 1.0)  # Parámetro de escala
+        if self.parametros['sigma'] <= 0:
+            self.parametros['sigma'] = 1.0
+    
+    def generar_tiempo_arribo(self) -> float:
+        """Genera tiempo de arribo usando distribución log-normal"""
+        try:
+            tiempo = np.random.lognormal(self.parametros['mu'], self.parametros['sigma'])
+            return max(0.1, tiempo)  # Asegurar valor positivo mínimo
+        except Exception:
+            return 1.0  # Fallback
+    
+    def obtener_descripcion(self) -> str:
+        """Retorna descripción de la distribución log-normal"""
+        return f"Log-Normal (μ={self.parametros['mu']:.2f}, σ={self.parametros['sigma']:.2f})"
+
+
+class DistribucionGamma(DistribucionBase):
+    """Distribución gamma para tiempos de arribo"""
+    
+    def _validar_parametros(self):
+        """Valida parámetros para distribución gamma"""
+        self.parametros.setdefault('forma', 2.0)  # Parámetro de forma (alpha)
+        self.parametros.setdefault('escala', 1.0)  # Parámetro de escala (beta)
+        if self.parametros['forma'] <= 0:
+            self.parametros['forma'] = 2.0
+        if self.parametros['escala'] <= 0:
+            self.parametros['escala'] = 1.0
+    
+    def generar_tiempo_arribo(self) -> float:
+        """Genera tiempo de arribo usando distribución gamma"""
+        try:
+            tiempo = np.random.gamma(self.parametros['forma'], self.parametros['escala'])
+            return max(0.1, tiempo)  # Asegurar valor positivo mínimo
+        except Exception:
+            return 1.0  # Fallback
+    
+    def obtener_descripcion(self) -> str:
+        """Retorna descripción de la distribución gamma"""
+        return f"Gamma (α={self.parametros['forma']:.2f}, β={self.parametros['escala']:.2f})"
+
+
+class DistribucionWeibull(DistribucionBase):
+    """Distribución Weibull para tiempos de arribo"""
+    
+    def _validar_parametros(self):
+        """Valida parámetros para distribución Weibull"""
+        self.parametros.setdefault('forma', 2.0)  # Parámetro de forma (c)
+        self.parametros.setdefault('escala', 1.0)  # Parámetro de escala (λ)
+        if self.parametros['forma'] <= 0:
+            self.parametros['forma'] = 2.0
+        if self.parametros['escala'] <= 0:
+            self.parametros['escala'] = 1.0
+    
+    def generar_tiempo_arribo(self) -> float:
+        """Genera tiempo de arribo usando distribución Weibull"""
+        try:
+            tiempo = np.random.weibull(self.parametros['forma']) * self.parametros['escala']
+            return max(0.1, tiempo)  # Asegurar valor positivo mínimo
+        except Exception:
+            return 1.0  # Fallback
+    
+    def obtener_descripcion(self) -> str:
+        """Retorna descripción de la distribución Weibull"""
+        return f"Weibull (c={self.parametros['forma']:.2f}, λ={self.parametros['escala']:.2f})"
+
+
 class DistribucionNodo:
     """Clase principal para manejar distribuciones de probabilidad para tasas de arribo por nodo"""
     
     # Registro de tipos de distribución disponibles
     TIPOS_DISTRIBUCION = {
         'exponencial': DistribucionExponencial,
-        'poisson': DistribucionPoisson,
-        'uniforme': DistribucionUniforme
+        'normal': DistribucionNormal,
+        'lognormal': DistribucionLogNormal,
+        'gamma': DistribucionGamma,
+        'weibull': DistribucionWeibull
     }
     
     def __init__(self, tipo: str = 'exponencial', parametros: Dict = None):

@@ -201,20 +201,34 @@ class PanelDistribuciones:
         min_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('min', 1.0))
         max_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('max', 5.0))
         
+        # Variables para las nuevas distribuciones
+        media_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('media', 3.0))
+        desviacion_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('desviacion', 1.0))
+        mu_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('mu', 0.0))
+        sigma_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('sigma', 1.0))
+        forma_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('forma', 2.0))
+        escala_var = tk.DoubleVar(value=config_actual.get('parametros', {}).get('escala', 1.0))
+        
         # Guardar referencias
         self.controles_distribuciones[nodo_id] = {
             'tipo': tipo_var,
             'unidades': unidades_var,
             'lambda': lambda_var,
             'min': min_var,
-            'max': max_var
+            'max': max_var,
+            'media': media_var,
+            'desviacion': desviacion_var,
+            'mu': mu_var,
+            'sigma': sigma_var,
+            'forma': forma_var,
+            'escala': escala_var
         }
         
         # Selector de tipo de distribución
         ttk.Label(nodo_frame, text="Tipo:", 
                  font=EstiloUtils.FUENTES['normal']).grid(row=0, column=0, sticky=tk.W, pady=2)
         tipo_combo = ttk.Combobox(nodo_frame, textvariable=tipo_var, 
-                                 values=['exponencial', 'poisson', 'uniforme'],
+                                 values=['exponencial', 'normal', 'lognormal', 'gamma', 'weibull'],
                                  state='readonly', width=12)
         tipo_combo.grid(row=0, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
@@ -231,23 +245,55 @@ class PanelDistribuciones:
             tipo = tipo_var.get()
             unidades = unidades_var.get()
             
-            # Mostrar/ocultar controles según el tipo
-            if tipo in ['exponencial', 'poisson']:
+            # Ocultar todos los controles primero
+            lambda_label.grid_remove()
+            lambda_spin.grid_remove()
+            min_label.grid_remove()
+            min_spin.grid_remove()
+            max_label.grid_remove()
+            max_spin.grid_remove()
+            media_label.grid_remove()
+            media_spin.grid_remove()
+            desviacion_label.grid_remove()
+            desviacion_spin.grid_remove()
+            mu_label.grid_remove()
+            mu_spin.grid_remove()
+            sigma_label.grid_remove()
+            sigma_spin.grid_remove()
+            forma_label.grid_remove()
+            forma_spin.grid_remove()
+            escala_label.grid_remove()
+            escala_spin.grid_remove()
+            
+            # Mostrar controles según el tipo
+            if tipo == 'exponencial':
                 # Mostrar solo Lambda
                 lambda_label.grid(row=1, column=0, sticky=tk.W, pady=2)
                 lambda_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
-                min_label.grid_remove()
-                min_spin.grid_remove()
-                max_label.grid_remove()
-                max_spin.grid_remove()
-            elif tipo == 'uniforme':
-                # Mostrar Min y Max
-                lambda_label.grid_remove()
-                lambda_spin.grid_remove()
-                min_label.grid(row=1, column=0, sticky=tk.W, pady=2)
-                min_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
-                max_label.grid(row=2, column=0, sticky=tk.W, pady=2)
-                max_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+            elif tipo == 'normal':
+                # Mostrar Media y Desviación
+                media_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                media_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                desviacion_label.grid(row=2, column=0, sticky=tk.W, pady=2)
+                desviacion_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+            elif tipo == 'lognormal':
+                # Mostrar Mu y Sigma
+                mu_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                mu_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                sigma_label.grid(row=2, column=0, sticky=tk.W, pady=2)
+                sigma_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+            elif tipo == 'gamma':
+                # Mostrar Forma y Escala
+                forma_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                forma_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                escala_label.grid(row=2, column=0, sticky=tk.W, pady=2)
+                escala_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+            elif tipo == 'weibull':
+                # Mostrar Forma y Escala
+                forma_label.grid(row=1, column=0, sticky=tk.W, pady=2)
+                forma_spin.grid(row=1, column=1, sticky=tk.W, pady=2, padx=(5, 0))
+                escala_label.grid(row=2, column=0, sticky=tk.W, pady=2)
+                escala_spin.grid(row=2, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
         # Vincular cambio de tipo con actualización de parámetros
         tipo_var.trace('w', actualizar_parametros)
@@ -265,6 +311,33 @@ class PanelDistribuciones:
         max_label = ttk.Label(nodo_frame, text="Max (s):", 
                              font=EstiloUtils.FUENTES['normal'])
         max_spin = ttk.Spinbox(nodo_frame, textvariable=max_var, width=10)
+        
+        # Controles para distribución normal
+        media_label = ttk.Label(nodo_frame, text="Media (μ):", 
+                               font=EstiloUtils.FUENTES['normal'])
+        media_spin = ttk.Spinbox(nodo_frame, textvariable=media_var, width=10)
+        
+        desviacion_label = ttk.Label(nodo_frame, text="Desv. Est. (σ):", 
+                                    font=EstiloUtils.FUENTES['normal'])
+        desviacion_spin = ttk.Spinbox(nodo_frame, textvariable=desviacion_var, width=10)
+        
+        # Controles para distribución log-normal
+        mu_label = ttk.Label(nodo_frame, text="μ (Mu):", 
+                            font=EstiloUtils.FUENTES['normal'])
+        mu_spin = ttk.Spinbox(nodo_frame, textvariable=mu_var, width=10)
+        
+        sigma_label = ttk.Label(nodo_frame, text="σ (Sigma):", 
+                               font=EstiloUtils.FUENTES['normal'])
+        sigma_spin = ttk.Spinbox(nodo_frame, textvariable=sigma_var, width=10)
+        
+        # Controles para distribución gamma
+        forma_label = ttk.Label(nodo_frame, text="Forma (α):", 
+                               font=EstiloUtils.FUENTES['normal'])
+        forma_spin = ttk.Spinbox(nodo_frame, textvariable=forma_var, width=10)
+        
+        escala_label = ttk.Label(nodo_frame, text="Escala (β):", 
+                                font=EstiloUtils.FUENTES['normal'])
+        escala_spin = ttk.Spinbox(nodo_frame, textvariable=escala_var, width=10)
         
         # Inicializar con parámetros por defecto
         actualizar_parametros()
@@ -399,7 +472,7 @@ class PanelDistribuciones:
                 return valor
             
             # Validar y preparar parámetros según el tipo
-            if tipo in ['exponencial', 'poisson']:
+            if tipo == 'exponencial':
                 lambda_val = controles['lambda'].get()
                 if lambda_val <= 0:
                     messagebox.showerror("Error", f"❌ El parámetro λ debe ser mayor que 0 para {tipo}")
@@ -407,21 +480,52 @@ class PanelDistribuciones:
                 # Convertir lambda a segundos
                 lambda_segundos = convertir_a_segundos(lambda_val, unidades)
                 parametros = {'lambda': lambda_segundos}
-            elif tipo == 'uniforme':
-                min_val = controles['min'].get()
-                max_val = controles['max'].get()
-                if min_val >= max_val:
-                    messagebox.showerror("Error", "❌ El valor mínimo debe ser menor que el máximo")
-                    return
-                if min_val < 0:
-                    messagebox.showerror("Error", "❌ Los valores no pueden ser negativos")
+            elif tipo == 'normal':
+                media_val = controles['media'].get()
+                desviacion_val = controles['desviacion'].get()
+                if desviacion_val <= 0:
+                    messagebox.showerror("Error", "❌ La desviación estándar debe ser mayor que 0")
                     return
                 # Convertir a segundos
-                min_segundos = convertir_a_segundos(min_val, unidades)
-                max_segundos = convertir_a_segundos(max_val, unidades)
+                media_segundos = convertir_a_segundos(media_val, unidades)
+                desviacion_segundos = convertir_a_segundos(desviacion_val, unidades)
                 parametros = {
-                    'min': min_segundos,
-                    'max': max_segundos
+                    'media': media_segundos,
+                    'desviacion': desviacion_segundos
+                }
+            elif tipo == 'lognormal':
+                mu_val = controles['mu'].get()
+                sigma_val = controles['sigma'].get()
+                if sigma_val <= 0:
+                    messagebox.showerror("Error", "❌ El parámetro σ debe ser mayor que 0")
+                    return
+                parametros = {
+                    'mu': mu_val,
+                    'sigma': sigma_val
+                }
+            elif tipo == 'gamma':
+                forma_val = controles['forma'].get()
+                escala_val = controles['escala'].get()
+                if forma_val <= 0 or escala_val <= 0:
+                    messagebox.showerror("Error", "❌ Los parámetros de forma y escala deben ser mayores que 0")
+                    return
+                # Convertir escala a segundos
+                escala_segundos = convertir_a_segundos(escala_val, unidades)
+                parametros = {
+                    'forma': forma_val,
+                    'escala': escala_segundos
+                }
+            elif tipo == 'weibull':
+                forma_val = controles['forma'].get()
+                escala_val = controles['escala'].get()
+                if forma_val <= 0 or escala_val <= 0:
+                    messagebox.showerror("Error", "❌ Los parámetros de forma y escala deben ser mayores que 0")
+                    return
+                # Convertir escala a segundos
+                escala_segundos = convertir_a_segundos(escala_val, unidades)
+                parametros = {
+                    'forma': forma_val,
+                    'escala': escala_segundos
                 }
             else:
                 messagebox.showerror("Error", f"❌ Tipo de distribución no válido: {tipo}")
@@ -435,13 +539,22 @@ class PanelDistribuciones:
             if tipo == 'exponencial':
                 lambda_val = controles['lambda'].get()
                 nueva_descripcion = f"Exponencial (λ={lambda_val:.3f}/{unidades})"
-            elif tipo == 'poisson':
-                lambda_val = controles['lambda'].get()
-                nueva_descripcion = f"Poisson (λ={lambda_val:.3f} eventos/{unidades})"
-            elif tipo == 'uniforme':
-                min_val = controles['min'].get()
-                max_val = controles['max'].get()
-                nueva_descripcion = f"Uniforme ({min_val:.3f}-{max_val:.3f} {unidades})"
+            elif tipo == 'normal':
+                media_val = controles['media'].get()
+                desviacion_val = controles['desviacion'].get()
+                nueva_descripcion = f"Normal (μ={media_val:.3f}, σ={desviacion_val:.3f} {unidades})"
+            elif tipo == 'lognormal':
+                mu_val = controles['mu'].get()
+                sigma_val = controles['sigma'].get()
+                nueva_descripcion = f"Log-Normal (μ={mu_val:.3f}, σ={sigma_val:.3f})"
+            elif tipo == 'gamma':
+                forma_val = controles['forma'].get()
+                escala_val = controles['escala'].get()
+                nueva_descripcion = f"Gamma (α={forma_val:.3f}, β={escala_val:.3f} {unidades})"
+            elif tipo == 'weibull':
+                forma_val = controles['forma'].get()
+                escala_val = controles['escala'].get()
+                nueva_descripcion = f"Weibull (c={forma_val:.3f}, λ={escala_val:.3f} {unidades})"
             else:
                 nueva_descripcion = "Desconocida"
             

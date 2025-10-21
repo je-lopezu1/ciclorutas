@@ -140,15 +140,25 @@ TIPOS_DISTRIBUCION = {
         'descripcion': 'Distribución exponencial para tiempos entre arribos',
         'parametros_por_defecto': {'lambda': 0.5}
     },
-    'poisson': {
-        'parametros': ['lambda'],
-        'descripcion': 'Distribución de Poisson para número de eventos',
-        'parametros_por_defecto': {'lambda': 2.0}
+    'normal': {
+        'parametros': ['media', 'desviacion'],
+        'descripcion': 'Distribución normal (gaussiana) para tiempos de arribo',
+        'parametros_por_defecto': {'media': 3.0, 'desviacion': 1.0}
     },
-    'uniforme': {
-        'parametros': ['min', 'max'],
-        'descripcion': 'Distribución uniforme para tiempos constantes',
-        'parametros_por_defecto': {'min': 1.0, 'max': 5.0}
+    'lognormal': {
+        'parametros': ['mu', 'sigma'],
+        'descripcion': 'Distribución log-normal para tiempos de arribo',
+        'parametros_por_defecto': {'mu': 0.0, 'sigma': 1.0}
+    },
+    'gamma': {
+        'parametros': ['forma', 'escala'],
+        'descripcion': 'Distribución gamma para tiempos de arribo',
+        'parametros_por_defecto': {'forma': 2.0, 'escala': 1.0}
+    },
+    'weibull': {
+        'parametros': ['forma', 'escala'],
+        'descripcion': 'Distribución Weibull para tiempos de arribo',
+        'parametros_por_defecto': {'forma': 2.0, 'escala': 1.0}
     }
 }
 
