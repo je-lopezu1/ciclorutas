@@ -41,16 +41,28 @@ class GeneradorExcel:
         ruta_archivo = os.path.join(self.carpeta_resultados, nombre_archivo)
         
         # Crear el archivo Excel con múltiples hojas
-        with pd.ExcelWriter(ruta_archivo, engine='openpyxl') as writer:
-            
-            # Hoja 1: Información General de la Simulación
-            self._crear_hoja_info_simulacion(simulador, writer)
-            
-            # Hoja 2: Tramos
-            self._crear_hoja_tramos(simulador, writer)
-            
-            # Hoja 3: Ciclistas
-            self._crear_hoja_ciclistas(simulador, writer)
+        try:
+            with pd.ExcelWriter(ruta_archivo, engine='openpyxl') as writer:
+                
+                # Hoja 1: Información General de la Simulación
+                print("📋 Creando hoja Info Simulación...")
+                self._crear_hoja_info_simulacion(simulador, writer)
+                
+                # Hoja 2: Tramos
+                print("🛣️ Creando hoja Tramos...")
+                self._crear_hoja_tramos(simulador, writer)
+                
+                # Hoja 3: Ciclistas
+                print("🚴 Creando hoja Ciclistas...")
+                self._crear_hoja_ciclistas(simulador, writer)
+                
+                # Hoja 4: Tiempos de Desplazamiento
+                print("⏱️ Creando hoja Tiempos...")
+                self._crear_hoja_tiempos(simulador, writer)
+                
+        except Exception as e:
+            print(f"❌ Error creando archivo Excel: {e}")
+            raise
         
         print(f"✅ Archivo Excel generado: {ruta_archivo}")
         return ruta_archivo
@@ -159,47 +171,62 @@ class GeneradorExcel:
                 
                 # Características básicas del tramo
                 distancia = atributos.get('distancia', atributos.get('distancia_real', 0))
-                peso = atributos.get('weight', 0)
                 
                 # Calcular estadísticas de uso
                 total_uso = sum(simulador.arcos_utilizados.values())
                 porcentaje_uso = (uso_count / max(1, total_uso)) * 100 if total_uso > 0 else 0
                 
-                # Determinar momento más ocupado y más vacío (simplificado)
-                momento_ocupado = "Pico de uso" if uso_count > 0 else "Sin uso"
-                momento_vacio = "Sin uso" if uso_count == 0 else "Uso moderado"
+                # Calcular tiempo promedio de desplazamiento (basado en velocidad promedio)
+                velocidad_promedio = 12.5  # km/h promedio (3.47 m/s)
+                tiempo_promedio = distancia / (velocidad_promedio * 1000 / 3600) if distancia > 0 else 0
                 
-                # Crear fila con datos básicos
+                # Crear fila con datos optimizados
                 fila = [
                     tramo_id,
                     origen,
                     destino,
-                    distancia,
-                    peso,
+                    f"{distancia:.1f}",
                     uso_count,
                     f"{porcentaje_uso:.1f}%",
-                    momento_ocupado,
-                    momento_vacio
+                    f"{tiempo_promedio:.1f}s"
                 ]
                 
-                # Agregar solo los atributos reales que existen
-                for attr in atributos_reales:
-                    valor = atributos.get(attr, 'N/A')
-                    fila.append(valor)
+                # Agregar solo los atributos reales que existen y tienen valor
+                atributos_importantes = ['seguridad', 'luminosidad', 'inclinacion']
+                for attr in atributos_importantes:
+                    if attr in atributos_reales and attr in atributos:
+                        valor = atributos.get(attr)
+                        # Solo agregar si el valor no es None, vacío o 0
+                        if valor is not None and valor != '' and valor != 0:
+                            fila.append(valor)
+                        else:
+                            fila.append('N/A')
+                    else:
+                        fila.append('N/A')
                 
                 datos_tramos.append(fila)
         
-        # Crear columnas dinámicamente
+        # Crear columnas dinámicamente basadas en los datos reales
         columnas = [
-            'ID Tramo', 'Nodo Origen', 'Nodo Destino', 'Distancia (m)', 'Peso',
-            'Ciclistas que lo usaron', 'Porcentaje de uso', 'Momento más ocupado', 'Momento más vacío'
+            'ID Tramo', 'Nodo Origen', 'Nodo Destino', 'Distancia (m)', 
+            'Ciclistas que lo usaron', 'Porcentaje de uso', 'Tiempo promedio (s)'
         ]
         
-        # Agregar columnas de atributos reales
-        if simulador.usar_grafo_real and simulador.grafo:
-            atributos_reales = self._obtener_atributos_reales(simulador.grafo)
-            for attr in atributos_reales:
-                columnas.append(attr.title())
+        # Solo agregar columnas de atributos que realmente existen en los datos
+        if simulador.usar_grafo_real and simulador.grafo and datos_tramos:
+            # Verificar qué atributos realmente tienen datos
+            atributos_con_datos = set()
+            for fila in datos_tramos:
+                # Las columnas de atributos empiezan después de las 7 columnas básicas
+                for i, attr in enumerate(['seguridad', 'luminosidad', 'inclinacion']):
+                    col_index = 7 + i  # 7 columnas básicas + índice del atributo
+                    if col_index < len(fila) and fila[col_index] != 'N/A':
+                        atributos_con_datos.add(attr)
+            
+            # Solo agregar columnas para atributos que tienen datos
+            for attr in ['seguridad', 'luminosidad', 'inclinacion']:
+                if attr in atributos_con_datos:
+                    columnas.append(attr.title())
         
         df_tramos = pd.DataFrame(datos_tramos, columns=columnas)
         
@@ -226,114 +253,240 @@ class GeneradorExcel:
     def _crear_hoja_ciclistas(self, simulador, writer):
         """Crea la hoja con información detallada de los ciclistas"""
         
-        datos_ciclistas = []
+        try:
+            # Obtener TODOS los ciclistas que participaron en la simulación
+            todos_ciclistas = set()
+            
+            # Agregar ciclistas de rutas
+            todos_ciclistas.update(simulador.rutas_por_ciclista.keys())
+            
+            # Agregar ciclistas de estado
+            todos_ciclistas.update(simulador.estado_ciclistas.keys())
+            
+            # Agregar ciclistas de arcos
+            todos_ciclistas.update(simulador.arcos_por_ciclista.keys())
+            
+            # Agregar ciclistas de tiempos
+            todos_ciclistas.update(simulador.tiempos_por_ciclista.keys())
+            
+            print(f"🔍 Procesando {len(todos_ciclistas)} ciclistas totales...")
+            datos_ciclistas = []
+            
+            # Procesar información de cada ciclista
+            for ciclista_id in sorted(todos_ciclistas):
+                # Obtener información de ruta si existe
+                ruta_info = simulador.rutas_por_ciclista.get(ciclista_id, {})
+                origen = ruta_info.get('origen', 'N/A')
+                destino = ruta_info.get('destino', 'N/A')
+                ruta_simple = ruta_info.get('ruta_simple', 'N/A')
+                ruta_detallada = ruta_info.get('ruta_detallada', 'N/A')
+                
+                # Obtener perfil del ciclista
+                perfil = simulador.perfiles_ciclistas.get(ciclista_id, 'Sin perfil')
+                
+                # Obtener arcos utilizados por este ciclista
+                arcos_ciclista = simulador.arcos_por_ciclista.get(ciclista_id, [])
+                num_tramos = len(arcos_ciclista)
+                
+                # Calcular distancia total
+                distancia_total = 0
+                if simulador.usar_grafo_real and simulador.grafo:
+                    for arco in arcos_ciclista:
+                        if "->" in arco:
+                            nodo_origen, nodo_destino = arco.split("->")
+                            if simulador.grafo.has_edge(nodo_origen, nodo_destino):
+                                dist = simulador.grafo[nodo_origen][nodo_destino].get('distancia_real', 
+                                                                                       simulador.grafo[nodo_origen][nodo_destino].get('distancia', 0))
+                                distancia_total += dist
+                
+                # Obtener tiempo total real de la simulación
+                tiempo_total = simulador.tiempos_por_ciclista.get(ciclista_id, 0)
+                if tiempo_total == 0:
+                    # Fallback: calcular tiempo estimado si no hay datos reales
+                    velocidad_promedio = 12.5  # km/h promedio
+                    tiempo_total = distancia_total / (velocidad_promedio * 1000 / 3600) if distancia_total > 0 else 0
+                
+                # Obtener tiempos por tramo
+                tiempos_tramos = simulador.tiempos_por_tramo.get(ciclista_id, [])
+                tiempo_promedio_tramo = sum(tiempos_tramos) / len(tiempos_tramos) if tiempos_tramos else 0
+                
+                # Estado del ciclista
+                estado = simulador.estado_ciclistas.get(ciclista_id, 'Desconocido')
+                
+                # Velocidad promedio del ciclista
+                velocidad_promedio_ciclista = (distancia_total / tiempo_total) if tiempo_total > 0 else 0
+                
+                # Resumir tramos utilizados (máximo 5)
+                tramos_resumidos = arcos_ciclista[:5] if len(arcos_ciclista) > 5 else arcos_ciclista
+                tramos_utilizados = "; ".join(tramos_resumidos)
+                if len(arcos_ciclista) > 5:
+                    tramos_utilizados += f" (+{len(arcos_ciclista)-5} más)"
+                
+                # Crear fila completa con toda la información de la simulación
+                fila = [
+                    ciclista_id,
+                    origen,
+                    destino,
+                    ruta_simple,
+                    ruta_detallada,
+                    perfil if isinstance(perfil, str) else f"Perfil {perfil}",
+                    num_tramos,
+                    f"{distancia_total:.1f}",
+                    f"{tiempo_total:.1f}s",
+                    f"{tiempo_promedio_tramo:.1f}s",
+                    f"{velocidad_promedio_ciclista:.2f} m/s",
+                    tramos_utilizados,
+                    estado
+                ]
+                
+                # Agregar preferencias del perfil dinámicamente
+                if isinstance(perfil, dict) and perfil:
+                    # Obtener todas las preferencias disponibles en el perfil
+                    preferencias_disponibles = ['seguridad', 'luminosidad', 'distancia', 'inclinacion']
+                    for attr in preferencias_disponibles:
+                        if attr in perfil and perfil[attr] is not None and perfil[attr] != '':
+                            pref_valor = perfil.get(attr)
+                            if isinstance(pref_valor, (int, float)):
+                                fila.append(f"{pref_valor:.2f}")
+                            else:
+                                fila.append(str(pref_valor))
+                        else:
+                            fila.append('N/A')
+                else:
+                    # Si no hay perfil, agregar N/A para todas las preferencias
+                    fila.extend(['N/A', 'N/A', 'N/A', 'N/A'])
+                
+                # Almacenar la fila completa para análisis posterior
+                datos_ciclistas.append(fila)
+            
+            # Crear columnas dinámicamente basadas en los datos reales
+            columnas_basicas = [
+                'ID Ciclista', 'Origen', 'Destino', 'Ruta Simple', 'Ruta Detallada',
+                'Perfil', 'Número de Tramos', 'Distancia Total (m)', 'Tiempo Total (s)', 
+                'Tiempo Promedio por Tramo (s)', 'Velocidad Promedio (m/s)', 'Tramos Utilizados', 'Estado'
+            ]
+            
+            # Verificar qué preferencias realmente tienen datos
+            preferencias_con_datos = set()
+            for fila in datos_ciclistas:
+                # Las preferencias empiezan después de las 13 columnas básicas
+                for i, pref in enumerate(['seguridad', 'luminosidad', 'distancia', 'inclinacion']):
+                    col_index = 13 + i  # 13 columnas básicas + índice de preferencia
+                    if col_index < len(fila) and fila[col_index] != 'N/A':
+                        preferencias_con_datos.add(pref)
+            
+            # Crear columnas finales
+            columnas = columnas_basicas.copy()
+            for pref in ['seguridad', 'luminosidad', 'distancia', 'inclinacion']:
+                if pref in preferencias_con_datos:
+                    columnas.append(f'Pref. {pref.title()}')
+            
+            # Recortar las filas para que coincidan con las columnas
+            datos_ciclistas_recortados = []
+            for fila in datos_ciclistas:
+                # Tomar solo las columnas básicas + las preferencias que tienen datos
+                fila_recortada = fila[:13]  # 13 columnas básicas
+                for i, pref in enumerate(['seguridad', 'luminosidad', 'distancia', 'inclinacion']):
+                    if pref in preferencias_con_datos:
+                        col_index = 13 + i
+                        if col_index < len(fila):
+                            fila_recortada.append(fila[col_index])
+                datos_ciclistas_recortados.append(fila_recortada)
+            
+            df_ciclistas = pd.DataFrame(datos_ciclistas_recortados, columns=columnas)
+            
+            # Ordenar por ID de ciclista
+            df_ciclistas = df_ciclistas.sort_values('ID Ciclista')
+            
+            # Escribir a Excel
+            df_ciclistas.to_excel(writer, sheet_name='Ciclistas', index=False)
+            
+            # Ajustar ancho de columnas
+            worksheet = writer.sheets['Ciclistas']
+            for col in worksheet.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 30)
+                worksheet.column_dimensions[column].width = adjusted_width
+                
+            print(f"✅ Hoja Ciclistas creada con {len(datos_ciclistas)} registros")
+            
+        except Exception as e:
+            print(f"❌ Error creando hoja Ciclistas: {e}")
+            # Crear hoja de error como fallback
+            error_df = pd.DataFrame([['Error', f'No se pudo procesar ciclistas: {str(e)}']], 
+                                  columns=['Error', 'Descripción'])
+            error_df.to_excel(writer, sheet_name='Ciclistas', index=False)
+    
+    def _crear_hoja_tiempos(self, simulador, writer):
+        """Crea la hoja con estadísticas de tiempos de desplazamiento"""
         
-        # Procesar información de cada ciclista
-        for ciclista_id, ruta_info in simulador.rutas_por_ciclista.items():
-            # Información básica del ciclista
+        datos_tiempos = []
+        
+        # Estadísticas generales de tiempos
+        if simulador.tiempos_por_ciclista:
+            tiempos_totales = list(simulador.tiempos_por_ciclista.values())
+            tiempo_promedio = sum(tiempos_totales) / len(tiempos_totales)
+            tiempo_minimo = min(tiempos_totales)
+            tiempo_maximo = max(tiempos_totales)
+            
+            datos_tiempos.append(["ESTADÍSTICAS GENERALES DE TIEMPOS", ""])
+            datos_tiempos.append(["Total de ciclistas con tiempo registrado", len(tiempos_totales)])
+            datos_tiempos.append(["Tiempo promedio de viaje", f"{tiempo_promedio:.2f} segundos"])
+            datos_tiempos.append(["Tiempo mínimo de viaje", f"{tiempo_minimo:.2f} segundos"])
+            datos_tiempos.append(["Tiempo máximo de viaje", f"{tiempo_maximo:.2f} segundos"])
+            datos_tiempos.append(["", ""])
+        
+        # Detalles por ciclista
+        datos_tiempos.append(["DETALLES POR CICLISTA", ""])
+        datos_tiempos.append(["ID Ciclista", "Tiempo Total (s)", "Número de Tramos", "Tiempo Promedio por Tramo (s)", "Tramos con Tiempo", "Ruta Completa"])
+        
+        for ciclista_id, tiempo_total in simulador.tiempos_por_ciclista.items():
+            # Obtener información del ciclista
+            ruta_info = simulador.rutas_por_ciclista.get(ciclista_id, {})
             origen = ruta_info.get('origen', 'N/A')
             destino = ruta_info.get('destino', 'N/A')
             ruta_detallada = ruta_info.get('ruta_detallada', 'N/A')
-            ruta_simple = ruta_info.get('ruta_simple', 'N/A')
             
-            # Obtener perfil del ciclista
-            perfil = simulador.perfiles_ciclistas.get(ciclista_id, 'Sin perfil')
+            # Obtener tiempos por tramo
+            tiempos_tramos = simulador.tiempos_por_tramo.get(ciclista_id, [])
+            num_tramos = len(tiempos_tramos)
+            tiempo_promedio_tramo = sum(tiempos_tramos) / len(tiempos_tramos) if tiempos_tramos else 0
             
-            # Obtener arcos utilizados por este ciclista
-            arcos_ciclista = simulador.arcos_por_ciclista.get(ciclista_id, [])
-            num_tramos = len(arcos_ciclista)
-            tramos_utilizados = "; ".join(arcos_ciclista) if arcos_ciclista else "N/A"
+            # Formatear tiempos de tramos
+            tiempos_tramos_str = "; ".join([f"{t:.1f}s" for t in tiempos_tramos[:5]])
+            if len(tiempos_tramos) > 5:
+                tiempos_tramos_str += f" (+{len(tiempos_tramos)-5} más)"
             
-            # Calcular distancia total (aproximada)
-            distancia_total = 0
-            if simulador.usar_grafo_real and simulador.grafo:
-                for arco in arcos_ciclista:
-                    if "->" in arco:
-                        nodo_origen, nodo_destino = arco.split("->")
-                        if simulador.grafo.has_edge(nodo_origen, nodo_destino):
-                            dist = simulador.grafo[nodo_origen][nodo_destino].get('distancia_real', 
-                                                                                   simulador.grafo[nodo_origen][nodo_destino].get('distancia', 0))
-                            distancia_total += dist
-            
-            # Estado del ciclista
-            estado = simulador.estado_ciclistas.get(ciclista_id, 'Desconocido')
-            
-            # Crear fila básica
-            fila = [
-                ciclista_id,
-                origen,
-                destino,
-                ruta_simple,
-                ruta_detallada,
-                perfil if isinstance(perfil, str) else f"Perfil {perfil}",
+            datos_tiempos.append([
+                f"Ciclista {ciclista_id} ({origen}→{destino})",
+                f"{tiempo_total:.2f}",
                 num_tramos,
-                f"{distancia_total:.1f}",
-                tramos_utilizados,
-                estado
-            ]
-            
-            # Agregar preferencias del perfil solo si están disponibles
-            if isinstance(perfil, dict):
-                # Obtener atributos reales disponibles en el grafo
-                if simulador.usar_grafo_real and simulador.grafo:
-                    atributos_reales = self._obtener_atributos_reales(simulador.grafo)
-                    for attr in atributos_reales:
-                        preferencia = perfil.get(attr, 'N/A')
-                        fila.append(preferencia)
-                else:
-                    # Si no hay grafo, usar atributos por defecto
-                    for attr in ['seguridad', 'luminosidad', 'inclinacion']:
-                        preferencia = perfil.get(attr, 'N/A')
-                        fila.append(preferencia)
-            else:
-                # Si no hay perfil, agregar N/A para todos los atributos
-                if simulador.usar_grafo_real and simulador.grafo:
-                    atributos_reales = self._obtener_atributos_reales(simulador.grafo)
-                    for _ in atributos_reales:
-                        fila.append('N/A')
-                else:
-                    for _ in ['seguridad', 'luminosidad', 'inclinacion']:
-                        fila.append('N/A')
-            
-            datos_ciclistas.append(fila)
+                f"{tiempo_promedio_tramo:.2f}",
+                tiempos_tramos_str,
+                ruta_detallada
+            ])
         
-        # Crear columnas dinámicamente
-        columnas = [
-            'ID Ciclista', 'Origen', 'Destino', 'Ruta Simple', 'Ruta Detallada',
-            'Perfil', 'Número de Tramos', 'Distancia Total (m)', 'Tramos Utilizados', 'Estado'
-        ]
-        
-        # Agregar columnas de preferencias solo para atributos reales
-        if simulador.usar_grafo_real and simulador.grafo:
-            atributos_reales = self._obtener_atributos_reales(simulador.grafo)
-            for attr in atributos_reales:
-                columnas.append(f'Pref. {attr.title()}')
-        else:
-            # Atributos por defecto si no hay grafo
-            for attr in ['seguridad', 'luminosidad', 'inclinacion']:
-                columnas.append(f'Pref. {attr.title()}')
-        
-        df_ciclistas = pd.DataFrame(datos_ciclistas, columns=columnas)
-        
-        # Ordenar por ID de ciclista
-        df_ciclistas = df_ciclistas.sort_values('ID Ciclista')
+        # Crear DataFrame
+        df_tiempos = pd.DataFrame(datos_tiempos, columns=['Métrica', 'Valor', 'Detalle 1', 'Detalle 2', 'Detalle 3', 'Ruta Completa'])
         
         # Escribir a Excel
-        df_ciclistas.to_excel(writer, sheet_name='Ciclistas', index=False)
+        df_tiempos.to_excel(writer, sheet_name='Tiempos', index=False)
         
         # Ajustar ancho de columnas
-        worksheet = writer.sheets['Ciclistas']
-        for col in worksheet.columns:
-            max_length = 0
-            column = col[0].column_letter
-            for cell in col:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 30)
-            worksheet.column_dimensions[column].width = adjusted_width
+        worksheet = writer.sheets['Tiempos']
+        worksheet.column_dimensions['A'].width = 40
+        worksheet.column_dimensions['B'].width = 20
+        worksheet.column_dimensions['C'].width = 15
+        worksheet.column_dimensions['D'].width = 20
+        worksheet.column_dimensions['E'].width = 30
+        worksheet.column_dimensions['F'].width = 50  # Ruta Completa - más ancha
     
     def _obtener_atributos_reales(self, grafo) -> List[str]:
         """Obtiene los atributos reales disponibles en el grafo"""

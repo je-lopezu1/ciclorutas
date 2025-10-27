@@ -68,6 +68,11 @@ class SimuladorCiclorutas:
         self.perfiles_ciclistas = {}  # Dict[ciclista_id, perfil] para rastrear perfil de cada ciclista
         self.contador_perfiles = {}  # Dict[perfil_id, contador] para rastrear uso de perfiles
         
+        # Sistema de rastreo de tiempos de desplazamiento
+        self.tiempos_por_ciclista = {}  # Dict[ciclista_id, tiempo_total] para rastrear tiempo total de viaje
+        self.tiempos_por_tramo = {}  # Dict[ciclista_id, lista_tiempos_tramos] para rastrear tiempo por tramo
+        self.tiempo_inicio_viaje = {}  # Dict[ciclista_id, tiempo_inicio] para calcular duración total
+        
         # Cache de rendimiento
         self.rangos_atributos = {}  # Rangos pre-calculados de atributos
         self.rangos_calculados = False  # Flag para evitar recálculos
@@ -804,6 +809,11 @@ class SimuladorCiclorutas:
         # Marcar ciclista como completado cuando termine su ruta
         self.estado_ciclistas[id] = 'completado'
         
+        # Calcular tiempo total de viaje
+        if id in self.tiempo_inicio_viaje:
+            tiempo_total_viaje = self.env.now - self.tiempo_inicio_viaje[id]
+            self.tiempos_por_ciclista[id] = tiempo_total_viaje
+        
         # Mover ciclista fuera de la vista (posición invisible)
         self.coordenadas[id] = (-1000, -1000)  # Posición fuera del área visible
     
@@ -827,6 +837,14 @@ class SimuladorCiclorutas:
         tiempo_base = distancia / velocidad
         tiempo_total = tiempo_base * factor_tiempo
         
+        # Rastrear tiempo de inicio del tramo
+        tiempo_inicio_tramo = self.env.now
+        
+        # Inicializar tiempo de viaje si es el primer tramo
+        if ciclista_id not in self.tiempo_inicio_viaje:
+            self.tiempo_inicio_viaje[ciclista_id] = self.env.now
+            self.tiempos_por_tramo[ciclista_id] = []
+        
         pasos = max(1, min(int(tiempo_total / 0.5), 200))  # Máximo 200 pasos
         
         # Pre-calcular incrementos para eficiencia
@@ -845,6 +863,11 @@ class SimuladorCiclorutas:
             # Solo guardar cada 5to punto para reducir memoria
             if i % 5 == 0 and len(self.trayectorias[ciclista_id]) < 100:
                 self.trayectorias[ciclista_id].append((x, y))
+        
+        # Registrar tiempo real del tramo
+        tiempo_fin_tramo = self.env.now
+        tiempo_real_tramo = tiempo_fin_tramo - tiempo_inicio_tramo
+        self.tiempos_por_tramo[ciclista_id].append(tiempo_real_tramo)
     
     def ejecutar_paso(self):
         """Ejecuta un paso de la simulación"""
