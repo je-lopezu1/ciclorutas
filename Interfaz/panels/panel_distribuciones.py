@@ -380,7 +380,7 @@ class PanelDistribuciones:
         titulo_texto = f"Perfil {perfil_data['PERFILES']}"
         if 'PROBABILIDAD' in perfil_data:
             prob_valor = perfil_data['PROBABILIDAD']
-            titulo_texto += f" (Prob: {prob_valor:.2f} - {prob_valor*100:.1f}%)"
+            titulo_texto += f" (Prob: {prob_valor*100:.1f}%)"
         
         EstiloUtils.crear_label_con_estilo(
             info_frame, 
@@ -388,14 +388,27 @@ class PanelDistribuciones:
             'Subheader.TLabel'
         ).pack(side=tk.LEFT)
         
-        # Botón para editar perfil
+        # Botones para editar perfil y probabilidad
+        botones_frame = EstiloUtils.crear_frame_con_estilo(info_frame)
+        botones_frame.pack(side=tk.RIGHT)
+        
         btn_editar = EstiloUtils.crear_button_con_estilo(
-            info_frame, 
-            "✏️ Editar", 
+            botones_frame, 
+            "✏️ Editar Pesos", 
             'TButton',
             command=lambda p=perfil_data: self._editar_perfil(p)
         )
-        btn_editar.pack(side=tk.RIGHT)
+        btn_editar.pack(side=tk.LEFT, padx=(0, 5))
+        
+        # Botón para editar probabilidad (solo si hay columna PROBABILIDAD)
+        if 'PROBABILIDAD' in perfil_data:
+            btn_prob = EstiloUtils.crear_button_con_estilo(
+                botones_frame, 
+                "📊 Editar Prob", 
+                'Accent.TButton',
+                command=lambda p=perfil_data: self._editar_probabilidad_perfil(p)
+            )
+            btn_prob.pack(side=tk.LEFT)
         
         # Frame para los pesos
         pesos_frame = EstiloUtils.crear_frame_con_estilo(perfil_frame)
@@ -687,7 +700,7 @@ class PanelDistribuciones:
         resumen_frame = EstiloUtils.crear_label_frame_con_estilo(main_frame, "📊 Resumen")
         resumen_frame.pack(fill="x", pady=(0, 15))
         
-        # Labels de resumen
+        # Labels de resumen - CORREGIDO: Los pesos NO deben sumar 1
         suma_pesos_label = EstiloUtils.crear_label_con_estilo(
             resumen_frame, 
             "Suma de pesos: 0.00", 
@@ -695,17 +708,19 @@ class PanelDistribuciones:
         )
         suma_pesos_label.pack(pady=5)
         
-        # Función para actualizar resumen
+        # Información explicativa
+        info_label = EstiloUtils.crear_label_con_estilo(
+            resumen_frame, 
+            "ℹ️ Los pesos son factores de preferencia (NO deben sumar 1)", 
+            'Info.TLabel'
+        )
+        info_label.pack(pady=2)
+        
+        # Función para actualizar resumen - CORREGIDO: Solo mostrar suma, no validar
         def actualizar_resumen():
             suma_pesos = sum(var.get() for var in pesos_vars.values())
-            
             suma_pesos_label.config(text=f"Suma de pesos: {suma_pesos:.2f}")
-            
-            # Cambiar color según validación
-            if abs(suma_pesos - 1.0) <= 0.01:
-                suma_pesos_label.config(foreground='green')
-            else:
-                suma_pesos_label.config(foreground='red')
+            # Los pesos pueden tener cualquier suma, no hay validación de color
         
         # Vincular actualización de resumen
         for var in pesos_vars.values():
@@ -719,11 +734,8 @@ class PanelDistribuciones:
         botones_frame.pack(fill="x", pady=(10, 0))
         
         def guardar_cambios():
-            # Validar que la suma de pesos sea 1.0
-            suma_pesos = sum(var.get() for var in pesos_vars.values())
-            if abs(suma_pesos - 1.0) > 0.01:
-                messagebox.showerror("Error", f"La suma de los pesos debe ser 1.0 (actual: {suma_pesos:.2f})")
-                return
+            # CORREGIDO: Los pesos NO necesitan sumar 1, son factores de preferencia
+            # No hay validación de suma para los pesos de atributos
             
             # Llamar callback para actualizar perfil
             if 'actualizar_perfil' in self.callbacks:
@@ -735,11 +747,12 @@ class PanelDistribuciones:
             messagebox.showinfo("Éxito", f"Perfil {perfil_data['PERFILES']} actualizado correctamente")
         
         def normalizar_pesos():
-            """Normaliza automáticamente los pesos para que sumen 1.0"""
+            """CORREGIDO: Normaliza automáticamente los pesos para que sumen 1.0 (opcional)"""
             suma_pesos = sum(var.get() for var in pesos_vars.values())
             if suma_pesos > 0:
                 for var in pesos_vars.values():
                     var.set(var.get() / suma_pesos)
+                messagebox.showinfo("Normalización", "Los pesos han sido normalizados para sumar 1.0")
         
         # Botones
         EstiloUtils.crear_button_con_estilo(
@@ -761,6 +774,181 @@ class PanelDistribuciones:
             "❌ Cancelar", 
             'Danger.TButton',
             command=ventana_edicion.destroy
+        ).pack(side=tk.LEFT)
+    
+    def _editar_probabilidad_perfil(self, perfil_data: pd.Series):
+        """Abre una ventana para editar las probabilidades de selección de perfiles"""
+        # Crear ventana de edición de probabilidades
+        ventana_prob = tk.Toplevel(self.parent)
+        ventana_prob.title(f"Editar Probabilidades de Perfiles")
+        ventana_prob.geometry("600x500")
+        ventana_prob.resizable(False, False)
+        
+        # Centrar la ventana
+        EstiloUtils.centrar_ventana(ventana_prob, 600, 500)
+        ventana_prob.transient(self.parent)
+        ventana_prob.grab_set()
+        
+        # Frame principal con scroll
+        canvas = tk.Canvas(ventana_prob, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(ventana_prob, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        # Configurar scroll
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Empaquetar canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Frame principal
+        main_frame = EstiloUtils.crear_frame_con_estilo(scrollable_frame)
+        main_frame.pack(fill="both", expand=True)
+        
+        # Título
+        EstiloUtils.crear_label_con_estilo(
+            main_frame, 
+            "📊 Editar Probabilidades de Selección de Perfiles", 
+            'Header.TLabel'
+        ).pack(pady=(0, 15))
+        
+        # Información explicativa
+        EstiloUtils.crear_label_con_estilo(
+            main_frame, 
+            "ℹ️ Las probabilidades deben sumar exactamente 1.0 (100%)", 
+            'Info.TLabel'
+        ).pack(pady=(0, 15))
+        
+        # Variables para las probabilidades
+        prob_vars = {}
+        
+        # Frame para las probabilidades
+        prob_frame = EstiloUtils.crear_label_frame_con_estilo(main_frame, "🎯 Probabilidades por Perfil")
+        prob_frame.pack(fill="x", pady=(0, 15))
+        
+        # Crear controles para cada perfil
+        for i, (_, perfil_row) in enumerate(self.perfiles_df.iterrows()):
+            perfil_id = int(perfil_row['PERFILES'])
+            prob_actual = perfil_row['PROBABILIDAD']
+            
+            # Frame para cada perfil
+            perfil_prob_frame = EstiloUtils.crear_frame_con_estilo(prob_frame)
+            perfil_prob_frame.pack(fill="x", pady=5, padx=5)
+            
+            # Label del perfil
+            EstiloUtils.crear_label_con_estilo(
+                perfil_prob_frame, 
+                f"Perfil {perfil_id}:", 
+                'Subheader.TLabel'
+            ).pack(side=tk.LEFT)
+            
+            # Variable para la probabilidad
+            var = tk.DoubleVar(value=prob_actual)
+            prob_vars[perfil_id] = var
+            
+            # Slider para la probabilidad
+            slider = ttk.Scale(perfil_prob_frame, from_=0.0, to=1.0, variable=var, 
+                              orient="horizontal", length=200)
+            slider.pack(side=tk.LEFT, padx=(10, 5))
+            
+            # Valor numérico
+            valor_label = EstiloUtils.crear_label_con_estilo(
+                perfil_prob_frame, 
+                f"{var.get():.3f}", 
+                'Info.TLabel'
+            )
+            valor_label.pack(side=tk.LEFT, padx=(5, 5))
+            
+            # Input numérico directo
+            spinbox = ttk.Spinbox(perfil_prob_frame, from_=0.0, to=1.0, increment=0.001, 
+                                 textvariable=var, width=8, format="%.3f")
+            spinbox.pack(side=tk.LEFT, padx=(5, 0))
+            
+            # Actualizar valor cuando cambie el slider o spinbox
+            def update_valor(perfil_id=perfil_id, label=valor_label, var=var):
+                label.config(text=f"{var.get():.3f}")
+            var.trace('w', lambda *args, p=perfil_id, l=valor_label, v=var: update_valor(p, l, v))
+        
+        # Frame para resumen y validación
+        resumen_frame = EstiloUtils.crear_label_frame_con_estilo(main_frame, "📊 Resumen")
+        resumen_frame.pack(fill="x", pady=(0, 15))
+        
+        # Labels de resumen
+        suma_prob_label = EstiloUtils.crear_label_con_estilo(
+            resumen_frame, 
+            "Suma de probabilidades: 0.000", 
+            'Info.TLabel'
+        )
+        suma_prob_label.pack(pady=5)
+        
+        # Función para actualizar resumen
+        def actualizar_resumen():
+            suma_prob = sum(var.get() for var in prob_vars.values())
+            suma_prob_label.config(text=f"Suma de probabilidades: {suma_prob:.3f}")
+            
+            # Cambiar color según validación
+            if abs(suma_prob - 1.0) <= 0.001:
+                suma_prob_label.config(foreground='green')
+            else:
+                suma_prob_label.config(foreground='red')
+        
+        # Vincular actualización de resumen
+        for var in prob_vars.values():
+            var.trace('w', lambda *args: actualizar_resumen())
+        
+        # Actualizar resumen inicial
+        actualizar_resumen()
+        
+        # Botones
+        botones_frame = EstiloUtils.crear_frame_con_estilo(main_frame)
+        botones_frame.pack(fill="x", pady=(10, 0))
+        
+        def guardar_probabilidades():
+            # Validar que la suma de probabilidades sea 1.0
+            suma_prob = sum(var.get() for var in prob_vars.values())
+            if abs(suma_prob - 1.0) > 0.001:
+                messagebox.showerror("Error", f"Las probabilidades deben sumar 1.0 (actual: {suma_prob:.3f})")
+                return
+            
+            # Llamar callback para actualizar probabilidades
+            if 'actualizar_probabilidades_perfiles' in self.callbacks:
+                self.callbacks['actualizar_probabilidades_perfiles'](prob_vars)
+            
+            # Cerrar ventana
+            ventana_prob.destroy()
+            
+            messagebox.showinfo("Éxito", "Probabilidades de perfiles actualizadas correctamente")
+        
+        def normalizar_probabilidades():
+            """Normaliza automáticamente las probabilidades para que sumen 1.0"""
+            suma_prob = sum(var.get() for var in prob_vars.values())
+            if suma_prob > 0:
+                for var in prob_vars.values():
+                    var.set(var.get() / suma_prob)
+                messagebox.showinfo("Normalización", "Las probabilidades han sido normalizadas para sumar 1.0")
+        
+        # Botones
+        EstiloUtils.crear_button_con_estilo(
+            botones_frame, 
+            "💾 Guardar", 
+            'Success.TButton',
+            command=guardar_probabilidades
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        
+        EstiloUtils.crear_button_con_estilo(
+            botones_frame, 
+            "⚖️ Normalizar", 
+            'TButton',
+            command=normalizar_probabilidades
+        ).pack(side=tk.LEFT, padx=(0, 5))
+        
+        EstiloUtils.crear_button_con_estilo(
+            botones_frame, 
+            "❌ Cancelar", 
+            'Danger.TButton',
+            command=ventana_prob.destroy
         ).pack(side=tk.LEFT)
     
     def obtener_estado_panel(self) -> Dict[str, Any]:

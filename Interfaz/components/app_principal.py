@@ -188,6 +188,7 @@ class InterfazSimulacion:
             # Callbacks de distribuciones
             'aplicar_distribucion': self.aplicar_distribucion_nodo,
             'actualizar_perfil': self.actualizar_perfil_ciclista,
+            'actualizar_probabilidades_perfiles': self.actualizar_probabilidades_perfiles,
             
             # Callbacks de estadísticas
             'exportar_estadisticas': self.exportar_estadisticas,
@@ -613,6 +614,36 @@ class InterfazSimulacion:
         """Actualiza un perfil de ciclista"""
         # Esta funcionalidad se implementaría aquí
         print(f"Actualizando perfil {perfil_id} con pesos: {pesos_vars}")
+    
+    def actualizar_probabilidades_perfiles(self, prob_vars: Dict):
+        """Actualiza las probabilidades de selección de perfiles"""
+        try:
+            # Actualizar el DataFrame de perfiles
+            if self.perfiles_df is not None:
+                for perfil_id, var in prob_vars.items():
+                    # Encontrar la fila correspondiente al perfil
+                    mask = self.perfiles_df['PERFILES'] == perfil_id
+                    if mask.any():
+                        self.perfiles_df.loc[mask, 'PROBABILIDAD'] = var.get()
+                
+                # Reconfigurar el simulador con las nuevas probabilidades
+                if self.grafo_actual and self.pos_grafo_actual:
+                    self.simulador.configurar_grafo(
+                        self.grafo_actual, self.pos_grafo_actual, 
+                        self.perfiles_df, self.rutas_df, self.nombre_grafo_actual
+                    )
+                
+                # Actualizar el panel de distribuciones
+                atributos_perfiles_disponibles = self._obtener_atributos_perfiles_disponibles()
+                self.panel_distribuciones.actualizar_panel_perfiles(self.perfiles_df, atributos_perfiles_disponibles)
+                
+                print(f"✅ Probabilidades de perfiles actualizadas: {prob_vars}")
+            else:
+                print("⚠️ No hay perfiles cargados para actualizar")
+                
+        except Exception as e:
+            print(f"❌ Error actualizando probabilidades de perfiles: {e}")
+            messagebox.showerror("Error", f"Error al actualizar probabilidades: {str(e)}")
     
     def exportar_estadisticas(self):
         """Exporta las estadísticas actuales"""
