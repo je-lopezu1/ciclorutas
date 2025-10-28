@@ -12,7 +12,7 @@ Este directorio contiene los archivos Excel generados automáticamente al finali
 
 ### Estructura del Archivo Excel
 
-Cada archivo Excel contiene **3 hojas principales**:
+Cada archivo Excel contiene **4 hojas principales**:
 
 #### 1. 📋 Hoja "Info Simulación"
 Contiene información general y estadísticas de la simulación:
@@ -23,24 +23,32 @@ Contiene información general y estadísticas de la simulación:
 - **Estadísticas de Nodos**: Nodo más activo
 - **Estadísticas de Perfiles**: Distribución de perfiles de ciclistas
 
-#### 2. 🛣️ Hoja "Tramos"
+#### 2. 🛣️ Hoja "Tramos" (OPTIMIZADA)
 Información detallada de cada tramo/arco de la red:
 - **ID del Tramo**: Identificador único (origen->destino)
 - **Nodos**: Origen y destino del tramo
-- **Características Básicas**: Distancia, peso
-- **Atributos Reales**: Solo los atributos que existen en los datos (ej: seguridad, luminosidad, inclinación)
+- **Distancia**: Distancia real del tramo en metros
 - **Estadísticas de Uso**: Número de ciclistas que lo usaron, porcentaje de uso
-- **Momentos**: Momento más ocupado y más vacío
+- **Tiempo Promedio**: Tiempo promedio de desplazamiento por el tramo
+- **Atributos Importantes**: Solo seguridad, luminosidad e inclinación (si están disponibles)
 - **Ordenamiento**: Los tramos se ordenan por uso (más usado primero)
 
-#### 3. 🚴 Hoja "Ciclistas"
+#### 3. 🚴 Hoja "Ciclistas" (OPTIMIZADA)
 Información detallada de cada ciclista y su viaje:
 - **ID del Ciclista**: Identificador único
-- **Ruta**: Origen, destino, ruta simple y detallada
-- **Perfil**: Tipo de perfil y preferencias (solo atributos reales disponibles)
-- **Estadísticas del Viaje**: Número de tramos, distancia total
-- **Tramos Utilizados**: Lista detallada de todos los tramos recorridos
+- **Ruta**: Origen, destino, ruta simple
+- **Perfil**: Tipo de perfil y preferencias principales
+- **Estadísticas del Viaje**: Número de tramos, distancia total, **tiempo total real**
+- **Tramos Utilizados**: Lista resumida de tramos (máximo 5, con indicador de más)
 - **Estado**: Estado final del ciclista
+- **Preferencias**: Solo seguridad y luminosidad (las más importantes)
+
+#### 4. ⏱️ Hoja "Tiempos" (NUEVA)
+Estadísticas detalladas de tiempos de desplazamiento:
+- **Estadísticas Generales**: Tiempo promedio, mínimo y máximo de viajes
+- **Detalles por Ciclista**: Tiempo total, número de tramos, tiempo promedio por tramo
+- **Tiempos por Tramo**: Lista de tiempos reales de cada tramo recorrido
+- **Análisis de Eficiencia**: Comparación de tiempos entre diferentes rutas
 
 ## 📁 Nomenclatura de Archivos
 

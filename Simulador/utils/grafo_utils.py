@@ -96,7 +96,7 @@ class GrafoUtils:
     def calcular_velocidad_ajustada(velocidad_base: float, atributos_arco: dict, 
                                    velocidad_min_config: float = None, 
                                    velocidad_max_config: float = None) -> float:
-        """Calcula la velocidad ajustada SOLO por inclinación
+        """Calcula la velocidad ajustada por inclinación
         
         NOTA: La inclinación NO afecta la decisión de ruta, solo la velocidad de movimiento.
         La decisión de ruta se basa únicamente en distancia, seguridad y luminosidad.
@@ -108,7 +108,9 @@ class GrafoUtils:
             velocidad_max_config: Velocidad máxima configurada (m/s)
         
         Returns:
-            Velocidad ajustada solo por inclinación (reducción porcentual)
+            Velocidad ajustada por inclinación:
+            - Inclinación positiva (subida): reduce velocidad
+            - Inclinación negativa (bajada): aumenta velocidad
         """
         if not atributos_arco:
             return velocidad_base
@@ -116,15 +118,25 @@ class GrafoUtils:
         # Solo la inclinación afecta la velocidad
         factor_inclinacion = 1.0
         
-        # Ajuste por inclinación: reducción porcentual directa
+        # Ajuste por inclinación: maneja valores positivos y negativos
         if 'inclinacion' in atributos_arco:
-            inclinacion = atributos_arco['inclinacion']
-            # La inclinación ya viene como porcentaje directo (5 = 5%, 10 = 10%, etc.)
-            # Limitar entre 0% y 50% para evitar reducciones excesivas
-            porcentaje_reduccion = max(0, min(50, inclinacion))
-            factor_inclinacion = 1.0 - (porcentaje_reduccion / 100.0)
+            inclinacion = float(atributos_arco['inclinacion'])  # Convertir a float para decimales
+            
+            # Inclinación positiva (subida): reduce velocidad
+            # Inclinación negativa (bajada): aumenta velocidad
+            if inclinacion > 0:
+                # Subida: reducir velocidad (máximo 50% de reducción)
+                porcentaje_reduccion = min(50, abs(inclinacion))
+                factor_inclinacion = 1.0 - (porcentaje_reduccion / 100.0)
+            elif inclinacion < 0:
+                # Bajada: aumentar velocidad (máximo 30% de aumento)
+                porcentaje_aumento = min(30, abs(inclinacion))
+                factor_inclinacion = 1.0 + (porcentaje_aumento / 100.0)
+            else:
+                # Inclinación = 0: velocidad normal
+                factor_inclinacion = 1.0
         
-        # Aplicar solo el factor de inclinación
+        # Aplicar el factor de inclinación
         velocidad_ajustada = velocidad_base * factor_inclinacion
         
         # Limitar la velocidad ajustada respetando la configuración del usuario
@@ -209,19 +221,15 @@ class GrafoUtils:
                 min_val, max_val = rangos_atributos[attr]
                 
                 if max_val > min_val and isinstance(valor, (int, float)):
-                    # Normalizar atributo según su tipo
-                    if attr == 'distancia':
-                        # Para distancia, valores más altos = peor (invertir)
-                        norm_val = 1 - (valor - min_val) / (max_val - min_val)
-                    elif attr in ['seguridad', 'luminosidad']:
-                        # Para seguridad y luminosidad, valores más altos = mejor
-                        norm_val = (valor - min_val) / (max_val - min_val)
-                    elif attr == 'inclinacion':
-                        # Para inclinación, valores más altos = peor (invertir)
-                        norm_val = 1 - (valor - min_val) / (max_val - min_val)
-                    else:
-                        # Para otros atributos, asumir que valores más altos = mejor
-                        norm_val = (valor - min_val) / (max_val - min_val)
+                    # Normalización genérica: asumir que valores más altos = mejor
+                    # Si un atributo debe invertirse (mayor = peor), se hace externamente
+                    norm_val = (valor - min_val) / (max_val - min_val)
+                    
+                    # Detectar si el atributo debe invertirse basándose en su nombre
+                    # Atributos que típicamente son "más alto = peor" (como distancia, inclinacion)
+                    atributos_invertidos = ['distancia', 'inclinacion', 'tiempo', 'coste', 'peso']
+                    if any(inv in attr.lower() for inv in atributos_invertidos):
+                        norm_val = 1 - norm_val
                     
                     # Aplicar peso del perfil del ciclista
                     peso += norm_val * perfil_ciclista['pesos'][attr]

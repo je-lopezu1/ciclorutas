@@ -228,32 +228,32 @@ class SimuladorCiclorutas:
     
     def _precalcular_rutas_por_perfil(self):
         """Pre-calcula rutas para cada perfil de ciclista para optimizar rendimiento"""
-        if not self.perfiles_df is not None or not self.grafo:
+        if self.perfiles_df is None or self.grafo is None:
             return
         
         print("🔄 Pre-calculando rutas por perfil...")
         
+        # Obtener atributos comunes entre ARCOS y PERFILES
+        atributos_arcos = set(self.rangos_atributos.keys())
+        atributos_perfiles = set(self.perfiles_df.columns) - {'PERFILES'}
+        atributos_comunes = atributos_arcos.intersection(atributos_perfiles)
+        
+        print(f"📋 Atributos comunes (ARCOS ∩ PERFILES): {atributos_comunes}")
+        print(f"ℹ️ Sólo estos atributos se usarán para decisión de ruta")
+        
         # Convertir perfiles a formato requerido
         perfiles = []
         for _, perfil_data in self.perfiles_df.iterrows():
-            # Solo incluir atributos que existen en el perfil
+            # Solo incluir atributos que están en AMBOS (ARCOS y PERFILES)
             pesos = {}
             
-            # Mapeo de columnas Excel a claves internas
-            atributos_disponibles = {
-                'DISTANCIA': 'distancia',
-                'SEGURIDAD': 'seguridad', 
-                'LUMINOSIDAD': 'luminosidad',
-                'INCLINACION': 'inclinacion'
-            }
-            
-            # Cargar solo los atributos que existen en el DataFrame
-            for col_excel, clave_interna in atributos_disponibles.items():
-                if col_excel in perfil_data:
+            # Cargar dinámicamente los atributos que existen en ambas hojas
+            for col_excel in atributos_comunes:
+                if col_excel in perfil_data.index:
+                    # Normalizar nombre a minúsculas para consistencia interna
+                    clave_interna = col_excel.lower()
                     pesos[clave_interna] = perfil_data[col_excel]
-                    print(f"✅ Atributo {clave_interna} cargado desde {col_excel}")
-                else:
-                    print(f"⚠️ Atributo {clave_interna} no encontrado en perfiles (se ignorará)")
+                    print(f"✅ Atributo {clave_interna} cargado desde {col_excel} (peso: {perfil_data[col_excel]:.2f})")
             
             perfil = {
                 'id': int(perfil_data['PERFILES']),
@@ -663,16 +663,26 @@ class SimuladorCiclorutas:
     def _seleccionar_perfil_ciclista(self) -> dict:
         """Selecciona un perfil para un nuevo ciclista basado en las probabilidades de la tabla"""
         if self.perfiles_df is None:
-            # Perfil por defecto si no hay perfiles disponibles
-            # NOTA: inclinación no se incluye en decisión de ruta, solo afecta velocidad
+            # Perfil por defecto dinámico: peso 1.0 solo para distancia, 0.0 para otros atributos
+            pesos = {}
+            
+            # Detectar atributos disponibles dinámicamente del grafo
+            if hasattr(self, 'rangos_atributos') and self.rangos_atributos:
+                for atributo in self.rangos_atributos.keys():
+                    if atributo == 'distancia':
+                        pesos[atributo] = 1.0  # Peso completo para distancia
+                    else:
+                        pesos[atributo] = 0.0  # Cero peso para otros atributos
+                
+                print(f"📋 Perfil por defecto dinámico creado: {pesos}")
+            else:
+                # Fallback si no hay rangos calculados
+                pesos = {'distancia': 1.0}
+                print("⚠️ Usando perfil por defecto básico (solo distancia)")
+            
             return {
                 'id': 0,
-                'pesos': {
-                    'distancia': 0.5,
-                    'seguridad': 0.3,
-                    'luminosidad': 0.2
-                    # inclinacion: Solo afecta velocidad, no decisión de ruta
-                }
+                'pesos': pesos
             }
         
         # Verificar que existe la columna PROBABILIDAD
@@ -698,14 +708,20 @@ class SimuladorCiclorutas:
         
         perfil_data = self.perfiles_df[self.perfiles_df['PERFILES'] == perfil_id].iloc[0]
         
+        # Cargar atributos dinámicamente - solo los que están en AMBOS (ARCOS y PERFILES)
+        pesos = {}
+        if hasattr(self, 'rangos_atributos'):
+            atributos_arcos = set(self.rangos_atributos.keys())
+            atributos_perfiles = set(self.perfiles_df.columns) - {'PERFILES', 'PROBABILIDAD'}
+            
+            for col_excel in atributos_arcos.intersection(atributos_perfiles):
+                if col_excel in perfil_data.index:
+                    clave_interna = col_excel.lower()
+                    pesos[clave_interna] = perfil_data[col_excel]
+        
         return {
             'id': int(perfil_id),
-            'pesos': {
-                'distancia': perfil_data['DISTANCIA'],
-                'seguridad': perfil_data['SEGURIDAD'],
-                'luminosidad': perfil_data['LUMINOSIDAD']
-                # inclinacion: Solo afecta velocidad, no decisión de ruta
-            }
+            'pesos': pesos
         }
     
     def _seleccionar_destino(self, nodo_origen: str) -> str:

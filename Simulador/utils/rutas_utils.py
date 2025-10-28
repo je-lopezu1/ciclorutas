@@ -85,29 +85,25 @@ class RutasUtils:
             else:
                 distancia_escalada = 5.5  # Valor medio por defecto
             
-            # Calcular peso compuesto con todos los atributos en escala 1-10
+            # Calcular peso compuesto con todos los atributos dinámicamente
             for atributo, peso_perfil in perfil.items():
-                if atributo == 'inclinacion':
-                    continue  # Excluir inclinación de la decisión de ruta
-                
-                if atributo == 'distancia':
-                    # Para distancia: mayor valor = peor (invertir)
-                    peso_compuesto += peso_perfil * (11 - distancia_escalada)  # Invertir: 10->1, 1->10
-                elif atributo in atributos:
+                # Procesar todos los atributos que están en el arco
+                if atributo in atributos:
                     valor = atributos[atributo]
-                    # Normalizar valor según rango (ya viene en escala 1-10)
+                    # Normalizar valor según rango
                     if atributo in rangos_atributos:
                         min_val, max_val = rangos_atributos[atributo]
                         if max_val > min_val:
-                            valor_normalizado = 1 + ((valor - min_val) / (max_val - min_val)) * 9  # Escala 1-10
+                            valor_normalizado = 1 + ((valor - min_val) / (max_val - min_val)) * 9  # Escala diagonal
                         else:
                             valor_normalizado = 5.5
                     else:
                         valor_normalizado = valor  # Asumir que ya está en escala 1-10
                     
-                    # Invertir para atributos positivos (mayor valor = menor peso)
-                    if atributo in ['seguridad', 'luminosidad']:
-                        valor_normalizado = 11 - valor_normalizado  # Invertir: 10->1, 1->10
+                    # Invertir para atributos donde mayor valor = peor
+                    # Detectados por nombre
+                    if atributo == 'distancia':
+                        valor_normalizado = 11 - valor_normalizado  # Invertir
                     
                     peso_compuesto += peso_perfil * valor_normalizado
             

@@ -18,13 +18,13 @@ class ArchivoUtils:
     # Configuración de hojas esperadas
     HOJAS_ESPERADAS = {
         'NODOS': ['NODO', 'ID', 'NOMBRE'],
-        'ARCOS': ['ORIGEN', 'DESTINO', 'DISTANCIA'],
-        'PERFILES': ['PERFILES', 'DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION'],
+        'ARCOS': ['ORIGEN', 'DESTINO', 'DISTANCIA', 'INCLINACION'],  # Obligatorias
+        'PERFILES': ['PERFILES', 'PROBABILIDAD'],  # PERFILES y PROBABILIDAD son obligatorias
         'RUTAS': ['NODO']  # Las demás columnas son nodos de destino
     }
     
-    # Atributos opcionales para arcos
-    ATRIBUTOS_OPCIONALES = ['SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION', 'PESO_COMPUESTO']
+    # Atributos obligatorios en ARCOS
+    ATRIBUTOS_OBLIGATORIOS_ARCOS = ['ORIGEN', 'DESTINO', 'DISTANCIA', 'INCLINACION']
     
     @staticmethod
     def seleccionar_archivo_excel() -> Optional[str]:
@@ -54,7 +54,7 @@ class ArchivoUtils:
             if hojas_faltantes:
                 return False, f"Faltan las hojas obligatorias: {', '.join(hojas_faltantes)}"
             
-            # Validar estructura de cada hoja
+            # Validar estructura de cada hoja obligatoria
             for hoja in hojas_obligatorias:
                 df = pd.read_excel(archivo, sheet_name=hoja, engine="openpyxl")
                 columnas_esperadas = ArchivoUtils.HOJAS_ESPERADAS[hoja]
@@ -63,6 +63,24 @@ class ArchivoUtils:
                 columnas_presentes = [col for col in columnas_esperadas if col in df.columns]
                 if not columnas_presentes:
                     return False, f"La hoja '{hoja}' no tiene las columnas esperadas: {', '.join(columnas_esperadas)}"
+            
+            # Validar hoja PERFILES si existe (debe tener PERFILES y PROBABILIDAD)
+            if "PERFILES" in hojas_disponibles:
+                df_perfiles = pd.read_excel(archivo, sheet_name="PERFILES", engine="openpyxl")
+                columnas_perfiles_obligatorias = ['PERFILES', 'PROBABILIDAD']
+                columnas_faltantes = [col for col in columnas_perfiles_obligatorias if col not in df_perfiles.columns]
+                
+                if columnas_faltantes:
+                    return False, f"La hoja PERFILES debe tener las columnas obligatorias: {', '.join(columnas_faltantes)}"
+                
+                # Validar que las probabilidades sumen 1.0
+                try:
+                    probabilidades = df_perfiles['PROBABILIDAD'].values
+                    suma_probabilidades = sum(probabilidades)
+                    if abs(suma_probabilidades - 1.0) > 0.01:
+                        return False, f"Las probabilidades en PERFILES suman {suma_probabilidades:.4f}, deben sumar 1.0"
+                except Exception:
+                    return False, "Error al validar probabilidades en PERFILES"
             
             return True, "Archivo válido"
             
@@ -105,12 +123,12 @@ class ArchivoUtils:
                 G.add_node(nodo)
                 print(f"✅ Nodo agregado: {nodo}")
             
-            # Verificar atributos disponibles en arcos
+            # Verificar atributos disponibles en arcos (dinámicamente)
             atributos_disponibles = ArchivoUtils._verificar_atributos_arcos(arcos_df)
-            print(f"📊 Atributos encontrados: {atributos_disponibles}")
+            print(f"📊 Atributos encontrados en ARCOS: {atributos_disponibles}")
             
-            # Preparar datos para cálculo dinámico de pesos
-            if len(atributos_disponibles) > 1:
+            # Preparar datos - calcular distancia real si hay DISTANCIA
+            if 'DISTANCIA' in atributos_disponibles:
                 arcos_df = ArchivoUtils._calcular_peso_compuesto(arcos_df, atributos_disponibles)
                 print("✅ Datos preparados para cálculo dinámico de pesos")
             
@@ -190,11 +208,17 @@ class ArchivoUtils:
     
     @staticmethod
     def _verificar_atributos_arcos(arcos_df: pd.DataFrame) -> List[str]:
-        """Verifica qué atributos están disponibles en los arcos"""
+        """Verifica qué atributos están disponibles dinámicamente en los arcos"""
+        # Obtener columnas obligatorias (ORIGEN y DESTINO)
+        col_origen, col_destino = ArchivoUtils._encontrar_columnas_arco(arcos_df)
+        
+        # Obtener TODOS los atributos excepto ORIGEN y DESTINO
         atributos_encontrados = []
-        for attr in ArchivoUtils.ATRIBUTOS_OPCIONALES:
-            if attr in arcos_df.columns:
-                atributos_encontrados.append(attr)
+        for col in arcos_df.columns:
+            if col not in [col_origen, col_destino]:
+                atributos_encontrados.append(col)
+        
+        print(f"📋 Atributos dinámicos detectados en ARCOS: {atributos_encontrados}")
         return atributos_encontrados
     
     @staticmethod

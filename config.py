@@ -124,8 +124,8 @@ EXCEL_CONFIG = {
     'hojas_opcionales': ['PERFILES', 'RUTAS'],
     'columnas_nodos': ['NODO', 'ID', 'NOMBRE'],
     'columnas_arcos': ['ORIGEN', 'DESTINO', 'DISTANCIA'],
-    'atributos_opcionales': ['SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION', 'PESO_COMPUESTO'],
-    'columnas_perfiles': ['PERFILES', 'DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION'],
+    'atributos_obligatorios_arcos': ['ORIGEN', 'DESTINO', 'DISTANCIA'],
+    'columnas_perfiles': ['PERFILES'],  # PERFILES es obligatoria, atributos son dinámicos
     'columnas_rutas': ['NODO']  # Las demás columnas son nodos de destino
 }
 

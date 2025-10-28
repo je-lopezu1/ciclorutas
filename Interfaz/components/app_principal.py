@@ -299,11 +299,11 @@ class InterfazSimulacion:
         return list(atributos_disponibles)
     
     def _obtener_atributos_perfiles_disponibles(self) -> List[str]:
-        """Obtiene la lista de atributos disponibles tanto en el grafo como en los perfiles"""
+        """Obtiene la lista de atributos disponibles tanto en el grafo como en los perfiles (dinámicamente)"""
         if not self.grafo_actual:
             return []
         
-        # Obtener atributos del grafo
+        # Obtener atributos del grafo (en minúsculas)
         atributos_grafo = set()
         for edge in self.grafo_actual.edges(data=True):
             for key in edge[2].keys():
@@ -313,17 +313,10 @@ class InterfazSimulacion:
         # Obtener atributos de perfiles si existen
         atributos_perfiles = set()
         if self.perfiles_df is not None:
-            # Mapeo de columnas Excel a claves internas
-            mapeo_columnas = {
-                'DISTANCIA': 'distancia',
-                'SEGURIDAD': 'seguridad',
-                'LUMINOSIDAD': 'luminosidad', 
-                'INCLINACION': 'inclinacion'
-            }
-            
-            for col_excel, clave_interna in mapeo_columnas.items():
-                if col_excel in self.perfiles_df.columns:
-                    atributos_perfiles.add(clave_interna)
+            # Obtener todas las columnas dinámicamente (excepto PERFILES y PROBABILIDAD)
+            for col_excel in self.perfiles_df.columns:
+                if col_excel not in ['PERFILES', 'PROBABILIDAD']:
+                    atributos_perfiles.add(col_excel.lower())
         
         # Retornar solo los atributos que están tanto en el grafo como en los perfiles
         atributos_comunes = atributos_grafo.intersection(atributos_perfiles)

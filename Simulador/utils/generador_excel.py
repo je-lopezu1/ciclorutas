@@ -191,18 +191,18 @@ class GeneradorExcel:
                     f"{tiempo_promedio:.1f}s"
                 ]
                 
-                # Agregar solo los atributos reales que existen y tienen valor
-                atributos_importantes = ['seguridad', 'luminosidad', 'inclinacion']
-                for attr in atributos_importantes:
-                    if attr in atributos_reales and attr in atributos:
-                        valor = atributos.get(attr)
-                        # Solo agregar si el valor no es None, vacío o 0
-                        if valor is not None and valor != '' and valor != 0:
-                            fila.append(valor)
+                # Agregar TODOS los atributos reales que existen dinámicamente
+                for attr in atributos_reales:
+                    if attr not in ['weight', 'distancia', 'distancia_real']:  # Excluir técnicos
+                        if attr in atributos:
+                            valor = atributos.get(attr)
+                            # Solo agregar si el valor no es None, vacío o 0
+                            if valor is not None and valor != '' and valor != 0:
+                                fila.append(valor)
+                            else:
+                                fila.append('N/A')
                         else:
                             fila.append('N/A')
-                    else:
-                        fila.append('N/A')
                 
                 datos_tramos.append(fila)
         
@@ -212,20 +212,25 @@ class GeneradorExcel:
             'Ciclistas que lo usaron', 'Porcentaje de uso', 'Tiempo promedio (s)'
         ]
         
-        # Solo agregar columnas de atributos que realmente existen en los datos
+        # Detectar y agregar columnas dinámicamente
         if simulador.usar_grafo_real and simulador.grafo and datos_tramos:
-            # Verificar qué atributos realmente tienen datos
-            atributos_con_datos = set()
-            for fila in datos_tramos:
-                # Las columnas de atributos empiezan después de las 7 columnas básicas
-                for i, attr in enumerate(['seguridad', 'luminosidad', 'inclinacion']):
-                    col_index = 7 + i  # 7 columnas básicas + índice del atributo
-                    if col_index < len(fila) and fila[col_index] != 'N/A':
-                        atributos_con_datos.add(attr)
-            
-            # Solo agregar columnas para atributos que tienen datos
-            for attr in ['seguridad', 'luminosidad', 'inclinacion']:
-                if attr in atributos_con_datos:
+            # Obtener nombres de atributos dinámicamente del grafo
+            if datos_tramos:
+                primera_fila = datos_tramos[0]  # Definir primera_fila
+                # Detectar cuántos atributos adicionales hay
+                num_atributos_adicionales = len(primera_fila) - 7  # 7 columnas básicas
+                # Usar los nombres reales de los atributos encontrados
+                atributos_encontrados = []
+                for edge_data in simulador.grafo.edges(data=True):
+                    for key in edge_data[2].keys():
+                        if key not in ['weight', 'distancia', 'distancia_real']:
+                            if key not in atributos_encontrados:
+                                atributos_encontrados.append(key)
+                    if len(atributos_encontrados) >= num_atributos_adicionales:
+                        break
+                
+                # Agregar columnas con nombres reales
+                for attr in atributos_encontrados[:num_atributos_adicionales]:
                     columnas.append(attr.title())
         
         df_tramos = pd.DataFrame(datos_tramos, columns=columnas)
