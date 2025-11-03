@@ -8,6 +8,7 @@ archivos Excel con datos de grafos de ciclorutas.
 import pandas as pd
 import networkx as nx
 import os
+import math
 from typing import Dict, List, Tuple, Optional, Any
 from tkinter import filedialog, messagebox
 
@@ -117,15 +118,75 @@ class ArchivoUtils:
             # Crear grafo NetworkX
             G = nx.Graph()
             
-            # Agregar nodos
+            # Verificar si hay coordenadas LAT/LON en la hoja NODOS
+            tiene_lat_lon = 'LAT' in nodos_df.columns and 'LON' in nodos_df.columns
+            coordenadas_nodos = {}
+            
+            # Agregar nodos y almacenar coordenadas si existen
             columna_nodos = ArchivoUtils._encontrar_columna_nodos(nodos_df)
-            for nodo in nodos_df[columna_nodos]:
+            for idx, fila in nodos_df.iterrows():
+                nodo = fila[columna_nodos]
                 G.add_node(nodo)
-                print(f"✅ Nodo agregado: {nodo}")
+                
+                # Guardar coordenadas si existen
+                if tiene_lat_lon:
+                    try:
+                        lat = float(fila['LAT'])
+                        lon = float(fila['LON'])
+                        coordenadas_nodos[nodo] = (lat, lon)
+                        G.nodes[nodo]['lat'] = lat
+                        G.nodes[nodo]['lon'] = lon
+                        print(f"✅ Nodo agregado: {nodo} (LAT: {lat:.6f}, LON: {lon:.6f})")
+                    except (ValueError, KeyError):
+                        print(f"✅ Nodo agregado: {nodo} (sin coordenadas válidas)")
+                else:
+                    print(f"✅ Nodo agregado: {nodo}")
+            
+            if tiene_lat_lon:
+                print(f"📍 Coordenadas LAT/LON detectadas en {len(coordenadas_nodos)} nodos")
             
             # Verificar atributos disponibles en arcos (dinámicamente)
             atributos_disponibles = ArchivoUtils._verificar_atributos_arcos(arcos_df)
             print(f"📊 Atributos encontrados en ARCOS: {atributos_disponibles}")
+            
+            # Si hay coordenadas LAT/LON, calcular distancias euclidianas e ignorar DISTANCIA de ARCOS
+            if tiene_lat_lon:
+                tiene_distancia_en_arcos = 'DISTANCIA' in atributos_disponibles
+                if tiene_distancia_en_arcos:
+                    print("⚠️ Se detectó columna DISTANCIA en ARCOS, pero será ignorada")
+                    print("📐 Usando coordenadas LAT/LON para calcular distancias euclidianas...")
+                    # Eliminar la columna DISTANCIA del DataFrame para que no se use
+                    if 'DISTANCIA' in arcos_df.columns:
+                        arcos_df = arcos_df.drop(columns=['DISTANCIA'])
+                        atributos_disponibles.remove('DISTANCIA')
+                else:
+                    print("📐 Calculando distancias euclidianas desde coordenadas LAT/LON...")
+                
+                # Calcular distancias euclidianas desde coordenadas
+                col_origen, col_destino = ArchivoUtils._encontrar_columnas_arco(arcos_df)
+                distancias_calculadas = []
+                
+                for _, fila in arcos_df.iterrows():
+                    origen = fila[col_origen]
+                    destino = fila[col_destino]
+                    
+                    if origen in coordenadas_nodos and destino in coordenadas_nodos:
+                        lat1, lon1 = coordenadas_nodos[origen]
+                        lat2, lon2 = coordenadas_nodos[destino]
+                        distancia = ArchivoUtils._calcular_distancia_euclidiana(lat1, lon1, lat2, lon2)
+                        distancias_calculadas.append(distancia)
+                    else:
+                        # Si faltan coordenadas para algún nodo, usar distancia por defecto
+                        distancias_calculadas.append(100.0)  # 100 metros por defecto
+                        print(f"⚠️ Nodo {origen if origen not in coordenadas_nodos else destino} sin coordenadas, usando distancia por defecto")
+                
+                # Reemplazar/Agregar columna DISTANCIA con valores calculados
+                arcos_df['DISTANCIA'] = distancias_calculadas
+                if 'DISTANCIA' not in atributos_disponibles:
+                    atributos_disponibles.append('DISTANCIA')
+                print(f"✅ Distancias euclidianas calculadas: {len(distancias_calculadas)} arcos")
+                print(f"   Rango: {min(distancias_calculadas):.1f} - {max(distancias_calculadas):.1f} metros")
+                print(f"   Promedio: {sum(distancias_calculadas)/len(distancias_calculadas):.1f} metros")
             
             # Preparar datos - calcular distancia real si hay DISTANCIA
             if 'DISTANCIA' in atributos_disponibles:
@@ -358,6 +419,49 @@ class ArchivoUtils:
         print(f"ℹ️ Los pesos compuestos se calcularán dinámicamente por perfil de usuario")
         
         return df_resultado
+    
+    @staticmethod
+    def _calcular_distancia_euclidiana(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calcula distancia entre dos coordenadas usando fórmula de Haversine
+        
+        Para coordenadas geográficas (LAT/LON en grados), usa la fórmula de Haversine
+        que calcula la distancia real en línea recta sobre la superficie de la Tierra.
+        Ideal para distancias urbanas dentro de una ciudad para simular desplazamientos en bicicleta.
+        
+        Para distancias cortas urbanas (< 10 km), la precisión de Haversine es óptima y proporciona
+        una buena aproximación de la distancia real entre nodos de ciclorutas.
+        
+        Args:
+            lat1, lon1: Coordenadas del punto origen (en grados decimales, ej: 4.6097, -74.0817)
+            lat2, lon2: Coordenadas del punto destino (en grados decimales)
+            
+        Returns:
+            Distancia en metros (distancia real en línea recta entre los puntos)
+        """
+        # Detectar si las coordenadas están en grados (valores pequeños) o metros (valores grandes)
+        if abs(lat1) < 1000 and abs(lat2) < 1000 and abs(lon1) < 1000 and abs(lon2) < 1000:
+            # Coordenadas geográficas en grados - usar FÓRMULA DE HAVERSINE
+            # Radio medio de la Tierra en metros (6371 km)
+            R = 6371000
+            
+            # Convertir grados a radianes
+            lat1_rad = math.radians(lat1)
+            lat2_rad = math.radians(lat2)
+            delta_lat = math.radians(lat2 - lat1)
+            delta_lon = math.radians(lon2 - lon1)
+            
+            # Fórmula de Haversine para distancia en esfera
+            # Calcula la distancia real en línea recta sobre la superficie terrestre
+            a = (math.sin(delta_lat / 2) ** 2 + 
+                 math.cos(lat1_rad) * math.cos(lat2_rad) * 
+                 math.sin(delta_lon / 2) ** 2)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            distancia = R * c
+        else:
+            # Coordenadas ya están en metros o UTM - usar euclidiana plana
+            distancia = math.sqrt((lat2 - lat1)**2 + (lon2 - lon1)**2)
+        
+        return distancia
     
     @staticmethod
     def _calcular_distancia_real(arcos_df: pd.DataFrame, atributos_disponibles: List[str]) -> pd.Series:

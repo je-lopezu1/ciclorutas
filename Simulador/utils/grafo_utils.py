@@ -7,6 +7,7 @@ en el contexto de la simulación de ciclorutas.
 
 import networkx as nx
 import numpy as np
+import math
 from typing import Dict, List, Tuple, Optional, Any
 import pandas as pd
 
@@ -237,6 +238,49 @@ class GrafoUtils:
         return peso
     
     @staticmethod
+    def _calcular_distancia_euclidiana(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calcula distancia entre dos coordenadas usando fórmula de Haversine
+        
+        Para coordenadas geográficas (LAT/LON en grados), usa la fórmula de Haversine
+        que calcula la distancia real en línea recta sobre la superficie de la Tierra.
+        Ideal para distancias urbanas dentro de una ciudad para simular desplazamientos en bicicleta.
+        
+        Para distancias cortas urbanas (< 10 km), la precisión de Haversine es óptima y proporciona
+        una buena aproximación de la distancia real entre nodos de ciclorutas.
+        
+        Args:
+            lat1, lon1: Coordenadas del punto origen (en grados decimales, ej: 4.6097, -74.0817)
+            lat2, lon2: Coordenadas del punto destino (en grados decimales)
+            
+        Returns:
+            Distancia en metros (distancia real en línea recta entre los puntos)
+        """
+        # Detectar si las coordenadas están en grados (valores pequeños) o metros (valores grandes)
+        if abs(lat1) < 1000 and abs(lat2) < 1000 and abs(lon1) < 1000 and abs(lon2) < 1000:
+            # Coordenadas geográficas en grados - usar FÓRMULA DE HAVERSINE
+            # Radio medio de la Tierra en metros (6371 km)
+            R = 6371000
+            
+            # Convertir grados a radianes
+            lat1_rad = math.radians(lat1)
+            lat2_rad = math.radians(lat2)
+            delta_lat = math.radians(lat2 - lat1)
+            delta_lon = math.radians(lon2 - lon1)
+            
+            # Fórmula de Haversine para distancia en esfera
+            # Calcula la distancia real en línea recta sobre la superficie terrestre
+            a = (math.sin(delta_lat / 2) ** 2 + 
+                 math.cos(lat1_rad) * math.cos(lat2_rad) * 
+                 math.sin(delta_lon / 2) ** 2)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            distancia = R * c
+        else:
+            # Coordenadas ya están en metros o UTM - usar euclidiana plana
+            distancia = math.sqrt((lat2 - lat1)**2 + (lon2 - lon1)**2)
+        
+        return distancia
+    
+    @staticmethod
     def crear_grafo_desde_excel(archivo_excel: str) -> Tuple[nx.Graph, Dict, Optional[pd.DataFrame], Optional[pd.DataFrame]]:
         """Crea un grafo NetworkX desde un archivo Excel"""
         # Leer datos del Excel
@@ -257,15 +301,63 @@ class GrafoUtils:
         # Crear grafo NetworkX
         G = nx.Graph()
         
-        # Agregar nodos
-        for nodo in nodos_df.iloc[:, 0]:
+        # Verificar si hay coordenadas LAT/LON en la hoja NODOS
+        tiene_lat_lon = 'LAT' in nodos_df.columns and 'LON' in nodos_df.columns
+        coordenadas_nodos = {}
+        
+        # Agregar nodos y almacenar coordenadas si existen
+        columna_nodos = nodos_df.columns[0]  # Primera columna es la de nodos
+        for idx, fila in nodos_df.iterrows():
+            nodo = fila[columna_nodos]
             G.add_node(nodo)
+            
+            # Guardar coordenadas si existen
+            if tiene_lat_lon:
+                try:
+                    lat = float(fila['LAT'])
+                    lon = float(fila['LON'])
+                    coordenadas_nodos[nodo] = (lat, lon)
+                    G.nodes[nodo]['lat'] = lat
+                    G.nodes[nodo]['lon'] = lon
+                except (ValueError, KeyError):
+                    pass
         
         # Verificar atributos disponibles en arcos
         atributos_disponibles = []
         for attr in ['DISTANCIA', 'SEGURIDAD', 'LUMINOSIDAD', 'INCLINACION']:
             if attr in arcos_df.columns:
                 atributos_disponibles.append(attr)
+        
+        # Si hay coordenadas LAT/LON, calcular distancias euclidianas e ignorar DISTANCIA de ARCOS
+        if tiene_lat_lon:
+            tiene_distancia_en_arcos = 'DISTANCIA' in atributos_disponibles
+            if tiene_distancia_en_arcos:
+                # Eliminar la columna DISTANCIA del DataFrame para que no se use
+                if 'DISTANCIA' in arcos_df.columns:
+                    arcos_df = arcos_df.drop(columns=['DISTANCIA'])
+                    atributos_disponibles.remove('DISTANCIA')
+            
+            # Calcular distancias euclidianas desde coordenadas
+            col_origen = arcos_df.columns[0]
+            col_destino = arcos_df.columns[1]
+            distancias_calculadas = []
+            
+            for _, fila in arcos_df.iterrows():
+                origen = fila[col_origen]
+                destino = fila[col_destino]
+                
+                if origen in coordenadas_nodos and destino in coordenadas_nodos:
+                    lat1, lon1 = coordenadas_nodos[origen]
+                    lat2, lon2 = coordenadas_nodos[destino]
+                    distancia = GrafoUtils._calcular_distancia_euclidiana(lat1, lon1, lat2, lon2)
+                    distancias_calculadas.append(distancia)
+                else:
+                    distancias_calculadas.append(100.0)  # Distancia por defecto
+            
+            # Reemplazar/Agregar columna DISTANCIA con valores calculados
+            arcos_df['DISTANCIA'] = distancias_calculadas
+            if 'DISTANCIA' not in atributos_disponibles:
+                atributos_disponibles.append('DISTANCIA')
         
         # Agregar arcos con todos los atributos
         for _, fila in arcos_df.iterrows():
