@@ -1,9 +1,144 @@
-# 🚴 Simulador de Ciclorutas v2.0
+# Simulador de Ciclorutas v2.0
 
 Sistema completo de simulación de redes de ciclorutas con interfaz gráfica modular y control avanzado.
 
-## 📋 Tabla de Contenidos
+## ¿Qué es esta Herramienta?
 
+El **Simulador de Ciclorutas** es una herramienta de simulación discreta desarrollada como parte de una investigación académica para **representar y analizar redes de desplazamiento de ciclistas en contextos urbanos**. Esta herramienta fue creada en el marco de una tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, con el objetivo de evaluar la aplicabilidad de modelos analíticos (redes de colas de Jackson) mediante comparación con enfoques de simulación basados en eventos discretos.
+
+La herramienta permite modelar, analizar y visualizar el comportamiento de ciclistas en redes urbanas de ciclorutas, considerando múltiples factores como:
+
+- **Redes de infraestructura**: Modelado de nodos (puntos de acceso) y arcos (tramos de cicloruta)
+- **Características físicas**: Distancia, inclinación, seguridad, luminosidad de los tramos
+- **Comportamiento de ciclistas**: Diferentes perfiles de preferencias y decisiones de ruta
+- **Distribuciones probabilísticas**: Modelado realista de arribos y patrones de movimiento
+- **Visualización en tiempo real**: Representación dinámica del movimiento de ciclistas
+
+### Contexto de Investigación
+
+Esta herramienta es el resultado de la investigación académica titulada **"Simulating Urban Bicycle Lanes with SimPy: Assessing the Applicability of Jackson Queueing Networks"** (Tesis de Pregrado en Ingeniería de Sistemas y Computación, Universidad de los Andes). El trabajo busca cerrar la brecha entre modelos analíticos matemáticamente elegantes (como las redes de Jackson basadas en teoría de colas) y métodos de simulación flexibles basados en eventos discretos.
+
+La investigación contribuye al campo de modelado de tráfico ciclista mediante:
+- **Comparación metodológica**: Validación de modelos analíticos contra simulaciones discretas
+- **Modelado de comportamiento heterogéneo**: Incorporación de perfiles de ciclistas con preferencias diversas
+- **Análisis de congestión**: Evaluación de dinámicas de tráfico en redes de ciclorutas urbanas
+- **Herramienta de código abierto**: Framework extensible para investigación y planificación urbana
+
+### Objetivos de la Herramienta
+
+- **Validación académica**: Comparar resultados de simulación con modelos analíticos de teoría de colas
+- **Análisis de redes de ciclorutas**: Evaluar la eficiencia y uso de infraestructura ciclista
+- **Investigación de comportamiento**: Estudiar patrones de desplazamiento y decisiones de ruta de ciclistas
+- **Simulación de escenarios**: Probar diferentes configuraciones de infraestructura y parámetros de demanda
+- **Planificación urbana**: Proporcionar datos cuantitativos para la toma de decisiones en diseño de ciclorutas
+
+## Documentación Disponible
+
+Este proyecto incluye documentación completa organizada en cuatro documentos especializados:
+
+### 1. **README_INSTALACION.md** - Guía de Instalación y Configuración
+
+Guía paso a paso para descargar, instalar y poner en funcionamiento la herramienta.
+
+**Contenido incluido**:
+- Requisitos del sistema (hardware y software)
+- Instrucciones de descarga del proyecto
+- Preparación del entorno (Python, entorno virtual)
+- Instalación de dependencias (métodos automático, manual y Conda)
+- Verificación de la instalación
+- Ejecución de la aplicación (múltiples métodos)
+- Primera configuración y pruebas básicas
+- Solución de problemas comunes con soluciones detalladas
+- Comandos de diagnóstico y debugging
+
+**Ideal para**: Usuarios nuevos que quieren comenzar a usar la herramienta rápidamente.
+
+### 2. **README_ARQUITECTURA.md** - Arquitectura y Diseño del Sistema
+
+Documentación técnica completa sobre la arquitectura, diseño y funcionamiento interno de todos los componentes.
+
+**Contenido incluido**:
+- Visión general y principios de diseño (separación de responsabilidades, modularidad, escalabilidad)
+- Estructura completa del proyecto y organización de directorios
+- Descripción detallada de cada componente:
+  - **Módulo Simulador**: Motor de simulación, modelos, distribuciones, utilidades
+  - **Módulo Interfaz**: Paneles, componentes, utilidades de archivos
+- Flujos de datos entre componentes (inicialización, carga de grafo, simulación, visualización)
+- **Carga de archivos Excel**: Formato requerido, validación, procesamiento, ejemplos
+- **Sistema de visualización**: Tecnologías, proceso de renderizado, actualización en tiempo real
+- **Generación de simulaciones**: Inicialización, generación de ciclistas, asignación de rutas
+- **Sistema de eventos y calendario**: Cómo se definen y gestionan los eventos
+- Patrones de diseño utilizados (MVC, Observer, Factory, Singleton, Pool)
+- Guía de extensibilidad para agregar nuevas funcionalidades
+
+**Ideal para**: Desarrolladores e investigadores que necesitan entender o modificar el código.
+
+### 3. **README_MODELO_SIMULACION.md** - Modelo de Simulación
+
+Documentación exclusiva y detallada sobre el modelo de simulación, sus entidades, eventos y mecánicas.
+
+**Contenido incluido**:
+- Visión general del modelo (simulación de eventos discretos con SimPy)
+- Tipo de simulación y comparación con otros enfoques
+- **Entidades del modelo**:
+  - Ciclista (atributos, estados, ciclo de vida)
+  - Nodo (puntos de acceso)
+  - Arco/Tramo (conexiones con atributos físicos)
+  - Perfil de Ciclista (preferencias y pesos)
+  - Red/Grafo (estructura completa)
+- **Eventos del modelo**: Clasificación, generación y procesamiento
+  - Eventos de arribo
+  - Eventos de movimiento
+  - Eventos de decisión
+  - Eventos de finalización
+- **Calendario de eventos**: Gestión, ordenamiento temporal, procesamiento
+- **Mecánica de decisión**: Algoritmos detallados para:
+  - Selección de nodo origen (basado en tasas de arribo)
+  - Selección de perfil de ciclista (basado en probabilidades)
+  - Selección de destino (usando matriz de probabilidades)
+  - Cálculo de ruta óptima (Dijkstra con pesos compuestos)
+  - Ajuste de velocidad por inclinación
+  - Factor de tiempo por seguridad/luminosidad
+- Gestión del tiempo (tiempos de simulación, arribo, movimiento, viaje)
+- Estado del sistema y transiciones
+- Flujo de ejecución paso a paso con ejemplos
+- Limitaciones y supuestos del modelo
+
+**Ideal para**: Investigadores que estudian el modelo de simulación, estudiantes de modelado, y personas que necesitan entender las decisiones y eventos del sistema.
+
+### 4. **README_MANUAL_USUARIO.md** - Manual de Usuario
+
+Guía práctica paso a paso para utilizar la herramienta desde la perspectiva del usuario final.
+
+**Contenido incluido**:
+- Preparación de archivos Excel: formato detallado de cada hoja (NODOS, ARCOS, PERFILES, RUTAS)
+- Requisitos y validaciones de cada columna
+- Inicio de la aplicación y navegación de la interfaz
+- Carga de redes de ciclorutas desde Excel
+- Configuración de parámetros (velocidades, duración)
+- Configuración de distribuciones de probabilidad por nodo
+- Control de simulación (botones, flujo de trabajo)
+- Interpretación de resultados y estadísticas
+- Exportación y análisis de datos
+- Ejemplos prácticos completos
+- Preguntas frecuentes y solución de problemas comunes
+
+**Ideal para**: Usuarios finales que necesitan preparar datos y utilizar la herramienta para análisis y planificación.
+
+### Cómo Usar Esta Documentación
+
+- **¿Eres nuevo?** → Comienza con `README_INSTALACION.md` para instalar y ejecutar la herramienta
+- **¿Quieres usar la herramienta?** → Consulta `README_MANUAL_USUARIO.md` para preparar archivos Excel y usar la interfaz
+- **¿Quieres entender el código?** → Consulta `README_ARQUITECTURA.md` para ver cómo funciona internamente
+- **¿Estudias el modelo de simulación?** → Revisa `README_MODELO_SIMULACION.md` para detalles del modelo matemático y lógico
+- **¿Necesitas referencia rápida?** → Este `README.md` proporciona un resumen y guía de inicio rápido
+
+---
+
+## Tabla de Contenidos
+
+- [¿Qué es esta Herramienta?](#qué-es-esta-herramienta)
+- [Documentación Disponible](#documentación-disponible)
 - [Características Principales](#-características-principales)
 - [Requisitos del Sistema](#-requisitos-del-sistema)
 - [Instalación](#-instalación)
@@ -14,19 +149,30 @@ Sistema completo de simulación de redes de ciclorutas con interfaz gráfica mod
 - [Arquitectura](#-arquitectura)
 - [Solución de Problemas](#-solución-de-problemas)
 - [Contribuciones](#-contribuciones)
+- [Documentación Adicional](#-documentación-adicional)
 
-## 🎯 Características Principales
+## Características Principales
 
-- **Simulación en tiempo real** de ciclistas en redes complejas de ciclorutas
-- **Interfaz gráfica modular** con componentes reutilizables y mantenibles
-- **Carga de grafos desde Excel** con soporte para múltiples atributos
-- **Sistema de distribuciones de probabilidad** para modelar arribos realistas
-- **Perfiles de ciclistas personalizables** con preferencias de ruta
-- **Visualización dinámica** con matplotlib mostrando movimiento en tiempo real
-- **Estadísticas detalladas** actualizadas en tiempo real
-- **Arquitectura escalable** con separación clara de responsabilidades
+### Simulación y Modelado
+- **Simulación de eventos discretos** usando SimPy para modelar ciclistas como entidades individuales
+- **Modelado de redes urbanas** mediante grafos no dirigidos (NetworkX) representando infraestructura ciclista
+- **Distribuciones probabilísticas configurables** (exponencial, Poisson, normal, log-normal, gamma, Weibull) para arribos por nodo
+- **Perfiles heterogéneos de ciclistas** con preferencias multi-atributo (distancia, seguridad, luminosidad, inclinación)
+- **Algoritmo de ruta óptima** basado en Dijkstra con pesos compuestos según preferencias del ciclista
 
-## 💻 Requisitos del Sistema
+### Interfaz y Visualización
+- **Interfaz gráfica modular** (Tkinter) con paneles de control, visualización, estadísticas y distribuciones
+- **Visualización en tiempo real** con matplotlib mostrando movimiento de ciclistas y trayectorias
+- **Carga de datos desde Excel** con validación automática de estructura y atributos
+- **Estadísticas detalladas** en tiempo real: ciclistas activos, velocidades, rutas utilizadas, utilización de segmentos
+
+### Arquitectura y Extensibilidad
+- **Arquitectura modular** con separación clara entre motor de simulación e interfaz gráfica
+- **Configuración centralizada** mediante archivos Excel y parámetros de usuario
+- **Sistema de cache inteligente** para optimización de rutas y gestión de memoria
+- **Diseño extensible** que permite agregar nuevos tipos de distribuciones, atributos y comportamientos
+
+## Requisitos del Sistema
 
 ### Requisitos Mínimos
 - **Python**: 3.7 o superior
@@ -44,7 +190,7 @@ Sistema completo de simulación de redes de ciclorutas con interfaz gráfica mod
 - `openpyxl` >= 3.0.0 - Manejo de archivos Excel
 - `tkinter` - Interfaz gráfica (incluida con Python)
 
-## 🚀 Instalación
+## Instalación
 
 ### 1. Clonar o Descargar el Proyecto
 
@@ -111,10 +257,10 @@ conda install simpy matplotlib numpy pandas networkx scipy openpyxl
 
 ```bash
 # Verificar que todas las dependencias estén instaladas
-python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('✅ Todas las dependencias están instaladas correctamente')"
+python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('Todas las dependencias están instaladas correctamente')"
 ```
 
-## ⚙️ Configuración
+## Configuración
 
 ### Configuración Básica
 
@@ -135,7 +281,7 @@ SIMULACION_DEFAULTS = {
 ```python
 # Configuración de la ventana principal
 APP_CONFIG = {
-    'titulo_ventana': '🚴 Simulador de Ciclorutas - Control Avanzado',
+    'titulo_ventana': 'Simulador de Ciclorutas - Control Avanzado',
     'tamaño_ventana': (1400, 900),
     'tamaño_minimo': (800, 600),
     'centrar_ventana': True,
@@ -143,7 +289,7 @@ APP_CONFIG = {
 }
 ```
 
-## ▶️ Ejecución
+## Ejecución
 
 ### Método 1: Ejecución Directa (Recomendada)
 
@@ -178,7 +324,7 @@ app = InterfazSimulacion(root)
 root.mainloop()
 ```
 
-## 🎮 Uso del Sistema
+## Uso del Sistema
 
 ### 1. Inicio del Sistema
 
@@ -218,7 +364,7 @@ Al ejecutar `python main.py`, se abrirá la interfaz gráfica con:
 - **ADELANTAR**: Adelantar 10 pasos
 - **REINICIAR**: Reiniciar la simulación actual
 
-## 📁 Formato de Archivos
+## Formato de Archivos
 
 ### Archivos Excel Soportados
 
@@ -258,7 +404,7 @@ El proyecto incluye archivos de ejemplo:
 - `Libro2.xlsx` - Red de ejemplo básica
 - `Libro2_actualizado.xlsx` - Red de ejemplo con atributos adicionales
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 ### Estructura del Proyecto
 
@@ -302,27 +448,27 @@ ciclorutas/
 
 ### Componentes Principales
 
-#### 🎮 Simulador (Paquete Simulador)
+#### Simulador (Paquete Simulador)
 - **`SimuladorCiclorutas`**: Motor principal de simulación con SimPy
 - **`ConfiguracionSimulacion`**: Gestión centralizada de configuración
 - **`Ciclista`**: Modelo optimizado de ciclista individual
 - **`PoolCiclistas`**: Sistema de reutilización de objetos para eficiencia
 - **`DistribucionNodo`**: Sistema de distribuciones de probabilidad por nodo
 
-#### 🖥️ Interfaz (Paquete Interfaz)
+#### Interfaz (Paquete Interfaz)
 - **`InterfazSimulacion`**: Aplicación principal de la interfaz
 - **`PanelControl`**: Control de parámetros y botones de simulación
 - **`PanelVisualizacion`**: Visualización en tiempo real con matplotlib
 - **`PanelEstadisticas`**: Estadísticas detalladas en tiempo real
 - **`PanelDistribuciones`**: Configuración de distribuciones y perfiles
 
-## 🐛 Solución de Problemas
+## Solución de Problemas
 
 ### Problemas Comunes y Soluciones
 
 #### 1. Error de Dependencias
 ```
-❌ ERROR: Faltan las siguientes dependencias: simpy
+ERROR: Faltan las siguientes dependencias: simpy
 ```
 
 **Solución:**
@@ -332,7 +478,7 @@ pip install simpy matplotlib numpy pandas networkx scipy openpyxl
 
 #### 2. Ventana no se Abre
 ```
-❌ ERROR: No se pudo importar la interfaz
+ERROR: No se pudo importar la interfaz
 ```
 
 **Soluciones:**
@@ -348,7 +494,7 @@ pip install simpy matplotlib numpy pandas networkx scipy openpyxl
 
 #### 4. Error de Carga de Archivo Excel
 ```
-❌ ERROR: No se pudo cargar el archivo
+ERROR: No se pudo cargar el archivo
 ```
 
 **Soluciones:**
@@ -372,7 +518,7 @@ python --version
 pip list
 
 # Verificar importaciones
-python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('✅ OK')"
+python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('OK')"
 
 # Ejecutar en modo verbose
 python -v main.py
@@ -394,7 +540,7 @@ LOGGING_CONFIG = {
 }
 ```
 
-## 📊 Estadísticas y Métricas
+## Estadísticas y Métricas
 
 ### Estadísticas en Tiempo Real
 
@@ -423,7 +569,7 @@ El sistema proporciona las siguientes estadísticas:
 - **Ruta Más Usada**: Ruta con mayor frecuencia de uso
 - **Nodo Más Activo**: Nodo que genera más ciclistas
 
-## 🔧 Configuración Avanzada
+## Configuración Avanzada
 
 ### Personalización de Distribuciones
 
@@ -465,7 +611,7 @@ RENDIMIENTO_CONFIG = {
 }
 ```
 
-## 🤝 Contribuciones
+## Contribuciones
 
 Este es un proyecto de simulación académica. Las contribuciones son bienvenidas para:
 
@@ -493,17 +639,25 @@ Este es un proyecto de simulación académica. Las contribuciones son bienvenida
 - Incluir **tests** para nuevas funcionalidades
 - Actualizar **documentación** cuando sea necesario
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo licencia MIT. Ver el archivo LICENSE para más detalles.
 
-## 👨‍💻 Autor
+## Autores y Contexto
 
-**Sistema de Simulación de Ciclorutas** - Proyecto Académico v2.0
+**Desarrollado por:**
+- Jerónimo Vargas Rendón (202113305)
+- Juan Esteban López Ulloa (202021417)
+
+**Universidad de los Andes**  
+**Departamento de Ingeniería de Sistemas y Computación**  
+**Tesis de Pregrado: "Simulating Urban Bicycle Lanes with SimPy: Assessing the Applicability of Jackson Queueing Networks"**
+
+Este proyecto es parte de una investigación académica que busca evaluar la aplicabilidad de modelos analíticos de teoría de colas (redes de Jackson) mediante comparación con simulaciones de eventos discretos. La herramienta está diseñada para ser extensible y servir como base para futuras investigaciones en modelado de tráfico ciclista urbano.
 
 ---
 
-## 🚀 Comandos Rápidos de Instalación
+## Comandos Rápidos de Instalación
 
 ### Instalación Completa en una Línea
 
@@ -516,7 +670,7 @@ git clone <url> && cd ciclorutas && pip install -r requirements.txt && python ma
 
 ```bash
 # Verificar que todo esté funcionando
-python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('✅ Sistema listo para usar')"
+python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('Sistema listo para usar')"
 ```
 
 ### Ejecución con Logs
@@ -528,6 +682,17 @@ python -u main.py 2>&1 | tee simulador.log
 
 ---
 
-**¡Disfruta simulando redes de ciclorutas! 🚴‍♂️🚴‍♀️**
+**Disfruta simulando redes de ciclorutas**
 
-Para más información detallada sobre la arquitectura del sistema, consulta el archivo `ARQUITECTURA.md`.
+---
+
+## Documentación Adicional
+
+Este README proporciona una visión general del sistema. Para información más detallada, consulta:
+
+- **[README_INSTALACION.md](README_INSTALACION.md)** - Guía completa de instalación, configuración y primeros pasos
+- **[README_MANUAL_USUARIO.md](README_MANUAL_USUARIO.md)** - Manual de usuario con formato de Excel y guía de uso de la interfaz
+- **[README_ARQUITECTURA.md](README_ARQUITECTURA.md)** - Documentación técnica de arquitectura, componentes y diseño
+- **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)** - Documentación detallada del modelo de simulación, entidades, eventos y decisiones
+
+Cada documento está diseñado para diferentes niveles de profundidad según tus necesidades.
