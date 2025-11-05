@@ -143,7 +143,18 @@ class ArchivoUtils:
                     print(f"✅ Nodo agregado: {nodo}")
             
             if tiene_lat_lon:
-                print(f"📍 Coordenadas LAT/LON detectadas en {len(coordenadas_nodos)} nodos")
+                total_nodos = len(G.nodes())
+                nodos_con_coords = len(coordenadas_nodos)
+                print(f"📍 Coordenadas LAT/LON detectadas en {nodos_con_coords} nodos de {total_nodos} totales")
+                
+                if nodos_con_coords < total_nodos:
+                    nodos_sin_coords = [n for n in G.nodes() if n not in coordenadas_nodos]
+                    print(f"⚠️ ADVERTENCIA: No todos los nodos tienen coordenadas geográficas")
+                    print(f"   • Faltan coordenadas para {len(nodos_sin_coords)} nodos")
+                    print(f"   • Para usar organización geográfica, TODOS los nodos deben tener valores LAT y LON")
+                    print(f"   • Se usará layout automático para la visualización")
+                else:
+                    print(f"✅ Todos los nodos tienen coordenadas geográficas - se usará organización espacial")
             
             # Verificar atributos disponibles en arcos (dinámicamente)
             atributos_disponibles = ArchivoUtils._verificar_atributos_arcos(arcos_df)
@@ -229,8 +240,9 @@ class ArchivoUtils:
             if len(G.nodes()) < 3:
                 return None, None, None, None, "El grafo debe tener al menos 3 nodos para la simulación"
             
-            # Calcular posiciones del grafo
-            pos = nx.spring_layout(G, seed=42, k=2, iterations=50)
+            # Calcular posiciones del grafo usando coordenadas si están disponibles
+            from Simulador.utils.grafo_utils import GrafoUtils
+            pos = GrafoUtils.calcular_posiciones_grafo(G, seed=42)
             
             return G, pos, perfiles_df, rutas_df, "Archivo cargado exitosamente"
             

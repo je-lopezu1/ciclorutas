@@ -217,8 +217,19 @@ class PanelVisualizacion:
             titulo += f" | [ARCHIVO] {nombre_archivo}"
         
         self.ax.set_title(titulo, fontsize=14, fontweight='bold', color='#212529', pad=15)
-        self.ax.set_xlabel("Coordenada X", fontsize=12, fontweight='bold', color='#495057')
-        self.ax.set_ylabel("Coordenada Y", fontsize=12, fontweight='bold', color='#495057')
+        
+        # Detectar si se están usando coordenadas geográficas (requiere TODOS los nodos)
+        tiene_coordenadas_geograficas = False
+        if grafo:
+            nodos_con_coords = sum(1 for n in grafo.nodes() if 'lat' in grafo.nodes[n] and 'lon' in grafo.nodes[n])
+            tiene_coordenadas_geograficas = nodos_con_coords == len(grafo.nodes())
+        
+        if tiene_coordenadas_geograficas:
+            self.ax.set_xlabel("Este-Oeste (metros)", fontsize=12, fontweight='bold', color='#495057')
+            self.ax.set_ylabel("Norte-Sur (metros)", fontsize=12, fontweight='bold', color='#495057')
+        else:
+            self.ax.set_xlabel("Coordenada X", fontsize=12, fontweight='bold', color='#495057')
+            self.ax.set_ylabel("Coordenada Y", fontsize=12, fontweight='bold', color='#495057')
         
         # Configurar ejes elegantes
         self.ax.spines['top'].set_visible(False)

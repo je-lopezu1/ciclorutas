@@ -35,8 +35,120 @@ class GrafoUtils:
     
     @staticmethod
     def calcular_posiciones_grafo(grafo: nx.Graph, seed: int = 42) -> Dict:
-        """Calcula posiciones para visualización del grafo"""
-        return nx.spring_layout(grafo, seed=seed, k=2, iterations=50)
+        """Calcula posiciones para visualización del grafo
+        
+        Si el grafo tiene coordenadas LAT/LON en los nodos, las usa directamente
+        para organizar espacialmente los nodos respetando su ubicación geográfica.
+        Si no hay coordenadas, usa un layout automático (spring_layout).
+        
+        Args:
+            grafo: Grafo NetworkX con posibles atributos 'lat' y 'lon' en los nodos
+            seed: Semilla para layouts aleatorios (solo si no hay coordenadas)
+            
+        Returns:
+            Diccionario con posiciones (x, y) para cada nodo
+        """
+        # Verificar si hay coordenadas geográficas en los nodos
+        nodos_con_coordenadas = []
+        nodos_sin_coordenadas = []
+        lats = []
+        lons = []
+        
+        for nodo in grafo.nodes():
+            if 'lat' in grafo.nodes[nodo] and 'lon' in grafo.nodes[nodo]:
+                try:
+                    lat = float(grafo.nodes[nodo]['lat'])
+                    lon = float(grafo.nodes[nodo]['lon'])
+                    nodos_con_coordenadas.append(nodo)
+                    lats.append(lat)
+                    lons.append(lon)
+                except (ValueError, TypeError):
+                    nodos_sin_coordenadas.append(nodo)
+            else:
+                nodos_sin_coordenadas.append(nodo)
+        
+        # Requerir que TODOS los nodos tengan coordenadas para usar organización geográfica
+        if len(nodos_con_coordenadas) == len(grafo.nodes()):
+            print(f"📍 Usando coordenadas geográficas para TODOS los nodos ({len(nodos_con_coordenadas)} nodos)")
+            
+            # Calcular rangos de coordenadas
+            min_lat, max_lat = min(lats), max(lats)
+            min_lon, max_lon = min(lons), max(lons)
+            
+            # Determinar si son coordenadas geográficas (grados) o UTM/metros
+            es_geografico = (abs(min_lat) < 1000 and abs(max_lat) < 1000 and 
+                           abs(min_lon) < 1000 and abs(max_lon) < 1000)
+            
+            pos = {}
+            for nodo in grafo.nodes():
+                # Todos los nodos tienen coordenadas (ya validado arriba)
+                lat = float(grafo.nodes[nodo]['lat'])
+                lon = float(grafo.nodes[nodo]['lon'])
+                
+                if es_geografico:
+                    # Coordenadas geográficas: mapear al espacio de visualización
+                    # RESPETANDO ORIENTACIÓN ESPACIAL REAL:
+                    # - LAT (latitud) → Y (eje vertical) → Norte-Sur
+                    #   * Valores mayores de LAT = más al norte = más arriba en pantalla
+                    #   * Valores menores de LAT = más al sur = más abajo en pantalla
+                    # - LON (longitud) → X (eje horizontal) → Este-Oeste  
+                    #   * Valores mayores de LON = más al este = más a la derecha en pantalla
+                    #   * Valores menores de LON = más al oeste = más a la izquierda en pantalla
+                    # Esto garantiza que los nodos y arcos respeten las direcciones geográficas reales
+                    
+                    # Calcular rangos
+                    rango_lat = max_lat - min_lat if max_lat - min_lat > 0 else 1.0
+                    rango_lon = max_lon - min_lon if max_lon - min_lon > 0 else 1.0
+                    
+                    # Convertir coordenadas geográficas a metros (aproximación)
+                    # 1 grado de latitud ≈ 111,000 metros (constante en todo el mundo)
+                    # 1 grado de longitud ≈ 111,000 * cos(latitud_promedio) metros (varía con latitud)
+                    lat_promedio = (min_lat + max_lat) / 2.0
+                    metros_por_grado_lat = 111000.0
+                    metros_por_grado_lon = 111000.0 * abs(math.cos(math.radians(lat_promedio)))
+                    
+                    # Convertir a metros relativos al punto mínimo (suroeste)
+                    # Esto mantiene las proporciones espaciales reales
+                    x_metros = (lon - min_lon) * metros_por_grado_lon  # Este-Oeste: mayor LON = mayor X
+                    y_metros = (lat - min_lat) * metros_por_grado_lat  # Norte-Sur: mayor LAT = mayor Y
+                    
+                    # Usar las coordenadas en metros directamente
+                    # El punto (0,0) corresponde al nodo más al sur y más al oeste
+                    # Los arcos se dibujarán como líneas rectas respetando estas posiciones espaciales
+                    x = x_metros
+                    y = y_metros
+                    
+                else:
+                    # Coordenadas ya en metros/UTM: usar directamente
+                    x = lon
+                    y = lat
+                
+                pos[nodo] = (x, y)
+            
+            print(f"   Rango LAT: {min_lat:.6f} a {max_lat:.6f}")
+            print(f"   Rango LON: {min_lon:.6f} a {max_lon:.6f}")
+            print(f"   ✓ Organización espacial: respetando ubicación geográfica")
+            print(f"   ✓ Orientación: Norte↑ Sur↓ Este→ Oeste←")
+            print(f"   ✓ Los arcos respetan las direcciones geográficas reales")
+            
+            return pos
+        else:
+            # No todos los nodos tienen coordenadas: usar layout automático y advertir
+            total_nodos = len(grafo.nodes())
+            nodos_con_coords = len(nodos_con_coordenadas)
+            nodos_faltantes = len(nodos_sin_coordenadas)
+            
+            print(f"⚠️ ADVERTENCIA: No todos los nodos tienen coordenadas geográficas")
+            print(f"   • Nodos con coordenadas: {nodos_con_coords}/{total_nodos}")
+            print(f"   • Nodos sin coordenadas: {nodos_faltantes}")
+            if nodos_sin_coordenadas:
+                print(f"   • Nodos faltantes: {', '.join(map(str, nodos_sin_coordenadas[:10]))}")
+                if len(nodos_sin_coordenadas) > 10:
+                    print(f"     ... y {len(nodos_sin_coordenadas) - 10} más")
+            print(f"   • Usando layout automático (spring_layout)")
+            print(f"   💡 Para usar organización geográfica, TODOS los nodos deben tener columnas LAT y LON")
+            
+            return nx.spring_layout(grafo, seed=seed, k=2, iterations=50)
     
     @staticmethod
     def obtener_coordenada_nodo(pos_grafo: Dict, nodo_id: str) -> Tuple[float, float]:
