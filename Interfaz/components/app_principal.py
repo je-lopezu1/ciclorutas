@@ -127,6 +127,10 @@ class InterfazSimulacion:
         self.panel_estadisticas = PanelEstadisticas(self.paned_vertical, callbacks)
         if self.panel_estadisticas_visible:
             self.paned_vertical.add(self.panel_estadisticas.frame_principal, weight=1)  # Panel de estadísticas más pequeño inicialmente
+        
+        # Establecer referencia al simulador en el panel de estadísticas
+        self.panel_estadisticas.establecer_simulador(self.simulador)
+        
     
     def _crear_barra_herramientas(self, parent):
         """Crea la barra de herramientas superior con controles de paneles"""
@@ -527,7 +531,16 @@ class InterfazSimulacion:
                 else:
                     mensaje += "⚠️ No se pudo generar el archivo Excel"
                 
+                # Mostrar modal primero
                 messagebox.showinfo("Simulación Terminada", mensaje)
+                
+                # Después de aceptar el modal, abrir ventana del gráfico
+                try:
+                    if hasattr(self.simulador, 'eventos_arcos') and self.simulador.eventos_arcos:
+                        from ..panels.ventana_grafico_ocupacion import VentanaGraficoOcupacion
+                        VentanaGraficoOcupacion(self.root, self.simulador)
+                except Exception as e:
+                    print(f"⚠️ No se pudo abrir la ventana del gráfico: {e}")
             except tk.TclError:
                 pass
     
@@ -558,7 +571,16 @@ class InterfazSimulacion:
             else:
                 mensaje += "⚠️ No se pudo generar el archivo Excel"
             
+            # Mostrar modal primero
             messagebox.showinfo("Simulación Completada", mensaje)
+            
+            # Después de aceptar el modal, abrir ventana del gráfico
+            try:
+                if hasattr(self.simulador, 'eventos_arcos') and self.simulador.eventos_arcos:
+                    from ..panels.ventana_grafico_ocupacion import VentanaGraficoOcupacion
+                    VentanaGraficoOcupacion(self.root, self.simulador)
+            except Exception as e:
+                print(f"⚠️ No se pudo abrir la ventana del gráfico: {e}")
         except tk.TclError:
             pass
     

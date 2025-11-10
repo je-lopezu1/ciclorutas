@@ -58,6 +58,10 @@ class SimuladorCiclorutas:
         self.arcos_utilizados = {}  # Dict[arco_str, contador] para contar uso de arcos
         self.arcos_por_ciclista = {}  # Dict[ciclista_id, lista_arcos] para rastrear arcos por ciclista
         
+        # Sistema de rastreo de ocupación de arcos en el tiempo
+        self.ocupacion_arcos_tiempo = {}  # Dict[arco_str, List[Tuple[tiempo, ocupacion]]] para rastrear ocupación
+        self.eventos_arcos = []  # List[Tuple[tiempo, arco_str, tipo_evento, ciclista_id]] donde tipo_evento es 'entrada' o 'salida'
+        
         # Sistema de rastreo de estado de ciclistas
         self.estado_ciclistas = {}  # Dict[ciclista_id, estado] para rastrear si están activos o completados
         self.ciclistas_por_nodo = {}  # Dict[nodo_origen, contador] para contar ciclistas por nodo de origen
@@ -344,6 +348,21 @@ class SimuladorCiclorutas:
         # Limpiar contadores de perfiles
         self.contador_perfiles = {}
         self.perfiles_ciclistas = {}
+        
+        # Limpiar datos de rastreo de arcos
+        self.rutas_utilizadas = {}
+        self.rutas_por_ciclista = {}
+        self.arcos_utilizados = {}
+        self.arcos_por_ciclista = {}
+        self.ocupacion_arcos_tiempo = {}
+        self.eventos_arcos = []
+        
+        # Limpiar datos de estado de ciclistas
+        self.estado_ciclistas = {}
+        self.ciclistas_por_nodo = {}
+        self.tiempos_por_ciclista = {}
+        self.tiempos_por_tramo = {}
+        self.tiempo_inicio_viaje = {}
         
         # Crear entorno SimPy
         self.env = simpy.Environment()
@@ -804,6 +823,9 @@ class SimuladorCiclorutas:
             nodo_actual = nodos_ruta[i]
             nodo_siguiente = nodos_ruta[i + 1]
             
+            # Crear identificador del arco
+            arco_str = f"{nodo_actual}->{nodo_siguiente}"
+            
             # Obtener coordenadas de los nodos
             pos_actual = GrafoUtils.obtener_coordenada_nodo(self.pos_grafo, nodo_actual)
             pos_siguiente = GrafoUtils.obtener_coordenada_nodo(self.pos_grafo, nodo_siguiente)
@@ -820,7 +842,7 @@ class SimuladorCiclorutas:
             self.velocidades[id] = velocidad_ajustada
             
             # Movimiento interpolado suave entre nodos con velocidad ajustada y factor de tiempo
-            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad_ajustada, id, factor_tiempo)
+            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad_ajustada, id, factor_tiempo, arco_str)
         
         # Marcar ciclista como completado cuando termine su ruta
         self.estado_ciclistas[id] = 'completado'
@@ -835,7 +857,7 @@ class SimuladorCiclorutas:
     
     def _interpolar_movimiento(self, origen: Tuple[float, float], destino: Tuple[float, float], 
                              distancia: float, velocidad: float, ciclista_id: int, 
-                             factor_tiempo: float = 1.0):
+                             factor_tiempo: float = 1.0, arco_str: str = None):
         """Interpola el movimiento suave entre dos puntos del grafo
         
         Args:
@@ -845,6 +867,7 @@ class SimuladorCiclorutas:
             velocidad: Velocidad ajustada del ciclista
             ciclista_id: ID del ciclista
             factor_tiempo: Factor multiplicador para el tiempo (seguridad + iluminación)
+            arco_str: Identificador del arco (formato: "nodo_origen->nodo_destino")
         """
         if distancia <= 0 or velocidad <= 0:
             return
@@ -855,6 +878,11 @@ class SimuladorCiclorutas:
         
         # Rastrear tiempo de inicio del tramo
         tiempo_inicio_tramo = self.env.now
+        
+        # Registrar entrada al arco si se proporciona el identificador
+        if arco_str:
+            tiempo_entrada = self.env.now
+            self.eventos_arcos.append((tiempo_entrada, arco_str, 'entrada', ciclista_id))
         
         # Inicializar tiempo de viaje si es el primer tramo
         if ciclista_id not in self.tiempo_inicio_viaje:
@@ -884,6 +912,11 @@ class SimuladorCiclorutas:
         tiempo_fin_tramo = self.env.now
         tiempo_real_tramo = tiempo_fin_tramo - tiempo_inicio_tramo
         self.tiempos_por_tramo[ciclista_id].append(tiempo_real_tramo)
+        
+        # Registrar salida del arco si se proporciona el identificador
+        if arco_str:
+            tiempo_salida = self.env.now
+            self.eventos_arcos.append((tiempo_salida, arco_str, 'salida', ciclista_id))
     
     def ejecutar_paso(self):
         """Ejecuta un paso de la simulación"""
@@ -1043,3 +1076,104 @@ class SimuladorCiclorutas:
     def generar_resultados_manual(self) -> str:
         """Método público para generar resultados Excel manualmente"""
         return self._generar_resultados_excel()
+    
+    def calcular_ocupacion_arcos_tiempo(self, intervalo: float = 1.0) -> Dict[str, List[Tuple[float, int]]]:
+        """
+        Calcula la ocupación de arcos a lo largo del tiempo basado en eventos de entrada/salida.
+        
+        Args:
+            intervalo: Intervalo de tiempo para muestrear la ocupación (en segundos)
+        
+        Returns:
+            Dict[arco_str, List[Tuple[tiempo, ocupacion]]] con la ocupación a lo largo del tiempo
+        """
+        if not self.eventos_arcos:
+            return {}
+        
+        # Obtener tiempo máximo de la simulación
+        tiempo_max = max(evento[0] for evento in self.eventos_arcos) if self.eventos_arcos else self.tiempo_actual
+        
+        # Crear puntos de tiempo para muestrear
+        tiempos_muestra = np.arange(0, tiempo_max + intervalo, intervalo)
+        
+        # Inicializar ocupación para cada arco
+        ocupacion_por_arco = {}
+        
+        # Procesar eventos para cada arco
+        arcos_unicos = set(evento[1] for evento in self.eventos_arcos)
+        
+        for arco_str in arcos_unicos:
+            # Filtrar eventos de este arco
+            eventos_arco = [(t, tipo, ciclista_id) for t, a, tipo, ciclista_id in self.eventos_arcos if a == arco_str]
+            eventos_arco.sort(key=lambda x: x[0])  # Ordenar por tiempo
+            
+            # Calcular ocupación en cada punto de tiempo
+            ocupacion_tiempo = []
+            ocupacion_actual = 0
+            
+            # Diccionario para rastrear ciclistas activos en el arco
+            ciclistas_en_arco = set()
+            
+            evento_idx = 0
+            for tiempo_muestra in tiempos_muestra:
+                # Procesar eventos hasta este tiempo
+                while evento_idx < len(eventos_arco) and eventos_arco[evento_idx][0] <= tiempo_muestra:
+                    tiempo_evento, tipo_evento, ciclista_id = eventos_arco[evento_idx]
+                    
+                    if tipo_evento == 'entrada':
+                        ciclistas_en_arco.add(ciclista_id)
+                    elif tipo_evento == 'salida':
+                        ciclistas_en_arco.discard(ciclista_id)
+                    
+                    evento_idx += 1
+                
+                # La ocupación actual es el número de ciclistas en el arco
+                ocupacion_actual = len(ciclistas_en_arco)
+                ocupacion_tiempo.append((tiempo_muestra, ocupacion_actual))
+            
+            ocupacion_por_arco[arco_str] = ocupacion_tiempo
+        
+        return ocupacion_por_arco
+    
+    def obtener_top_5_arcos_concurridos(self) -> List[Dict[str, Any]]:
+        """
+        Obtiene el Top 5 de arcos más concurridos con sus datos de ocupación a lo largo del tiempo.
+        
+        Returns:
+            Lista de diccionarios con información de cada arco:
+            [{
+                'arco': str,
+                'total_uso': int,
+                'ocupacion_tiempo': List[Tuple[tiempo, ocupacion]],
+                'ocupacion_maxima': int,
+                'ocupacion_promedio': float
+            }, ...]
+        """
+        # Calcular ocupación a lo largo del tiempo
+        ocupacion_tiempo = self.calcular_ocupacion_arcos_tiempo()
+        
+        # Obtener total de uso de cada arco
+        arcos_con_datos = []
+        
+        for arco_str, ocupacion_lista in ocupacion_tiempo.items():
+            total_uso = self.arcos_utilizados.get(arco_str, 0)
+            
+            if total_uso > 0 and ocupacion_lista:
+                # Calcular estadísticas de ocupación
+                ocupaciones = [oc for _, oc in ocupacion_lista]
+                ocupacion_maxima = max(ocupaciones) if ocupaciones else 0
+                ocupacion_promedio = np.mean(ocupaciones) if ocupaciones else 0.0
+                
+                arcos_con_datos.append({
+                    'arco': arco_str,
+                    'total_uso': total_uso,
+                    'ocupacion_tiempo': ocupacion_lista,
+                    'ocupacion_maxima': ocupacion_maxima,
+                    'ocupacion_promedio': ocupacion_promedio
+                })
+        
+        # Ordenar por total de uso (más concurridos primero)
+        arcos_con_datos.sort(key=lambda x: x['total_uso'], reverse=True)
+        
+        # Retornar Top 5 (o menos si hay menos de 5)
+        return arcos_con_datos[:5]

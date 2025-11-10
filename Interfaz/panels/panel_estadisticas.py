@@ -27,6 +27,13 @@ class PanelEstadisticas:
         self.scrollbar = None
         self.scrollable_frame = None
         
+        # Referencia al simulador para verificar datos del gráfico
+        self.simulador_ref = None
+        
+        # Botón para abrir gráfico
+        self.btn_ver_grafico = None
+        self.frame_boton_grafico = None
+        
         # Crear el panel
         self.crear_panel()
     
@@ -129,29 +136,96 @@ class PanelEstadisticas:
         self.scrollable_frame.bind("<Enter>", _on_enter)
         self.scrollable_frame.bind("<Leave>", _on_leave)
     
+    def _crear_boton_grafico(self):
+        """Crea el botón para ver el gráfico de ocupación (solo visible cuando hay datos)"""
+        # Frame para el botón
+        self.frame_boton_grafico = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        self.frame_boton_grafico.grid(row=0, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(5, 10))
+        
+        # Botón para ver gráfico (inicialmente oculto)
+        self.btn_ver_grafico = ttk.Button(
+            self.frame_boton_grafico,
+            text="📊 Ver Gráfico de Ocupación - Top 5 Rutas",
+            command=self._abrir_ventana_grafico,
+            style='Accent.TButton'
+        )
+        self.btn_ver_grafico.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Ocultar inicialmente
+        self.frame_boton_grafico.grid_remove()
+    
+    def _abrir_ventana_grafico(self):
+        """Abre la ventana del gráfico de ocupación"""
+        if not self.simulador_ref:
+            from tkinter import messagebox
+            messagebox.showwarning("Advertencia", "No hay datos de simulación disponibles.")
+            return
+        
+        try:
+            # Verificar que haya eventos de arcos registrados
+            if not hasattr(self.simulador_ref, 'eventos_arcos') or not self.simulador_ref.eventos_arcos:
+                from tkinter import messagebox
+                messagebox.showinfo("Información", 
+                    "No hay suficientes datos de arcos para generar el gráfico.")
+                return
+            
+            # Importar y abrir la ventana
+            from ..panels.ventana_grafico_ocupacion import VentanaGraficoOcupacion
+            VentanaGraficoOcupacion(self.parent.winfo_toplevel(), self.simulador_ref)
+        except Exception as e:
+            from tkinter import messagebox
+            messagebox.showerror("Error", f"Error al abrir el gráfico: {str(e)}")
+            print(f"❌ Error abriendo ventana del gráfico: {e}")
+    
+    def _actualizar_visibilidad_boton_grafico(self):
+        """Actualiza la visibilidad del botón según si hay datos disponibles"""
+        if not self.frame_boton_grafico or not self.btn_ver_grafico:
+            return
+        
+        # Verificar si hay datos disponibles
+        tiene_datos = (
+            self.simulador_ref and 
+            hasattr(self.simulador_ref, 'eventos_arcos') and 
+            self.simulador_ref.eventos_arcos
+        )
+        
+        if tiene_datos:
+            self.frame_boton_grafico.grid()
+        else:
+            self.frame_boton_grafico.grid_remove()
+        
+        # Actualizar scroll
+        self.scrollable_frame.update_idletasks()
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    
+    def establecer_simulador(self, simulador):
+        """Establece la referencia al simulador y actualiza visibilidad del botón"""
+        self.simulador_ref = simulador
+        self._actualizar_visibilidad_boton_grafico()
+    
     def _crear_seccion_estado_simulacion(self):
         """Crea la sección de estado de la simulación"""
         # Título de sección
         titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
-        titulo_frame.grid(row=0, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(5, 10))
+        titulo_frame.grid(row=1, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(5, 10))
         
         ttk.Label(titulo_frame, text="⚡ ESTADO DE SIMULACIÓN", 
                  font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
         
         # Fila 1: Estado y tiempo
         ttk.Label(self.scrollable_frame, text="Estado:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['estado_simulacion'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "DETENIDO", 'Info.TLabel'
         )
-        self.stats_labels['estado_simulacion'].grid(row=1, column=1, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['estado_simulacion'].grid(row=2, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
         ttk.Label(self.scrollable_frame, text="Tiempo Actual:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=1, column=2, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=2, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['tiempo_actual'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0.0s", 'Info.TLabel'
         )
-        self.stats_labels['tiempo_actual'].grid(row=1, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['tiempo_actual'].grid(row=2, column=3, sticky=tk.W, padx=(0, 20), pady=2)
     
     def _crear_contenido_estadisticas(self):
         """Crea el contenido principal del panel de estadísticas con mejor organización"""
@@ -160,6 +234,9 @@ class PanelEstadisticas:
         
         # Configurar grid responsivo en el frame scrollable
         EstiloUtils.configurar_grid_responsivo(self.scrollable_frame, 4)
+        
+        # Crear botón para ver gráfico (si hay datos disponibles)
+        self._crear_boton_grafico()
         
         # Crear secciones de estadísticas organizadas (solo tiempo y ciclistas)
         self._crear_seccion_estado_simulacion()
@@ -175,40 +252,40 @@ class PanelEstadisticas:
         """Crea la sección de estadísticas básicas"""
         # Título de sección
         titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
-        titulo_frame.grid(row=2, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        titulo_frame.grid(row=3, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
         
         ttk.Label(titulo_frame, text="🚴 ESTADÍSTICAS BÁSICAS", 
                  font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
         
         # Fila 1: Ciclistas y velocidades
         ttk.Label(self.scrollable_frame, text="Ciclistas Activos:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=3, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['total_ciclistas'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['total_ciclistas'].grid(row=3, column=1, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['total_ciclistas'].grid(row=4, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
         ttk.Label(self.scrollable_frame, text="Velocidad Promedio:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=3, column=2, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['velocidad_promedio'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
-        self.stats_labels['velocidad_promedio'].grid(row=3, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['velocidad_promedio'].grid(row=4, column=3, sticky=tk.W, padx=(0, 20), pady=2)
         
         # Fila 2: Velocidades min/max
         ttk.Label(self.scrollable_frame, text="Velocidad Mín:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=5, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['velocidad_min'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
-        self.stats_labels['velocidad_min'].grid(row=4, column=1, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['velocidad_min'].grid(row=5, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
         ttk.Label(self.scrollable_frame, text="Velocidad Máx:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=4, column=2, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=5, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['velocidad_max'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
-        self.stats_labels['velocidad_max'].grid(row=4, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['velocidad_max'].grid(row=5, column=3, sticky=tk.W, padx=(0, 20), pady=2)
     
     def _crear_seccion_estadisticas_grafo(self):
         """Crea la sección de estadísticas del grafo"""
@@ -338,10 +415,12 @@ class PanelEstadisticas:
         )
         self.stats_labels['nodo_mas_activo'].grid(row=10, column=3, sticky=tk.W, padx=(0, 20), pady=2)
     
-    
     def actualizar_estadisticas(self, stats: Dict[str, Any]):
         """Actualiza las estadísticas mostradas con validación mejorada"""
         try:
+            # Actualizar visibilidad del botón de gráfico
+            self._actualizar_visibilidad_boton_grafico()
+            
             # Validar que stats no sea None
             if not stats:
                 print("⚠️ Advertencia: No se recibieron estadísticas para actualizar")
