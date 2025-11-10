@@ -99,9 +99,13 @@ class InterfazSimulacion:
         # Crear barra de herramientas superior
         self._crear_barra_herramientas(main_frame)
         
-        # Crear PanedWindow principal para paneles redimensionables
-        self.paned_main = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
-        self.paned_main.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        # Crear PanedWindow vertical para dividir área principal y panel de estadísticas
+        self.paned_vertical = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
+        self.paned_vertical.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        
+        # Crear PanedWindow horizontal para paneles principales (control, visualización, distribuciones)
+        self.paned_main = ttk.PanedWindow(self.paned_vertical, orient=tk.HORIZONTAL)
+        self.paned_vertical.add(self.paned_main, weight=3)  # Área principal más grande
         
         # Crear callbacks para los paneles
         callbacks = self._crear_callbacks()
@@ -119,10 +123,10 @@ class InterfazSimulacion:
         if self.panel_distribuciones_visible:
             self.paned_main.add(self.panel_distribuciones.frame_principal, weight=1)
         
-        # Panel de estadísticas (abajo) - opcional y redimensionable
-        self.panel_estadisticas = PanelEstadisticas(main_frame, callbacks)
+        # Panel de estadísticas (abajo) - opcional y redimensionable verticalmente
+        self.panel_estadisticas = PanelEstadisticas(self.paned_vertical, callbacks)
         if self.panel_estadisticas_visible:
-            self.panel_estadisticas.frame_principal.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+            self.paned_vertical.add(self.panel_estadisticas.frame_principal, weight=1)  # Panel de estadísticas más pequeño inicialmente
     
     def _crear_barra_herramientas(self, parent):
         """Crea la barra de herramientas superior con controles de paneles"""
@@ -173,6 +177,7 @@ class InterfazSimulacion:
         return {
             # Callbacks de control
             'aplicar_velocidades': self.aplicar_velocidades,
+            'aplicar_duracion': self.aplicar_duracion,
             'cargar_grafo': self.cargar_grafo,
             'nueva_simulacion': self.nueva_simulacion,
             'iniciar_simulacion': self.iniciar_simulacion,
@@ -211,6 +216,34 @@ class InterfazSimulacion:
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al aplicar velocidades: {str(e)}")
+    
+    def aplicar_duracion(self, duracion: float):
+        """Aplica los cambios de duración configurados"""
+        try:
+            # Validar duración
+            if duracion < 60.0:
+                messagebox.showerror("Error", 
+                                   "La duración mínima es de 60 segundos (1 minuto)")
+                return
+            
+            # Límite máximo para evitar colapsar el código en máquinas locales
+            DURACION_MAXIMA = 1800.0  # 30 minutos
+            if duracion > DURACION_MAXIMA:
+                messagebox.showerror("Error", 
+                                   f"La duración máxima permitida es de {DURACION_MAXIMA:.0f} segundos "
+                                   f"({DURACION_MAXIMA/60:.0f} minutos) para evitar problemas de rendimiento "
+                                   f"en máquinas locales.")
+                return
+            
+            # Actualizar configuración
+            self.config.actualizar_duracion(duracion)
+            
+            # Actualizar simulador si existe
+            if hasattr(self, 'simulador') and self.simulador:
+                self.simulador.config.actualizar_duracion(duracion)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar duración: {str(e)}")
     
     def cargar_grafo(self):
         """Carga un grafo desde archivo Excel"""
@@ -339,6 +372,10 @@ class InterfazSimulacion:
             # Obtener velocidades del panel de control
             vel_min, vel_max = self.panel_control.obtener_velocidades()
             self.config.actualizar_velocidades(vel_min, vel_max)
+            
+            # Obtener duración del panel de control
+            duracion = self.panel_control.obtener_duracion()
+            self.config.actualizar_duracion(duracion)
             
             # Crear nuevo simulador
             self.simulador = SimuladorCiclorutas(self.config)
@@ -674,10 +711,12 @@ class InterfazSimulacion:
         self.panel_estadisticas_visible = not self.panel_estadisticas_visible
         
         if self.panel_estadisticas_visible:
-            self.panel_estadisticas.frame_principal.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+            # Agregar el panel al PanedWindow vertical
+            self.paned_vertical.add(self.panel_estadisticas.frame_principal, weight=1)
             self.btn_toggle_estadisticas.config(text="📊 Ocultar Estadísticas")
         else:
-            self.panel_estadisticas.frame_principal.pack_forget()
+            # Remover el panel del PanedWindow vertical
+            self.paned_vertical.forget(self.panel_estadisticas.frame_principal)
             self.btn_toggle_estadisticas.config(text="📊 Mostrar Estadísticas")
         
         # Ajustar layout

@@ -39,9 +39,6 @@ class PanelEstadisticas:
         )
         self.frame_principal.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Configurar altura mínima y máxima
-        self.frame_principal.config(height=250)
-        
         # Crear sistema de scroll
         self._crear_sistema_scroll()
         
@@ -50,20 +47,32 @@ class PanelEstadisticas:
     
     def _crear_sistema_scroll(self):
         """Crea el sistema de scroll para el panel de estadísticas"""
-        # Crear canvas para scroll
-        self.canvas = tk.Canvas(self.frame_principal, bg=EstiloUtils.COLORES['gris_claro'])
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Crear canvas para scroll primero
+        self.canvas = tk.Canvas(
+            self.frame_principal, 
+            bg=EstiloUtils.COLORES.get('gris_claro', '#f8f9fa'),
+            highlightthickness=0
+        )
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0), pady=5)
         
-        # Crear scrollbar
-        self.scrollbar = ttk.Scrollbar(self.frame_principal, orient=tk.VERTICAL, command=self.canvas.yview)
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        # Crear scrollbar vertical (siempre visible en el lado derecho)
+        self.scrollbar = ttk.Scrollbar(
+            self.frame_principal, 
+            orient=tk.VERTICAL, 
+            command=self.canvas.yview
+        )
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 5), pady=5)
         
         # Configurar canvas con scrollbar
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.configure(yscrollcommand=self._on_scrollbar_update)
         
-        # Crear frame scrollable
+        # Crear frame scrollable dentro del canvas
         self.scrollable_frame = EstiloUtils.crear_frame_con_estilo(self.canvas)
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), 
+            window=self.scrollable_frame, 
+            anchor="nw"
+        )
         
         # Configurar eventos de scroll
         self.scrollable_frame.bind("<Configure>", self._on_frame_configure)
@@ -72,28 +81,53 @@ class PanelEstadisticas:
         # Habilitar scroll con rueda del mouse
         self._bind_mousewheel()
     
+    def _on_scrollbar_update(self, *args):
+        """Callback para actualizar el scrollbar - siempre lo mantiene visible"""
+        # Actualizar el scrollbar
+        self.scrollbar.set(*args)
+    
     def _on_frame_configure(self, event):
         """Actualiza la región de scroll cuando el frame cambia de tamaño"""
+        # Actualizar scrollregion
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
     
     def _on_canvas_configure(self, event):
         """Ajusta el ancho del frame scrollable al canvas"""
         canvas_width = event.width
-        self.canvas.itemconfig(self.canvas.find_all()[0], width=canvas_width)
+        self.canvas.itemconfig(self.canvas_window, width=canvas_width)
     
     def _bind_mousewheel(self):
         """Vincula el scroll del mouse al canvas"""
         def _on_mousewheel(event):
-            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            # Solo procesar si el mouse está sobre el canvas o el frame scrollable
+            widget = event.widget
+            if widget == self.canvas or widget == self.scrollable_frame or widget.master == self.canvas:
+                # Windows y MacOS
+                if event.delta:
+                    self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+                # Linux
+                elif event.num == 4:
+                    self.canvas.yview_scroll(-1, "units")
+                elif event.num == 5:
+                    self.canvas.yview_scroll(1, "units")
         
-        def _bind_to_mousewheel(event):
+        def _on_enter(event):
+            # Cuando el mouse entra al canvas, vincular eventos
             self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            self.canvas.bind_all("<Button-4>", _on_mousewheel)
+            self.canvas.bind_all("<Button-5>", _on_mousewheel)
         
-        def _unbind_from_mousewheel(event):
+        def _on_leave(event):
+            # Cuando el mouse sale del canvas, desvincular eventos
             self.canvas.unbind_all("<MouseWheel>")
+            self.canvas.unbind_all("<Button-4>")
+            self.canvas.unbind_all("<Button-5>")
         
-        self.canvas.bind('<Enter>', _bind_to_mousewheel)
-        self.canvas.bind('<Leave>', _unbind_from_mousewheel)
+        # Vincular eventos de entrada y salida del canvas
+        self.canvas.bind("<Enter>", _on_enter)
+        self.canvas.bind("<Leave>", _on_leave)
+        self.scrollable_frame.bind("<Enter>", _on_enter)
+        self.scrollable_frame.bind("<Leave>", _on_leave)
     
     def _crear_seccion_estado_simulacion(self):
         """Crea la sección de estado de la simulación"""
@@ -468,11 +502,14 @@ class PanelEstadisticas:
         if compacto:
             # Modo compacto: mostrar solo estadísticas esenciales
             self._mostrar_estadisticas_esenciales()
-            self.frame_principal.config(height=120)
         else:
             # Modo expandido: mostrar todas las estadísticas
             self._mostrar_todas_estadisticas()
-            self.frame_principal.config(height=200)
+        
+        # Actualizar scroll después de cambiar modo
+        if self.canvas:
+            self.scrollable_frame.update_idletasks()
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
     
     def _mostrar_estadisticas_esenciales(self):
         """Muestra solo las estadísticas más importantes"""
@@ -494,16 +531,8 @@ class PanelEstadisticas:
     
     def ajustar_tamaño_responsivo(self, ancho_ventana: int, alto_ventana: int):
         """Ajusta el tamaño del panel según las dimensiones de la ventana"""
-        if alto_ventana < 600:
-            # Pantalla muy pequeña: modo ultra compacto
-            self.frame_principal.config(height=150)
-        elif alto_ventana < 800:
-            # Pantalla pequeña: modo compacto
-            self.frame_principal.config(height=200)
-        else:
-            # Pantalla normal: modo expandido
-            self.frame_principal.config(height=250)
-        
-        # Actualizar scroll después de cambiar tamaño
+        # El panel ahora es redimensionable, no se configura altura fija
+        # Solo actualizar scroll después de cambiar tamaño
         if self.canvas:
+            self.scrollable_frame.update_idletasks()
             self.canvas.configure(scrollregion=self.canvas.bbox("all"))

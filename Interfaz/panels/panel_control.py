@@ -22,12 +22,18 @@ class PanelControl:
         # Variables de control
         self.vel_min_var = tk.DoubleVar(value=10.0)
         self.vel_max_var = tk.DoubleVar(value=15.0)
+        self.duracion_var = tk.DoubleVar(value=300.0)  # Duración por defecto: 300 segundos
+        
+        # Variables para scroll
+        self.canvas = None
+        self.scrollbar = None
+        self.scrollable_frame = None
         
         # Crear el panel
         self.crear_panel()
     
     def crear_panel(self):
-        """Crea el panel de control principal"""
+        """Crea el panel de control principal con scroll"""
         # Frame principal
         self.frame_principal = EstiloUtils.crear_label_frame_con_estilo(
             self.parent, 
@@ -35,8 +41,13 @@ class PanelControl:
         )
         self.frame_principal.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # Crear secciones del panel
+        # Crear sistema de scroll
+        self._crear_sistema_scroll()
+        
+        # Crear secciones del panel dentro del frame scrollable
         self._crear_seccion_velocidades()
+        self._crear_separador()
+        self._crear_seccion_duracion()
         self._crear_separador()
         self._crear_seccion_grafo()
         self._crear_separador()
@@ -44,17 +55,101 @@ class PanelControl:
         self._crear_separador()
         self._crear_seccion_estado()
     
+    def _crear_sistema_scroll(self):
+        """Crea el sistema de scroll para el panel de control"""
+        # Crear canvas para scroll primero
+        self.canvas = tk.Canvas(
+            self.frame_principal, 
+            bg=EstiloUtils.COLORES.get('gris_claro', '#f8f9fa'),
+            highlightthickness=0
+        )
+        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0), pady=5)
+        
+        # Crear scrollbar vertical (siempre visible en el lado derecho)
+        self.scrollbar = ttk.Scrollbar(
+            self.frame_principal, 
+            orient=tk.VERTICAL, 
+            command=self.canvas.yview
+        )
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 5), pady=5)
+        
+        # Configurar canvas con scrollbar
+        self.canvas.configure(yscrollcommand=self._on_scrollbar_update)
+        
+        # Crear frame scrollable dentro del canvas
+        self.scrollable_frame = EstiloUtils.crear_frame_con_estilo(self.canvas)
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), 
+            window=self.scrollable_frame, 
+            anchor="nw"
+        )
+        
+        # Configurar eventos de scroll
+        self.scrollable_frame.bind("<Configure>", self._on_frame_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        
+        # Habilitar scroll con rueda del mouse
+        self._bind_mousewheel()
+    
+    def _on_scrollbar_update(self, *args):
+        """Callback para actualizar el scrollbar - siempre lo mantiene visible"""
+        # Actualizar el scrollbar
+        self.scrollbar.set(*args)
+    
+    def _on_frame_configure(self, event):
+        """Actualiza la región de scroll cuando el frame cambia de tamaño"""
+        # Actualizar scrollregion
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    
+    def _on_canvas_configure(self, event):
+        """Ajusta el ancho del frame scrollable al canvas"""
+        canvas_width = event.width
+        self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+    
+    def _bind_mousewheel(self):
+        """Vincula el scroll del mouse al canvas"""
+        def _on_mousewheel(event):
+            # Solo procesar si el mouse está sobre el canvas o el frame scrollable
+            widget = event.widget
+            if widget == self.canvas or widget == self.scrollable_frame or widget.master == self.canvas:
+                # Windows y MacOS
+                if event.delta:
+                    self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+                # Linux
+                elif event.num == 4:
+                    self.canvas.yview_scroll(-1, "units")
+                elif event.num == 5:
+                    self.canvas.yview_scroll(1, "units")
+        
+        def _on_enter(event):
+            # Cuando el mouse entra al canvas, vincular eventos
+            self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            self.canvas.bind_all("<Button-4>", _on_mousewheel)
+            self.canvas.bind_all("<Button-5>", _on_mousewheel)
+        
+        def _on_leave(event):
+            # Cuando el mouse sale del canvas, desvincular eventos
+            self.canvas.unbind_all("<MouseWheel>")
+            self.canvas.unbind_all("<Button-4>")
+            self.canvas.unbind_all("<Button-5>")
+        
+        # Vincular eventos de entrada y salida del canvas
+        self.canvas.bind("<Enter>", _on_enter)
+        self.canvas.bind("<Leave>", _on_leave)
+        self.scrollable_frame.bind("<Enter>", _on_enter)
+        self.scrollable_frame.bind("<Leave>", _on_leave)
+    
     def _crear_seccion_velocidades(self):
         """Crea la sección de configuración de velocidades"""
         # Título
         EstiloUtils.crear_label_con_estilo(
-            self.frame_principal,
+            self.scrollable_frame,
             "⚡ CONFIGURACIÓN DE VELOCIDADES",
             'Subheader.TLabel'
         ).pack(anchor=tk.W, pady=(0, 10))
         
         # Frame para controles de velocidad
-        vel_frame = EstiloUtils.crear_frame_con_estilo(self.frame_principal)
+        vel_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
         vel_frame.pack(fill=tk.X, pady=5)
         
         # Velocidad mínima
@@ -79,18 +174,53 @@ class PanelControl:
             command=self._aplicar_velocidades
         ).grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
     
+    def _crear_seccion_duracion(self):
+        """Crea la sección de configuración de duración de simulación"""
+        # Título
+        EstiloUtils.crear_label_con_estilo(
+            self.scrollable_frame,
+            "⏱️ DURACIÓN DE SIMULACIÓN",
+            'Subheader.TLabel'
+        ).pack(anchor=tk.W, pady=(0, 10))
+        
+        # Frame para controles de duración
+        duracion_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        duracion_frame.pack(fill=tk.X, pady=5)
+        
+        # Duración de simulación
+        ttk.Label(duracion_frame, text="Duración (segundos):", 
+                 font=EstiloUtils.FUENTES['normal']).grid(row=0, column=0, sticky=tk.W, pady=5)
+        duracion_spin = ttk.Spinbox(duracion_frame, from_=60.0, to=1800.0, increment=30.0, 
+                                   textvariable=self.duracion_var, width=10)
+        duracion_spin.grid(row=0, column=1, sticky=tk.W, pady=5, padx=(10, 0))
+        
+        # Etiqueta informativa con límite máximo
+        info_label = ttk.Label(duracion_frame, 
+                              text="(Mín: 60s, Máx: 1800s / 30 min)", 
+                              font=EstiloUtils.FUENTES['pequeno'],
+                              foreground='gray')
+        info_label.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        
+        # Botón para aplicar cambios
+        EstiloUtils.crear_button_con_estilo(
+            duracion_frame, 
+            "✅ Aplicar Duración",
+            'Accent.TButton',
+            command=self._aplicar_duracion
+        ).grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+    
     def _crear_seccion_grafo(self):
         """Crea la sección de información del grafo"""
         # Título
         EstiloUtils.crear_label_con_estilo(
-            self.frame_principal,
+            self.scrollable_frame,
             "📊 Configuración de Red:",
             'Subheader.TLabel'
         ).pack(anchor=tk.W, pady=(0, 5))
         
         # Información del grafo
         self.info_grafo_label = EstiloUtils.crear_label_con_estilo(
-            self.frame_principal,
+            self.scrollable_frame,
             "Sin grafo cargado",
             'Info.TLabel'
         )
@@ -98,7 +228,7 @@ class PanelControl:
         
         # Botón para cargar grafo
         EstiloUtils.crear_button_con_estilo(
-            self.frame_principal,
+            self.scrollable_frame,
             "📂 CARGAR GRAFO",
             'TButton',
             command=self._cargar_grafo
@@ -108,13 +238,13 @@ class PanelControl:
         """Crea la sección de control de simulación"""
         # Título
         EstiloUtils.crear_label_con_estilo(
-            self.frame_principal,
+            self.scrollable_frame,
             "🎮 CONTROL DE SIMULACIÓN",
             'Subheader.TLabel'
         ).pack(anchor=tk.W, pady=(0, 5))
         
         # Frame para botones en grid
-        control_frame = EstiloUtils.crear_frame_con_estilo(self.frame_principal)
+        control_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
         control_frame.pack(fill=tk.X, pady=5)
         
         # Configurar grid
@@ -142,13 +272,13 @@ class PanelControl:
         """Crea la sección de estado de la simulación"""
         # Título
         EstiloUtils.crear_label_con_estilo(
-            self.frame_principal,
+            self.scrollable_frame,
             "📊 ESTADO DE SIMULACIÓN",
             'Subheader.TLabel'
         ).pack(anchor=tk.W, pady=(0, 5))
         
         # Frame para información de estado
-        estado_frame = EstiloUtils.crear_frame_con_estilo(self.frame_principal)
+        estado_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
         estado_frame.pack(fill=tk.X, pady=5)
         
         # Estado de la simulación
@@ -169,7 +299,7 @@ class PanelControl:
     
     def _crear_separador(self):
         """Crea un separador visual"""
-        EstiloUtils.crear_separador(self.frame_principal).pack(fill=tk.X, pady=10)
+        EstiloUtils.crear_separador(self.scrollable_frame).pack(fill=tk.X, pady=10)
     
     def _aplicar_velocidades(self):
         """Aplica los cambios de velocidad configurados"""
@@ -199,6 +329,46 @@ class PanelControl:
             
         except Exception as e:
             messagebox.showerror("Error", f"Error al aplicar velocidades: {str(e)}")
+    
+    def _aplicar_duracion(self):
+        """Aplica los cambios de duración configurados"""
+        try:
+            duracion = self.duracion_var.get()
+            
+            # Validar duración
+            if duracion < 60.0:
+                messagebox.showerror("Error", 
+                                   "La duración mínima es de 60 segundos (1 minuto)")
+                return
+            
+            # Límite máximo para evitar colapsar el código en máquinas locales
+            DURACION_MAXIMA = 1800.0  # 30 minutos
+            if duracion > DURACION_MAXIMA:
+                messagebox.showerror("Error", 
+                                   f"La duración máxima permitida es de {DURACION_MAXIMA:.0f} segundos "
+                                   f"({DURACION_MAXIMA/60:.0f} minutos) para evitar problemas de rendimiento "
+                                   f"en máquinas locales.")
+                # Restablecer al valor máximo
+                self.duracion_var.set(DURACION_MAXIMA)
+                return
+            
+            if duracion <= 0:
+                messagebox.showerror("Error", "La duración debe ser positiva")
+                return
+            
+            # Llamar callback para aplicar duración
+            if 'aplicar_duracion' in self.callbacks:
+                self.callbacks['aplicar_duracion'](duracion)
+            
+            # Mostrar mensaje de confirmación
+            minutos = duracion / 60.0
+            messagebox.showinfo("Duración Aplicada", 
+                              f"✅ Duración actualizada:\n"
+                              f"   {duracion:.0f} segundos ({minutos:.1f} minutos)\n\n"
+                              f"Los cambios se aplicarán en la próxima simulación.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al aplicar duración: {str(e)}")
     
     def _cargar_grafo(self):
         """Maneja la carga de grafo"""
@@ -257,31 +427,54 @@ class PanelControl:
         self.vel_min_var.set(vel_min)
         self.vel_max_var.set(vel_max)
     
+    def obtener_duracion(self) -> float:
+        """Retorna la duración configurada"""
+        return self.duracion_var.get()
+    
+    def establecer_duracion(self, duracion: float):
+        """Establece la duración en los controles"""
+        # Validar que esté dentro del rango permitido
+        if duracion < 60.0:
+            duracion = 60.0
+        elif duracion > 1800.0:
+            duracion = 1800.0
+        self.duracion_var.set(duracion)
+    
     def habilitar_controles(self, habilitado: bool = True):
         """Habilita o deshabilita los controles del panel"""
         estado = 'normal' if habilitado else 'disabled'
         
-        # Habilitar/deshabilitar spinboxes de velocidad
-        for widget in self.frame_principal.winfo_children():
-            if isinstance(widget, ttk.Frame):
+        # Habilitar/deshabilitar spinboxes y botones en el frame scrollable
+        def _habilitar_widgets(widget):
+            if isinstance(widget, ttk.Spinbox):
+                widget.config(state=estado)
+            elif isinstance(widget, ttk.Button):
+                widget.config(state=estado)
+            elif isinstance(widget, tk.Widget):
                 for child in widget.winfo_children():
-                    if isinstance(child, ttk.Spinbox):
-                        child.config(state=estado)
+                    _habilitar_widgets(child)
+        
+        if self.scrollable_frame:
+            _habilitar_widgets(self.scrollable_frame)
     
     def resetear_boton_pausa(self):
         """Resetea el botón de pausa al estado original"""
-        # Buscar y resetear el botón de pausa
-        for widget in self.frame_principal.winfo_children():
-            if isinstance(widget, ttk.Frame):
+        def _buscar_boton_pausa(widget):
+            if isinstance(widget, ttk.Button) and "REANUDAR" in widget.cget("text"):
+                widget.configure(text="⏸️ PAUSAR", style='Warning.TButton')
+            elif isinstance(widget, tk.Widget):
                 for child in widget.winfo_children():
-                    if isinstance(child, ttk.Button) and "REANUDAR" in child.cget("text"):
-                        child.configure(text="⏸️ PAUSAR", style='Warning.TButton')
+                    _buscar_boton_pausa(child)
+        
+        if self.scrollable_frame:
+            _buscar_boton_pausa(self.scrollable_frame)
     
     def obtener_estado_panel(self) -> Dict[str, Any]:
         """Retorna el estado actual del panel"""
         return {
             'velocidad_min': self.vel_min_var.get(),
             'velocidad_max': self.vel_max_var.get(),
+            'duracion_simulacion': self.duracion_var.get(),
             'info_grafo': self.info_grafo_label.cget('text'),
             'estado_simulacion': self.estado_label.cget('text'),
             'tiempo_actual': self.tiempo_label.cget('text')
