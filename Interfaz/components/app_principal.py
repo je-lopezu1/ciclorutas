@@ -394,6 +394,8 @@ class InterfazSimulacion:
             self.actualizar_paneles_con_grafo()
             self.actualizar_visualizacion()
             self.panel_control.actualizar_estado("LISTO", 0.0)
+            # Desbloquear todos los botones para nueva simulación
+            self.panel_control.desbloquear_botones_simulacion()
             
             # Limpiar mensaje inicial si no hay grafo
             if not self.grafo_actual:
@@ -518,6 +520,8 @@ class InterfazSimulacion:
         if not self.ventana_cerrada and self.root.winfo_exists():
             try:
                 self.panel_control.actualizar_estado("TERMINADA", self.simulador.tiempo_actual)
+                # Bloquear botones de iniciar, pausar, terminar y adelantar
+                self.panel_control.bloquear_botones_simulacion_terminada()
                 self.actualizar_interfaz()
                 
                 mensaje = "¡La simulación ha sido terminada exitosamente!\n\n"
@@ -553,6 +557,8 @@ class InterfazSimulacion:
         
         try:
             self.panel_control.actualizar_estado("COMPLETADA", self.simulador.tiempo_actual)
+            # Bloquear botones de iniciar, pausar, terminar y adelantar
+            self.panel_control.bloquear_botones_simulacion_terminada()
             self.actualizar_estadisticas()
             
             # Generar archivo Excel con resultados
@@ -607,6 +613,8 @@ class InterfazSimulacion:
             
             # Resetear botón de pausa
             self.panel_control.resetear_boton_pausa()
+            # Desbloquear todos los botones para reiniciar simulación
+            self.panel_control.desbloquear_botones_simulacion()
             
             messagebox.showinfo("Simulación Reiniciada", "La simulación ha sido reiniciada exitosamente!")
             

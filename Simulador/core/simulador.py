@@ -62,6 +62,11 @@ class SimuladorCiclorutas:
         self.ocupacion_arcos_tiempo = {}  # Dict[arco_str, List[Tuple[tiempo, ocupacion]]] para rastrear ocupación
         self.eventos_arcos = []  # List[Tuple[tiempo, arco_str, tipo_evento, ciclista_id]] donde tipo_evento es 'entrada' o 'salida'
         
+        # Sistema de rastreo de bicicletas activas en arcos (para factor de densidad)
+        self.bicicletas_en_arco = {}  # Dict[arco_str, set(ciclista_id)] para rastrear bicicletas activas en cada arco
+        self.capacidad_arcos = {}  # Dict[arco_str, capacidad_maxima] para almacenar capacidad de cada arco (distancia / 2.5m)
+        self.longitud_bicicleta = 2.5  # Longitud de cada bicicleta en metros
+        
         # Sistema de rastreo de estado de ciclistas
         self.estado_ciclistas = {}  # Dict[ciclista_id, estado] para rastrear si están activos o completados
         self.ciclistas_por_nodo = {}  # Dict[nodo_origen, contador] para contar ciclistas por nodo de origen
@@ -356,6 +361,8 @@ class SimuladorCiclorutas:
         self.arcos_por_ciclista = {}
         self.ocupacion_arcos_tiempo = {}
         self.eventos_arcos = []
+        self.bicicletas_en_arco = {}
+        self.capacidad_arcos = {}
         
         # Limpiar datos de estado de ciclistas
         self.estado_ciclistas = {}
@@ -833,16 +840,25 @@ class SimuladorCiclorutas:
             # Obtener distancia real del arco
             distancia_real = GrafoUtils.obtener_distancia_arco(self.grafo, nodo_actual, nodo_siguiente)
             
+            # Calcular y almacenar capacidad del arco si no está calculada
+            if arco_str not in self.capacidad_arcos:
+                capacidad_maxima = distancia_real / self.longitud_bicicleta
+                self.capacidad_arcos[arco_str] = capacidad_maxima
+                # Inicializar conjunto de bicicletas en este arco
+                if arco_str not in self.bicicletas_en_arco:
+                    self.bicicletas_en_arco[arco_str] = set()
+            
             # Obtener atributos del arco para ajustar velocidad y tiempo
             atributos_arco = GrafoUtils.obtener_atributos_arco(self.grafo, nodo_actual, nodo_siguiente)
-            velocidad_ajustada = GrafoUtils.calcular_velocidad_ajustada(velocidad, atributos_arco)
+            velocidad_ajustada_inclinacion = GrafoUtils.calcular_velocidad_ajustada(velocidad, atributos_arco)
             factor_tiempo = GrafoUtils.calcular_factor_tiempo_desplazamiento(atributos_arco)
             
-            # Actualizar velocidad del ciclista para estadísticas
-            self.velocidades[id] = velocidad_ajustada
+            # El factor de densidad se calculará dinámicamente dentro de _interpolar_movimiento
+            # después de que la bicicleta entre al arco, para considerar su propia presencia
             
             # Movimiento interpolado suave entre nodos con velocidad ajustada y factor de tiempo
-            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, velocidad_ajustada, id, factor_tiempo, arco_str)
+            yield from self._interpolar_movimiento(pos_actual, pos_siguiente, distancia_real, 
+                                                 velocidad_ajustada_inclinacion, id, factor_tiempo, arco_str)
         
         # Marcar ciclista como completado cuando termine su ruta
         self.estado_ciclistas[id] = 'completado'
@@ -854,6 +870,35 @@ class SimuladorCiclorutas:
         
         # Mover ciclista fuera de la vista (posición invisible)
         self.coordenadas[id] = (-1000, -1000)  # Posición fuera del área visible
+    
+    def _calcular_factor_densidad(self, arco_str: str) -> float:
+        """Calcula el factor de reducción de velocidad basado en la densidad de bicicletas en el arco
+        
+        Fórmula simple: Si hay más bicicletas que la capacidad, reducir proporcionalmente
+        Factor = capacidad_maxima / num_bicicletas
+        
+        Args:
+            arco_str: Identificador del arco (formato: "nodo_origen->nodo_destino")
+        
+        Returns:
+            Factor de reducción de velocidad (1.0 si no hay sobrecarga, <1.0 si hay sobrecarga)
+        """
+        if arco_str not in self.capacidad_arcos:
+            return 1.0  # Sin capacidad calculada, no aplicar reducción
+        
+        capacidad_maxima = self.capacidad_arcos[arco_str]
+        num_bicicletas = len(self.bicicletas_en_arco.get(arco_str, set()))
+        
+        # Si el número de bicicletas es menor o igual a la capacidad, no hay reducción
+        if num_bicicletas <= capacidad_maxima:
+            return 1.0
+        
+        # Si hay más bicicletas que la capacidad, aplicar factor de reducción directo
+        # Factor = capacidad_maxima / num_bicicletas
+        factor = capacidad_maxima / num_bicicletas
+        
+        # Limitar el factor mínimo a 0.1 (reducción máxima del 90%)
+        return max(0.1, factor)
     
     def _interpolar_movimiento(self, origen: Tuple[float, float], destino: Tuple[float, float], 
                              distancia: float, velocidad: float, ciclista_id: int, 
@@ -872,10 +917,6 @@ class SimuladorCiclorutas:
         if distancia <= 0 or velocidad <= 0:
             return
         
-        # Calcular tiempo total con factor de tiempo de desplazamiento
-        tiempo_base = distancia / velocidad
-        tiempo_total = tiempo_base * factor_tiempo
-        
         # Rastrear tiempo de inicio del tramo
         tiempo_inicio_tramo = self.env.now
         
@@ -883,22 +924,63 @@ class SimuladorCiclorutas:
         if arco_str:
             tiempo_entrada = self.env.now
             self.eventos_arcos.append((tiempo_entrada, arco_str, 'entrada', ciclista_id))
+            # Agregar bicicleta al conjunto de bicicletas activas en este arco
+            if arco_str not in self.bicicletas_en_arco:
+                self.bicicletas_en_arco[arco_str] = set()
+            self.bicicletas_en_arco[arco_str].add(ciclista_id)
+            
+            # Calcular factor de densidad DESPUÉS de agregar esta bicicleta al arco
+            factor_densidad = self._calcular_factor_densidad(arco_str)
+            # Aplicar factor de densidad a la velocidad
+            velocidad_con_densidad = velocidad * factor_densidad
+        else:
+            velocidad_con_densidad = velocidad
+            factor_densidad = 1.0
+        
+        # Calcular tiempo total con factor de tiempo de desplazamiento y factor de densidad
+        # El factor de densidad afecta la velocidad, por lo que afecta el tiempo
+        tiempo_base = distancia / velocidad_con_densidad
+        tiempo_total = tiempo_base * factor_tiempo
+        
+        # Actualizar velocidad del ciclista para estadísticas
+        self.velocidades[ciclista_id] = velocidad_con_densidad
         
         # Inicializar tiempo de viaje si es el primer tramo
         if ciclista_id not in self.tiempo_inicio_viaje:
             self.tiempo_inicio_viaje[ciclista_id] = self.env.now
             self.tiempos_por_tramo[ciclista_id] = []
         
+        # Calcular pasos fijos para movimiento eficiente (menos recursos computacionales)
         pasos = max(1, min(int(tiempo_total / 0.5), 200))  # Máximo 200 pasos
         
         # Pre-calcular incrementos para eficiencia
         dx = (destino[0] - origen[0]) / pasos
         dy = (destino[1] - origen[1]) / pasos
         
+        # Recalcular factor de densidad con menor frecuencia (cada 25% del recorrido)
+        # para reducir recursos computacionales
+        pasos_entre_actualizaciones = max(5, pasos // 4)  # Actualizar cada 25%
+        
+        # Guardar velocidad base (sin densidad) para recalcular durante el movimiento
+        velocidad_base_sin_densidad = velocidad
+        velocidad_actual = velocidad_con_densidad
+        
+        # Factor de densidad actual - inicializar con el factor calculado al entrar
+        factor_densidad_actual = factor_densidad if arco_str else 1.0
+        
         for i in range(pasos + 1):
-            yield self.env.timeout(0.5)  # 0.5 segundos por paso
+            yield self.env.timeout(0.5)  # Tiempo fijo por paso
             
-            # Interpolación lineal optimizada
+            # Recalcular factor de densidad periódicamente (menos frecuente para eficiencia)
+            if arco_str and i > 0 and i % pasos_entre_actualizaciones == 0:
+                # Calcular nuevo factor directamente (sin suavizado)
+                factor_densidad_actual = self._calcular_factor_densidad(arco_str)
+                # Ajustar velocidad basada en el factor de densidad
+                velocidad_actual = velocidad_base_sin_densidad * factor_densidad_actual
+                # Actualizar velocidad para estadísticas
+                self.velocidades[ciclista_id] = velocidad_actual
+            
+            # Interpolación lineal optimizada (más eficiente que cálculos de distancia)
             x = float(origen[0] + i * dx)
             y = float(origen[1] + i * dy)
             
@@ -917,6 +999,9 @@ class SimuladorCiclorutas:
         if arco_str:
             tiempo_salida = self.env.now
             self.eventos_arcos.append((tiempo_salida, arco_str, 'salida', ciclista_id))
+            # Remover bicicleta del conjunto de bicicletas activas en este arco
+            if arco_str in self.bicicletas_en_arco:
+                self.bicicletas_en_arco[arco_str].discard(ciclista_id)
     
     def ejecutar_paso(self):
         """Ejecuta un paso de la simulación"""

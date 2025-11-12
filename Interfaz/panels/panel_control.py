@@ -251,22 +251,27 @@ class PanelControl:
         control_frame.columnconfigure(0, weight=1)
         control_frame.columnconfigure(1, weight=1)
         
-        # Botones principales
+        # Botones principales - guardar referencias para control de estado
         botones_config = [
-            ("🔄 NUEVA", 'Accent.TButton', self._nueva_simulacion, 0, 0, 2),
-            ("▶️ INICIAR", 'Success.TButton', self._iniciar_simulacion, 1, 0, 1),
-            ("⏸️ PAUSAR", 'Warning.TButton', self._pausar_simulacion, 1, 1, 1),
-            ("🏁 TERMINAR", 'Danger.TButton', self._terminar_simulacion, 2, 0, 1),
-            ("⏭️ ADELANTAR", 'TButton', self._adelantar_simulacion, 2, 1, 1),
-            ("🔄 REINICIAR", 'Accent.TButton', self._reiniciar_simulacion, 3, 0, 2)
+            ("🔄 NUEVA", 'Accent.TButton', self._nueva_simulacion, 0, 0, 2, 'nueva'),
+            ("▶️ INICIAR", 'Success.TButton', self._iniciar_simulacion, 1, 0, 1, 'iniciar'),
+            ("⏸️ PAUSAR", 'Warning.TButton', self._pausar_simulacion, 1, 1, 1, 'pausar'),
+            ("🏁 TERMINAR", 'Danger.TButton', self._terminar_simulacion, 2, 0, 1, 'terminar'),
+            ("⏭️ ADELANTAR", 'TButton', self._adelantar_simulacion, 2, 1, 1, 'adelantar'),
+            ("🔄 REINICIAR", 'Accent.TButton', self._reiniciar_simulacion, 3, 0, 2, 'reiniciar')
         ]
         
-        for texto, estilo, comando, fila, col, colspan in botones_config:
+        # Diccionario para almacenar referencias a los botones
+        self.botones_control = {}
+        
+        for texto, estilo, comando, fila, col, colspan, nombre in botones_config:
             btn = EstiloUtils.crear_button_con_estilo(
                 control_frame, texto, estilo, command=comando
             )
             btn.grid(row=fila, column=col, columnspan=colspan, 
                     sticky=(tk.W, tk.E), pady=2, padx=2)
+            # Guardar referencia al botón
+            self.botones_control[nombre] = btn
     
     def _crear_seccion_estado(self):
         """Crea la sección de estado de la simulación"""
@@ -479,3 +484,25 @@ class PanelControl:
             'estado_simulacion': self.estado_label.cget('text'),
             'tiempo_actual': self.tiempo_label.cget('text')
         }
+    
+    def bloquear_botones_simulacion_terminada(self):
+        """Bloquea los botones de iniciar, pausar y adelantar cuando la simulación termina.
+        Solo deja habilitados los botones de nueva y reiniciar."""
+        if hasattr(self, 'botones_control'):
+            # Bloquear: iniciar, pausar, terminar, adelantar
+            botones_bloqueados = ['iniciar', 'pausar', 'terminar', 'adelantar']
+            for nombre in botones_bloqueados:
+                if nombre in self.botones_control:
+                    self.botones_control[nombre].config(state='disabled')
+            
+            # Mantener habilitados: nueva y reiniciar
+            botones_habilitados = ['nueva', 'reiniciar']
+            for nombre in botones_habilitados:
+                if nombre in self.botones_control:
+                    self.botones_control[nombre].config(state='normal')
+    
+    def desbloquear_botones_simulacion(self):
+        """Desbloquea todos los botones cuando se inicia una nueva simulación"""
+        if hasattr(self, 'botones_control'):
+            for nombre, boton in self.botones_control.items():
+                boton.config(state='normal')
