@@ -1,6 +1,6 @@
-# 📦 Guía de Instalación y Configuración - Simulador de Ciclorutas
+# Guía de Instalación y Configuración - Simulador de Ciclorutas
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
 - [Requisitos del Sistema](#requisitos-del-sistema)
 - [Descarga del Proyecto](#descarga-del-proyecto)
@@ -14,7 +14,7 @@
 
 ---
 
-## 💻 Requisitos del Sistema
+## Requisitos del Sistema
 
 ### Requisitos Mínimos
 
@@ -34,7 +34,7 @@
 
 ---
 
-## 📥 Descarga del Proyecto
+## Descarga del Proyecto
 
 ### Opción 1: Clonar desde Git (Recomendado)
 
@@ -57,7 +57,7 @@ cd ciclorutas
 
 ---
 
-## 🔧 Preparación del Entorno
+## Preparación del Entorno
 
 ### Paso 1: Verificar Python
 
@@ -172,13 +172,13 @@ sudo yum install tkinter
 
 ---
 
-## ✅ Verificación de la Instalación
+## Verificación de la Instalación
 
 Verificar que todas las dependencias están correctamente instaladas:
 
 ```bash
 # Verificar todas las dependencias en un comando
-python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('✅ Todas las dependencias están instaladas correctamente')"
+python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('Todas las dependencias están instaladas correctamente')"
 ```
 
 Si algún módulo falta, instalarlo manualmente:
@@ -213,7 +213,7 @@ ciclorutas/
 
 ---
 
-## 🚀 Ejecución de la Aplicación
+## Ejecución de la Aplicación
 
 ### Método 1: Ejecución Directa (Recomendada)
 
@@ -263,7 +263,7 @@ root.mainloop()
 
 ---
 
-## ⚙️ Primera Configuración
+## Primera Configuración
 
 ### 1. Cargar un Grafo de Prueba
 
@@ -289,7 +289,7 @@ En el panel de distribuciones:
 
 ---
 
-## 🧪 Pruebas Básicas
+## Pruebas Básicas
 
 ### Prueba 1: Carga de Grafo
 
@@ -298,7 +298,7 @@ En el panel de distribuciones:
 3. Seleccionar `Libro2.xlsx`
 4. Verificar que aparece mensaje de éxito
 
-**Resultado esperado**: Mensaje "✅ Grafo cargado exitosamente" con estadísticas
+**Resultado esperado**: Mensaje "Grafo cargado exitosamente" con estadísticas
 
 ### Prueba 2: Inicialización de Simulación
 
@@ -334,13 +334,13 @@ En el panel de distribuciones:
 
 ---
 
-## 🔍 Solución de Problemas Comunes
+## Solución de Problemas Comunes
 
 ### Problema 1: Error de Dependencias
 
 **Síntoma:**
 ```
-❌ ERROR: Faltan las siguientes dependencias: simpy
+ERROR: Faltan las siguientes dependencias: simpy
 ```
 
 **Solución:**
@@ -356,14 +356,14 @@ pip install simpy matplotlib numpy pandas networkx scipy openpyxl
 
 **Síntoma:**
 ```
-❌ ERROR: No se pudo importar la interfaz
+ERROR: No se pudo importar la interfaz
 ```
 
 **Soluciones:**
 
 1. Verificar tkinter:
 ```bash
-python -c "import tkinter; print('✅ tkinter OK')"
+python -c "import tkinter; print('tkinter OK')"
 ```
 
 2. Si falta tkinter:
@@ -380,7 +380,7 @@ ls Simulador/
 
 **Síntoma:**
 ```
-❌ ERROR: No se pudo cargar el archivo
+ERROR: No se pudo cargar el archivo
 ```
 
 **Soluciones:**
@@ -489,13 +489,13 @@ python --version
 pip list
 
 # Verificar importaciones
-python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('✅ OK')"
+python -c "import simpy, matplotlib, numpy, pandas, networkx, scipy, openpyxl, tkinter; print('OK')"
 
 # Verificar estructura del proyecto
 python -c "import os; print(os.listdir('.'))"
 
 # Verificar módulos del proyecto
-python -c "import sys; sys.path.append('.'); from Interfaz import InterfazSimulacion; print('✅ OK')"
+python -c "import sys; sys.path.append('.'); from Interfaz import InterfazSimulacion; print('OK')"
 ```
 
 ### Logs y Debugging
@@ -521,7 +521,7 @@ python main.py
 
 ---
 
-## ✅ Checklist de Instalación
+## Checklist de Instalación
 
 Marque cada paso cuando esté completo:
 
@@ -538,12 +538,14 @@ Marque cada paso cuando esté completo:
 
 ---
 
-## 🎉 Siguiente Paso
+## Siguiente Paso
 
 Una vez completada la instalación, consulte:
 
-- **README_ARQUITECTURA.md** - Para entender la arquitectura y diseño
-- **README_MODELO_SIMULACION.md** - Para entender el modelo de simulación
+- **[README.md](README.md)** - Visión general del proyecto y características principales
+- **[README_MANUAL_USUARIO.md](README_MANUAL_USUARIO.md)** - Guía completa de uso e interpretación de resultados (incluye interpretación del Excel de estadísticas)
+- **[README_ARQUITECTURA.md](README_ARQUITECTURA.md)** - Para entender la arquitectura y diseño del sistema
+- **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)** - Para entender el modelo de simulación, entidades y eventos
 
-¡Listo para usar el Simulador de Ciclorutas! 🚴‍♂️🚴‍♀️
+Listo para usar el Simulador de Ciclorutas.
 

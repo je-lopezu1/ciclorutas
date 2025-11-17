@@ -120,6 +120,7 @@ Guía práctica paso a paso para utilizar la herramienta desde la perspectiva de
 - Configuración de distribuciones de probabilidad por nodo
 - Control de simulación (botones, flujo de trabajo)
 - Interpretación de resultados y estadísticas
+- **Interpretación del Excel de Estadísticas**: Guía completa para entender cada hoja y columna del archivo Excel generado
 - Exportación y análisis de datos
 - Ejemplos prácticos completos
 - Preguntas frecuentes y solución de problemas comunes

@@ -12,6 +12,7 @@
 - [Control de Simulación](#control-de-simulación)
 - [Interpretación de Resultados](#interpretación-de-resultados)
 - [Exportación de Datos](#exportación-de-datos)
+- [Interpretación del Excel de Estadísticas](#interpretación-del-excel-de-estadísticas)
 - [Ejemplos Prácticos](#ejemplos-prácticos)
 - [Preguntas Frecuentes](#preguntas-frecuentes)
 
@@ -592,56 +593,20 @@ El Panel de Estadísticas muestra métricas actualizadas en tiempo real:
 
 Al finalizar una simulación (por tiempo o manualmente), el sistema genera automáticamente un archivo Excel con resultados en la carpeta `resultados/`.
 
-### Contenido del Archivo de Resultados
-
-El archivo Excel generado contiene varias hojas:
-
-#### Hoja "Resumen General"
-
-- Estadísticas agregadas de la simulación
-- Total de ciclistas generados
-- Total de viajes completados
-- Tiempo total de simulación
-- Métricas de velocidad
-
-#### Hoja "Rutas Utilizadas"
-
-- Lista de todas las rutas utilizadas
-- Frecuencia de uso de cada ruta
-- Porcentaje del total
-
-#### Hoja "Arcos Utilizados"
-
-- Lista de todos los arcos/tramos utilizados
-- Frecuencia de uso de cada arco
-- Utilización por segmento
-
-#### Hoja "Ciclistas por Nodo"
-
-- Número de ciclistas generados por cada nodo
-- Actividad de cada nodo como origen
-
-#### Hoja "Perfiles Utilizados"
-
-- Distribución de perfiles asignados
-- Porcentaje de cada perfil
-
-#### Hoja "Tiempos de Viaje"
-
-- Tiempo promedio de viaje por ruta
-- Tiempo total de viaje por ciclista
-- Tiempos por tramo
-
 ### Ubicación de Archivos
 
 Los archivos se guardan en:
 ```
 resultados/
-├── resultados_simulacion_YYYYMMDD_HHMMSS.xlsx
+├── nombre_grafo_YYYYMMDD_HHMMSS.xlsx
 └── ...
 ```
 
-Donde `YYYYMMDD_HHMMSS` es la fecha y hora de generación.
+Donde:
+- `nombre_grafo`: Nombre del archivo Excel cargado (o "simulacion" por defecto)
+- `YYYYMMDD_HHMMSS`: Fecha y hora de generación en formato año-mes-día hora-minuto-segundo
+
+Ejemplo: `mi_red_20240115_143025.xlsx`
 
 ### Análisis de Resultados
 
@@ -649,6 +614,454 @@ Los archivos Excel generados pueden ser:
 - Abiertos en Excel, Google Sheets, o cualquier herramienta de análisis
 - Importados a herramientas de análisis de datos (Python, R, etc.)
 - Usados para generar reportes y visualizaciones adicionales
+
+---
+
+## Interpretación del Excel de Estadísticas
+
+Esta sección explica en detalle cómo leer e interpretar el archivo Excel generado al finalizar una simulación. El archivo contiene 4 hojas principales con información detallada de la simulación.
+
+### Estructura General del Archivo
+
+El archivo Excel generado contiene exactamente 4 hojas:
+
+1. **Info Simulación**: Resumen general y estadísticas agregadas
+2. **Tramos**: Información detallada de cada tramo/arco de la red
+3. **Ciclistas**: Información detallada de cada ciclista individual
+4. **Tiempos**: Estadísticas y detalles de tiempos de desplazamiento
+
+---
+
+### Hoja 1: Info Simulación
+
+#### Propósito
+
+Esta hoja contiene un resumen general de la simulación con estadísticas agregadas y parámetros de configuración. Está organizada en secciones con dos columnas: "Parámetro" y "Valor".
+
+#### Secciones y Parámetros
+
+**INFORMACIÓN GENERAL**
+
+- **Fecha de simulación**: Fecha y hora exacta en que se ejecutó la simulación (formato: YYYY-MM-DD HH:MM:SS)
+- **Duración de simulación**: Duración configurada para la simulación en segundos
+- **Estado final**: Estado en que terminó la simulación
+  - "completada": La simulación terminó normalmente al alcanzar el tiempo configurado
+  - "detenido": La simulación fue detenida manualmente
+  - "ejecutando": La simulación estaba en ejecución cuando se generó el reporte (raro)
+- **Tiempo transcurrido**: Tiempo real que transcurrió durante la simulación en segundos (con 2 decimales)
+
+**INFORMACIÓN DEL GRAFO**
+
+- **Usando grafo real**: Indica si la simulación usó un grafo cargado desde Excel ("Sí" o "No")
+- **Número de nodos**: Cantidad total de nodos en la red
+- **Número de arcos**: Cantidad total de arcos/tramos en la red (cada sentido cuenta como un arco separado)
+- **Grafo conectado**: Indica si todos los nodos están conectados entre sí ("Sí" o "No")
+- **Distancia promedio arcos**: Distancia promedio de todos los arcos en la red en metros (con 2 decimales)
+
+**ESTADÍSTICAS DE CICLISTAS**
+
+- **Total de ciclistas creados**: Número total de ciclistas que fueron generados durante la simulación
+- **Ciclistas activos**: Número de ciclistas que estaban en movimiento cuando terminó la simulación
+  - Valor por defecto: 0 si todos completaron sus viajes
+- **Ciclistas completados**: Número de ciclistas que terminaron exitosamente su viaje
+- **Velocidad promedio**: Velocidad promedio de todos los ciclistas durante la simulación en km/h (con 2 decimales)
+  - Nota: Esta velocidad ya refleja los efectos de inclinación y congestión
+- **Velocidad mínima**: Velocidad más baja registrada entre todos los ciclistas en km/h
+- **Velocidad máxima**: Velocidad más alta registrada entre todos los ciclistas en km/h
+
+**ESTADÍSTICAS DE RUTAS**
+
+- **Rutas únicas utilizadas**: Número de rutas diferentes que fueron utilizadas por los ciclistas
+- **Total de viajes**: Número total de viajes completados
+- **Ruta más usada**: La ruta que fue utilizada por más ciclistas (formato: "nodo1->nodo2->...->destino")
+  - Valor por defecto: "Sin datos" si no hay rutas registradas
+- **Tramo más concurrido**: El tramo que fue utilizado por más ciclistas (formato: "origen->destino")
+  - Valor por defecto: "Sin datos" si no hay tramos registrados
+  - Nota: Cada sentido se cuenta por separado
+
+**ESTADÍSTICAS DE NODOS**
+
+- **Nodo más activo**: El nodo que generó más ciclistas (más arribos)
+  - Valor por defecto: "Sin datos" si no hay datos de nodos
+
+**ESTADÍSTICAS DE PERFILES**
+
+- **Total ciclistas con perfil**: Número de ciclistas a los que se les asignó un perfil de preferencias
+  - Valor por defecto: 0 si no se usaron perfiles
+- **Perfil más usado**: El perfil de preferencias que fue asignado a más ciclistas
+  - Valor por defecto: "Sin datos" si no se usaron perfiles
+
+---
+
+### Hoja 2: Tramos
+
+#### Propósito
+
+Esta hoja contiene información detallada de cada tramo (arco) de la red, incluyendo sus atributos físicos y estadísticas de uso. Está ordenada por uso (más usado primero).
+
+#### Columnas Fijas
+
+**ID Tramo**
+- Descripción: Identificador único del tramo
+- Formato: "origen->destino"
+- Ejemplo: "A->B", "Nodo1->Nodo2"
+- Nota: Cada sentido de circulación tiene un ID diferente
+
+**Nodo Origen**
+- Descripción: Nodo de inicio del tramo
+- Tipo: Identificador del nodo
+- Ejemplo: "A", "Centro"
+
+**Nodo Destino**
+- Descripción: Nodo final del tramo
+- Tipo: Identificador del nodo
+- Ejemplo: "B", "Universidad"
+
+**Distancia (m)**
+- Descripción: Distancia física del tramo en metros
+- Unidad: metros (con 1 decimal)
+- Ejemplo: "125.5"
+- Valor por defecto: 0 si no hay distancia definida
+
+**Ciclistas que lo usaron**
+- Descripción: Número de ciclistas que recorrieron este tramo durante la simulación
+- Tipo: Entero
+- Valor por defecto: 0 si ningún ciclista usó el tramo
+- Nota: Cuenta cada vez que un ciclista pasa por el tramo
+
+**Porcentaje de uso**
+- Descripción: Porcentaje que representa este tramo del total de usos de todos los tramos
+- Unidad: porcentaje (con 1 decimal)
+- Ejemplo: "15.3%"
+- Cálculo: (Ciclistas que lo usaron / Total de usos) * 100
+- Valor por defecto: 0% si no hay usos
+
+**Tiempo promedio (s)**
+- Descripción: Tiempo promedio estimado para recorrer el tramo
+- Unidad: segundos (con 1 decimal)
+- Ejemplo: "10.5s"
+- Cálculo: Basado en distancia y velocidad promedio de 12.5 km/h
+- Nota: Es una estimación, no el tiempo real de la simulación
+
+#### Columnas Dinámicas
+
+Además de las columnas fijas, esta hoja puede incluir columnas adicionales según los atributos que tenga cada tramo en el grafo. Estas columnas aparecen con el nombre del atributo en formato título (primera letra mayúscula).
+
+**Ejemplos de atributos comunes:**
+
+- **Seguridad**: Nivel de seguridad del tramo (rango típico: 1-10 o 5-9). Valores más altos indican mayor seguridad. Valor por defecto: "N/A" si el atributo no está definido.
+
+- **Luminosidad**: Nivel de iluminación del tramo (rango típico: 1-10 o 4-8). Valores más altos indican mejor iluminación. Valor por defecto: "N/A" si el atributo no está definido.
+
+- **Inclinacion**: Inclinación del tramo en porcentaje (rango típico: -50% a +50%). Valores positivos son subidas, negativos son bajadas. Valor por defecto: "N/A" si el atributo no está definido.
+
+- **Otros atributos**: Cualquier otro atributo definido en el archivo Excel de entrada aparecerá como columna adicional. Valor por defecto: "N/A" si el atributo no está presente en ese tramo específico.
+
+---
+
+### Hoja 3: Ciclistas
+
+#### Propósito
+
+Esta hoja contiene información detallada de cada ciclista individual que participó en la simulación, incluyendo su ruta, tiempos, velocidades y estado final. Está ordenada por ID de ciclista.
+
+#### Columnas Fijas
+
+**ID Ciclista**
+- Descripción: Identificador único numérico del ciclista
+- Tipo: Entero
+- Ejemplo: 1, 2, 3, 100
+
+**Origen**
+- Descripción: Nodo donde el ciclista inició su viaje
+- Tipo: Identificador del nodo
+- Ejemplo: "A", "Centro", "Nodo1"
+- Valor por defecto: "N/A" si no se pudo determinar el origen
+
+**Destino**
+- Descripción: Nodo donde el ciclista terminó o tenía como objetivo terminar su viaje
+- Tipo: Identificador del nodo
+- Ejemplo: "B", "Universidad", "Nodo5"
+- Valor por defecto: "N/A" si no se pudo determinar el destino
+
+**Ruta Simple**
+- Descripción: Representación simplificada de la ruta mostrando solo origen y destino
+- Formato: "origen->destino"
+- Ejemplo: "A->B", "Centro->Universidad"
+- Valor por defecto: "N/A" si no hay ruta registrada
+
+**Ruta Detallada**
+- Descripción: Secuencia completa de nodos por los que pasó el ciclista
+- Formato: "nodo1->nodo2->nodo3->...->destino"
+- Ejemplo: "A->B->C->D", "Centro->Nodo2->Nodo3->Universidad"
+- Valor por defecto: "N/A" si no hay ruta detallada registrada
+- Nota: Muestra el camino exacto que siguió el ciclista
+
+**Perfil**
+- Descripción: Perfil de preferencias asignado al ciclista
+- Tipo: Nombre del perfil o identificador
+- Ejemplo: "Seguridad", "Distancia", "Perfil 1"
+- Valor por defecto: "Sin perfil" si no se asignó ningún perfil
+- Nota: El perfil determina cómo el ciclista eligió su ruta
+
+**Número de Tramos**
+- Descripción: Cantidad de arcos/tramos que recorrió el ciclista
+- Tipo: Entero
+- Ejemplo: 3, 5, 10
+- Cálculo: Número de elementos en la secuencia de la ruta detallada menos 1
+- Valor por defecto: 0 si no hay ruta
+
+**Distancia Total (m)**
+- Descripción: Distancia total recorrida por el ciclista en metros
+- Unidad: metros (con 1 decimal)
+- Ejemplo: "250.5", "1000.0"
+- Cálculo: Suma de las distancias de todos los tramos recorridos
+- Valor por defecto: 0.0 si no hay datos de distancia
+
+**Tiempo Total (s)**
+- Descripción: Tiempo total que tardó el ciclista en completar su viaje
+- Unidad: segundos (con 1 decimal)
+- Ejemplo: "25.3", "100.5"
+- Cálculo: Tiempo desde que inició el viaje hasta que lo completó
+- Valor por defecto: 0.0 si el ciclista no completó su viaje
+- Nota: Este tiempo incluye los efectos de:
+  - Inclinación (subidas aumentan el tiempo)
+  - Seguridad y luminosidad (afectan el tiempo de desplazamiento)
+  - Congestión (factor de densidad reduce velocidad cuando hay sobrecarga)
+
+**Tiempo Promedio por Tramo (s)**
+- Descripción: Tiempo promedio que tardó el ciclista en cada tramo
+- Unidad: segundos (con 1 decimal)
+- Ejemplo: "8.4", "12.5"
+- Cálculo: Tiempo Total / Número de Tramos
+- Valor por defecto: 0.0 si no hay tiempo total o no hay tramos
+
+**Velocidad Promedio (m/s)**
+- Descripción: Velocidad promedio del ciclista durante todo el viaje
+- Unidad: metros por segundo (con 2 decimales)
+- Ejemplo: "9.89 m/s", "8.50 m/s"
+- Cálculo: Distancia Total / Tiempo Total
+- Valor por defecto: 0.00 m/s si no hay tiempo total
+- Nota: Esta velocidad ya refleja los efectos de:
+  - Inclinación (subidas reducen velocidad, bajadas la aumentan)
+  - Congestión (factor de densidad reduce velocidad cuando hay sobrecarga)
+  - Es la velocidad real observada en la simulación, no la velocidad configurada
+
+**Tramos Utilizados**
+- Descripción: Lista de los tramos (arcos) que utilizó el ciclista
+- Formato: Lista separada por punto y coma (;)
+- Ejemplo: "A->B; B->C; C->D"
+- Limitación: Muestra máximo 5 tramos. Si hay más, muestra "(+X más)"
+- Ejemplo con muchos tramos: "A->B; B->C; C->D; D->E; E->F (+3 más)"
+- Valor por defecto: Vacío si no hay tramos registrados
+
+**Estado**
+- Descripción: Estado final del ciclista al terminar la simulación
+- Valores posibles:
+  - "completado": El ciclista terminó exitosamente su viaje
+  - "activo": El ciclista estaba aún en movimiento cuando terminó la simulación
+  - "Desconocido": No se pudo determinar el estado del ciclista
+- Valor por defecto: "Desconocido" si no hay información de estado
+- Nota: Si la simulación se detuvo antes de tiempo, puede haber ciclistas con estado "activo"
+
+#### Columnas Dinámicas de Preferencias
+
+Si los ciclistas tienen perfiles con preferencias definidas, pueden aparecer columnas adicionales:
+
+**Pref. Seguridad**
+- Descripción: Peso o preferencia del ciclista por la seguridad
+- Tipo: Decimal (con 2 decimales)
+- Rango típico: 0.0 a 1.0
+- Ejemplo: "0.30", "0.50"
+- Valor por defecto: "N/A" si el perfil no tiene esta preferencia
+- Nota: Valores más altos indican mayor preferencia por rutas seguras
+
+**Pref. Luminosidad**
+- Descripción: Peso o preferencia del ciclista por la luminosidad
+- Tipo: Decimal (con 2 decimales)
+- Rango típico: 0.0 a 1.0
+- Ejemplo: "0.20", "0.40"
+- Valor por defecto: "N/A" si el perfil no tiene esta preferencia
+
+**Pref. Distancia**
+- Descripción: Peso o preferencia del ciclista por distancias cortas
+- Tipo: Decimal (con 2 decimales)
+- Rango típico: 0.0 a 1.0
+- Ejemplo: "0.40", "0.60"
+- Valor por defecto: "N/A" si el perfil no tiene esta preferencia
+- Nota: Valores más altos indican mayor preferencia por rutas cortas
+
+**Pref. Inclinacion**
+- Descripción: Peso o preferencia del ciclista por la inclinación
+- Tipo: Decimal (con 2 decimales)
+- Rango típico: 0.0 a 1.0
+- Ejemplo: "0.10", "0.30"
+- Valor por defecto: "N/A" si el perfil no tiene esta preferencia
+
+---
+
+### Hoja 4: Tiempos
+
+#### Propósito
+
+Esta hoja contiene estadísticas agregadas y detalles individuales sobre los tiempos de desplazamiento de los ciclistas. Está dividida en dos secciones principales.
+
+#### Sección 1: Estadísticas Generales de Tiempos
+
+Esta sección aparece en las primeras filas y contiene métricas agregadas.
+
+**Total de ciclistas con tiempo registrado**
+- Descripción: Número de ciclistas para los que se registró tiempo de viaje
+- Tipo: Entero
+- Nota: Puede ser menor que el total de ciclistas si algunos no completaron su viaje
+
+**Tiempo promedio de viaje**
+- Descripción: Tiempo promedio de viaje entre todos los ciclistas
+- Unidad: segundos (con 2 decimales)
+- Ejemplo: "45.25 segundos"
+- Cálculo: Suma de todos los tiempos / Número de ciclistas
+
+**Tiempo mínimo de viaje**
+- Descripción: El tiempo de viaje más corto registrado
+- Unidad: segundos (con 2 decimales)
+- Ejemplo: "15.30 segundos"
+
+**Tiempo máximo de viaje**
+- Descripción: El tiempo de viaje más largo registrado
+- Unidad: segundos (con 2 decimales)
+- Ejemplo: "120.50 segundos"
+
+#### Sección 2: Detalles por Ciclista
+
+Esta sección contiene una fila por cada ciclista con información detallada de sus tiempos.
+
+**ID Ciclista**
+- Descripción: Identificador del ciclista con información de origen y destino
+- Formato: "Ciclista X (origen→destino)"
+- Ejemplo: "Ciclista 1 (A→B)", "Ciclista 25 (Centro→Universidad)"
+
+**Tiempo Total (s)**
+- Descripción: Tiempo total del viaje del ciclista
+- Unidad: segundos (con 2 decimales)
+- Ejemplo: "25.30", "100.50"
+- Nota: Mismo valor que en la hoja Ciclistas
+
+**Número de Tramos**
+- Descripción: Cantidad de tramos que recorrió el ciclista
+- Tipo: Entero
+- Ejemplo: 3, 5
+
+**Tiempo Promedio por Tramo (s)**
+- Descripción: Tiempo promedio en cada tramo
+- Unidad: segundos (con 2 decimales)
+- Ejemplo: "8.43", "12.50"
+- Cálculo: Tiempo Total / Número de Tramos
+
+**Tramos con Tiempo**
+- Descripción: Lista de tiempos individuales por cada tramo
+- Formato: Lista de tiempos separados por punto y coma
+- Ejemplo: "10.5s; 8.3s; 12.1s"
+- Limitación: Muestra máximo 5 tiempos. Si hay más, muestra "(+X más)"
+- Ejemplo con muchos tramos: "10.5s; 8.3s; 12.1s; 9.2s; 11.0s (+3 más)"
+
+**Ruta Completa**
+- Descripción: Secuencia completa de nodos de la ruta del ciclista
+- Formato: "nodo1->nodo2->nodo3->...->destino"
+- Ejemplo: "A->B->C->D"
+- Valor por defecto: "N/A" si no hay ruta registrada
+
+---
+
+### Valores por Defecto Comunes
+
+Al interpretar el Excel, es importante entender qué significan los valores por defecto:
+
+**"N/A" (No Disponible)**
+- Significado: El dato no está disponible o no se pudo calcular
+- Aparece cuando: Un atributo no está definido, una ruta no se registró, o falta información
+
+**"Sin datos"**
+- Significado: No hay datos para esa métrica agregada
+- Aparece cuando: No se registró ninguna ocurrencia (ej: "Sin datos" en ruta más usada si no hay rutas)
+
+**"Desconocido"**
+- Significado: No se pudo determinar el estado o valor
+- Aparece en: Estado de ciclista cuando no hay información registrada
+
+**"Sin perfil"**
+- Significado: Al ciclista no se le asignó ningún perfil de preferencias
+- Aparece en: Columna Perfil cuando no hay perfiles configurados o asignados
+
+**"activo" vs "completado"**
+- "activo": El ciclista estaba aún en movimiento cuando terminó la simulación
+- "completado": El ciclista terminó exitosamente su viaje
+- Nota: Si la simulación se detuvo antes de tiempo, puede haber ciclistas con estado "activo"
+
+---
+
+### Notas Importantes sobre los Datos
+
+**Diferenciación por Sentido**
+
+Es importante entender que el sistema diferencia cada sentido de circulación:
+
+- Un tramo físico entre nodos A y B tiene dos entradas separadas:
+  - "A->B" (sentido de A hacia B)
+  - "B->A" (sentido de B hacia A)
+
+- Cada sentido tiene su propia capacidad y factor de densidad
+- Los conteos de uso se hacen por sentido
+- Esto permite analizar congestión asimétrica (un sentido congestionado, el otro no)
+
+**Efectos en Tiempos y Velocidades**
+
+Los tiempos y velocidades reportados ya incluyen todos los efectos del modelo:
+
+1. **Inclinación**: Subidas reducen velocidad, bajadas la aumentan
+2. **Seguridad y Luminosidad**: Afectan el tiempo de desplazamiento (valores bajos aumentan el tiempo)
+3. **Congestión**: Cuando hay más ciclistas que la capacidad de un tramo, la velocidad se reduce proporcionalmente
+
+Por lo tanto, la "Velocidad Promedio" y el "Tiempo Total" son valores reales observados, no valores teóricos o configurados.
+
+**Interpretación de Estadísticas**
+
+**Alta variabilidad en velocidades**
+- Puede indicar diferentes condiciones en diferentes tramos (inclinaciones, congestión)
+- Puede indicar diferentes perfiles de ciclistas con diferentes comportamientos
+
+**Tiempos totales muy altos**
+- Puede indicar rutas largas
+- Puede indicar congestión en algunos tramos
+- Puede indicar condiciones adversas (subidas, baja seguridad)
+
+**Tramos con uso cero**
+- Tramo no fue utilizado por ningún ciclista
+- Puede indicar que no es parte de rutas óptimas según los perfiles
+- Puede indicar que la demanda no requiere ese tramo
+
+---
+
+### Uso Recomendado del Excel
+
+**Para análisis de rendimiento**
+- Use la hoja "Ciclistas" para analizar tiempos y velocidades individuales
+- Compare tiempos entre diferentes rutas
+- Identifique ciclistas con tiempos anormalmente altos o bajos
+
+**Para análisis de infraestructura**
+- Use la hoja "Tramos" para identificar tramos más utilizados
+- Identifique potenciales cuellos de botella (tramos con alto uso)
+- Analice la distribución de uso por características (seguridad, luminosidad, etc.)
+
+**Para resumen ejecutivo**
+- Use la hoja "Info Simulación" para obtener un resumen rápido de la simulación
+- Compare estadísticas entre diferentes simulaciones
+- Valide que los parámetros de configuración se aplicaron correctamente
+
+**Para análisis de tiempos**
+- Use la hoja "Tiempos" para comparar tiempos entre ciclistas
+- Analice variabilidad en tiempos de viaje
+- Identifique rutas más eficientes según tiempos
 
 ---
 
@@ -791,9 +1204,10 @@ En los resultados exportados, consulte la hoja "Arcos Utilizados". Los arcos con
 
 Este manual proporciona una guía completa para utilizar el Simulador de Ciclorutas. Para información más detallada sobre:
 
-- **Instalación y configuración**: Consulte `README_INSTALACION.md`
-- **Arquitectura técnica**: Consulte `README_ARQUITECTURA.md`
-- **Modelo de simulación**: Consulte `README_MODELO_SIMULACION.md`
+- **Visión general del proyecto**: Consulte **[README.md](README.md)**
+- **Instalación y configuración**: Consulte **[README_INSTALACION.md](README_INSTALACION.md)**
+- **Arquitectura técnica**: Consulte **[README_ARQUITECTURA.md](README_ARQUITECTURA.md)**
+- **Modelo de simulación**: Consulte **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)**
 
 Para soporte adicional o preguntas, consulte la documentación técnica o contacte a los desarrolladores.
 

@@ -1,6 +1,6 @@
-# 🏗️ Arquitectura y Diseño - Simulador de Ciclorutas v2.0
+# Arquitectura y Diseño - Simulador de Ciclorutas v2.0
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
 - [Visión General](#visión-general)
 - [Principios de Diseño](#principios-de-diseño)
@@ -16,7 +16,7 @@
 
 ---
 
-## 🎯 Visión General
+## Visión General
 
 El Simulador de Ciclorutas v2.0 es un sistema modular diseñado para simular el comportamiento de ciclistas en redes de ciclorutas. La arquitectura está basada en principios de **separación de responsabilidades**, **modularidad** y **escalabilidad**.
 
@@ -29,7 +29,7 @@ El Simulador de Ciclorutas v2.0 es un sistema modular diseñado para simular el 
 
 ---
 
-## 🎨 Principios de Diseño
+## Principios de Diseño
 
 ### 1. Separación de Responsabilidades
 
@@ -51,7 +51,7 @@ El Simulador de Ciclorutas v2.0 es un sistema modular diseñado para simular el 
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 ciclorutas/
@@ -59,7 +59,7 @@ ciclorutas/
 ├── config.py                        # Configuración centralizada
 ├── requirements.txt                 # Dependencias del proyecto
 │
-├── Simulador/                       # 🎮 Motor de simulación
+├── Simulador/                       # Motor de simulación
 │   ├── __init__.py
 │   ├── core/                        # Componentes principales
 │   │   ├── simulador.py            # Motor principal SimPy
@@ -74,7 +74,7 @@ ciclorutas/
 │       ├── grafo_utils.py          # Utilidades para grafos NetworkX
 │       └── rutas_utils.py          # Cálculo de rutas óptimas
 │
-└── Interfaz/                        # 🖥️ Interfaz gráfica
+└── Interfaz/                        # Interfaz gráfica
     ├── __init__.py
     ├── components/                  # Componentes principales
     │   └── app_principal.py        # Aplicación principal Tkinter
@@ -91,9 +91,9 @@ ciclorutas/
 
 ---
 
-## 🔧 Componentes Principales
+## Componentes Principales
 
-### 🎮 Módulo Simulador
+### Módulo Simulador
 
 #### **SimuladorCiclorutas** (`Simulador/core/simulador.py`)
 
@@ -211,7 +211,7 @@ tiempo_arribo = distribucion.generar_tiempo_arribo()
 
 ---
 
-### 🖥️ Módulo Interfaz
+### Módulo Interfaz
 
 #### **InterfazSimulacion** (`Interfaz/components/app_principal.py`)
 
@@ -282,7 +282,7 @@ tiempo_arribo = distribucion.generar_tiempo_arribo()
 
 ---
 
-## 🔄 Flujos de Datos
+## Flujos de Datos
 
 ### 1. Inicialización del Sistema
 
@@ -407,7 +407,7 @@ Bucle de actualización (cada 100ms)
 
 ---
 
-## 📊 Carga de Archivos Excel
+## Carga de Archivos Excel
 
 ### Formato Requerido
 
@@ -417,11 +417,11 @@ El sistema carga datos desde archivos Excel (`.xlsx` o `.xls`) con estructura es
 
 | Columna | Descripción | Obligatorio |
 |---------|-------------|-------------|
-| `NODO` | Identificador del nodo (ej: "A", "B", "Nodo1") | ✅ |
-| `ID` | ID numérico del nodo | ⚠️ Opcional |
-| `NOMBRE` | Nombre descriptivo | ⚠️ Opcional |
-| `LAT` | Latitud (coordenada geográfica) | ⚠️ Opcional |
-| `LON` | Longitud (coordenada geográfica) | ⚠️ Opcional |
+| `NODO` | Identificador del nodo (ej: "A", "B", "Nodo1") | Obligatorio |
+| `ID` | ID numérico del nodo | Opcional |
+| `NOMBRE` | Nombre descriptivo | Opcional |
+| `LAT` | Latitud (coordenada geográfica) | Opcional |
+| `LON` | Longitud (coordenada geográfica) | Opcional |
 
 **Nota**: Si existen `LAT` y `LON`, el sistema:
 - Calcula distancias euclidianas automáticamente usando fórmula de Haversine
@@ -431,13 +431,13 @@ El sistema carga datos desde archivos Excel (`.xlsx` o `.xls`) con estructura es
 
 | Columna | Descripción | Obligatorio |
 |---------|-------------|-------------|
-| `ORIGEN` | Nodo de origen | ✅ |
-| `DESTINO` | Nodo de destino | ✅ |
-| `DISTANCIA` | Distancia en metros | ✅* |
-| `INCLINACION` | Inclinación en porcentaje | ⚠️ Opcional |
-| `SEGURIDAD` | Nivel de seguridad (1-10) | ⚠️ Opcional |
-| `LUMINOSIDAD` | Nivel de luminosidad (1-10) | ⚠️ Opcional |
-| Otros atributos | Cualquier otro atributo numérico | ⚠️ Opcional |
+| `ORIGEN` | Nodo de origen | Obligatorio |
+| `DESTINO` | Nodo de destino | Obligatorio |
+| `DISTANCIA` | Distancia en metros | Obligatorio* |
+| `INCLINACION` | Inclinación en porcentaje | Opcional |
+| `SEGURIDAD` | Nivel de seguridad (1-10) | Opcional |
+| `LUMINOSIDAD` | Nivel de luminosidad (1-10) | Opcional |
+| Otros atributos | Cualquier otro atributo numérico | Opcional |
 
 *Obligatorio solo si no hay coordenadas LAT/LON en NODOS
 
@@ -451,9 +451,9 @@ El sistema carga datos desde archivos Excel (`.xlsx` o `.xls`) con estructura es
 
 | Columna | Descripción | Obligatorio |
 |---------|-------------|-------------|
-| `PERFILES` | ID del perfil (1, 2, 3, ...) | ✅ |
-| `PROBABILIDAD` | Probabilidad de selección (0.0-1.0) | ✅ |
-| Atributos dinámicos | Pesos para cada atributo (distancia, seguridad, etc.) | ⚠️ Opcional |
+| `PERFILES` | ID del perfil (1, 2, 3, ...) | Obligatorio |
+| `PROBABILIDAD` | Probabilidad de selección (0.0-1.0) | Obligatorio |
+| Atributos dinámicos | Pesos para cada atributo (distancia, seguridad, etc.) | Opcional |
 
 **Validación**:
 - Las probabilidades deben sumar 1.0 (con tolerancia de 0.01)
@@ -545,7 +545,7 @@ D    | 0.25 | 0.25 | 0.25 | 0.0
 
 ---
 
-## 🎨 Sistema de Visualización
+## Sistema de Visualización
 
 ### Componente Principal
 
@@ -603,7 +603,7 @@ D    | 0.25 | 0.25 | 0.25 | 0.0
 
 ---
 
-## 🎲 Generación de Simulaciones
+## Generación de Simulaciones
 
 ### Inicialización
 
@@ -700,7 +700,7 @@ while estado != "completada":
 
 ---
 
-## 📅 Sistema de Eventos y Calendario
+## Sistema de Eventos y Calendario
 
 ### Motor de Simulación: SimPy
 
@@ -848,7 +848,7 @@ Tiempo | Evento
 
 ---
 
-## 🎭 Patrones de Diseño
+## Patrones de Diseño
 
 ### 1. MVC (Model-View-Controller)
 
@@ -926,7 +926,7 @@ self.panel_nuevo = PanelNuevo(self.frame, self.simulador)
 
 ---
 
-## 📚 Referencias
+## Referencias
 
 - **SimPy Documentation**: https://simpy.readthedocs.io/
 - **NetworkX Documentation**: https://networkx.org/
@@ -935,5 +935,12 @@ self.panel_nuevo = PanelNuevo(self.frame, self.simulador)
 
 ---
 
-Este documento proporciona una visión completa de la arquitectura del sistema. Para detalles específicos del modelo de simulación, consulte **README_MODELO_SIMULACION.md**.
+## Documentación Relacionada
+
+Este documento proporciona una visión completa de la arquitectura del sistema. Para información complementaria, consulte:
+
+- **[README.md](README.md)** - Visión general del proyecto y guía de inicio rápido
+- **[README_INSTALACION.md](README_INSTALACION.md)** - Guía completa de instalación y configuración
+- **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)** - Detalles específicos del modelo de simulación, entidades y eventos
+- **[README_MANUAL_USUARIO.md](README_MANUAL_USUARIO.md)** - Manual de usuario con formato de Excel e interpretación de resultados
 

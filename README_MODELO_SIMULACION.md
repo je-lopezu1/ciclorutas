@@ -1,6 +1,6 @@
-# 🎲 Modelo de Simulación - Simulador de Ciclorutas
+# Modelo de Simulación - Simulador de Ciclorutas
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
 - [Visión General del Modelo](#visión-general-del-modelo)
 - [Tipo de Simulación](#tipo-de-simulación)
@@ -15,7 +15,7 @@
 
 ---
 
-## 🎯 Visión General del Modelo
+## Visión General del Modelo
 
 El modelo de simulación implementa un **sistema de eventos discretos** para simular el comportamiento de ciclistas en una red de ciclorutas. El modelo se basa en:
 
@@ -33,7 +33,7 @@ Simular el movimiento de ciclistas a través de una red de ciclorutas consideran
 
 ---
 
-## 📊 Tipo de Simulación
+## Tipo de Simulación
 
 ### Simulación de Eventos Discretos (DES)
 
@@ -66,7 +66,7 @@ El modelo utiliza **SimPy** (Simulation in Python), un framework para simulació
 
 ---
 
-## 👥 Entidades del Modelo
+## Entidades del Modelo
 
 ### 1. Ciclista
 
@@ -210,7 +210,7 @@ perfil_1 = {
 
 ---
 
-## 📅 Eventos del Modelo
+## Eventos del Modelo
 
 ### Clasificación de Eventos
 
@@ -325,7 +325,7 @@ generar_resultados_excel()
 
 ---
 
-## ⏰ Calendario de Eventos
+## Calendario de Eventos
 
 ### Gestión del Calendario
 
@@ -377,7 +377,7 @@ while calendario_no_vacio:
 
 ---
 
-## 🧠 Mecánica de Decisión
+## Mecánica de Decisión
 
 ### 1. Selección de Nodo Origen
 
@@ -604,7 +604,7 @@ tiempo_real = tiempo_base * factor_tiempo  # Aplicar factor
 
 **Cuándo ocurre**: Durante el movimiento en cada tramo, considerando la densidad de tráfico en el sentido de circulación.
 
-**⚠️ IMPORTANTE: Diferenciación por Sentido**
+**IMPORTANTE: Diferenciación por Sentido**
 
 El sistema calcula la capacidad y el factor de densidad **de forma independiente para cada sentido de circulación**. Esto significa que un tramo bidireccional tiene dos capacidades separadas:
 
@@ -799,7 +799,7 @@ Donde:
 
 ---
 
-## ⏱️ Gestión del Tiempo
+## Gestión del Tiempo
 
 ### Tiempo de Simulación
 
@@ -876,7 +876,7 @@ tiempo_total_viaje = env.now - tiempo_inicio_viaje[id]  # Al completar
 
 ---
 
-## 📊 Estado del Sistema
+## Estado del Sistema
 
 ### Variables de Estado
 
@@ -922,7 +922,7 @@ INICIO
 
 ---
 
-## 🔄 Flujo de Ejecución
+## Flujo de Ejecución
 
 ### Flujo Completo de la Simulación
 
@@ -1009,7 +1009,7 @@ Tiempo: 300.0s
 
 ---
 
-## 🚧 Limitaciones y Supuestos
+## Limitaciones y Supuestos
 
 ### Supuestos del Modelo
 
@@ -1038,7 +1038,7 @@ Tiempo: 300.0s
 
 ---
 
-## 📚 Referencias Técnicas
+## Referencias Técnicas
 
 - **SimPy Documentation**: Framework de simulación de eventos discretos
 - **NetworkX Algorithms**: Algoritmos de grafos (Dijkstra, shortest path)
@@ -1047,5 +1047,12 @@ Tiempo: 300.0s
 
 ---
 
-Este documento describe el modelo de simulación en detalle. Para información sobre la arquitectura del sistema, consulte **README_ARQUITECTURA.md**. Para instalación y uso, consulte **README_INSTALACION.md**.
+## Documentación Relacionada
+
+Este documento describe el modelo de simulación en detalle. Para información complementaria, consulte:
+
+- **[README.md](README.md)** - Visión general del proyecto y características principales
+- **[README_INSTALACION.md](README_INSTALACION.md)** - Guía completa de instalación y configuración
+- **[README_ARQUITECTURA.md](README_ARQUITECTURA.md)** - Arquitectura del sistema, componentes y diseño
+- **[README_MANUAL_USUARIO.md](README_MANUAL_USUARIO.md)** - Manual de usuario con formato de Excel e interpretación de resultados
 
