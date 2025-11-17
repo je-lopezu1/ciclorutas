@@ -13,6 +13,7 @@ La herramienta permite modelar, analizar y visualizar el comportamiento de cicli
 - **Comportamiento de ciclistas**: Diferentes perfiles de preferencias y decisiones de ruta
 - **Distribuciones probabilísticas**: Modelado realista de arribos y patrones de movimiento
 - **Visualización en tiempo real**: Representación dinámica del movimiento de ciclistas
+- **Modelado de congestión**: Sistema de capacidad por sentido de circulación con reducción dinámica de velocidad
 
 ### Contexto de Investigación
 
@@ -152,6 +153,8 @@ Guía práctica paso a paso para utilizar la herramienta desde la perspectiva de
 - **Distribuciones probabilísticas configurables** (exponencial, Poisson, normal, log-normal, gamma, Weibull) para arribos por nodo
 - **Perfiles heterogéneos de ciclistas** con preferencias multi-atributo (distancia, seguridad, luminosidad, inclinación)
 - **Algoritmo de ruta óptima** basado en Dijkstra con pesos compuestos según preferencias del ciclista
+- **Sistema de capacidad y congestión**: Modelado de capacidad por sentido de circulación con reducción dinámica de velocidad cuando se excede la capacidad
+- **Factor de densidad de tráfico**: Cálculo independiente por sentido que reduce la velocidad proporcionalmente cuando hay sobrecarga
 
 ### Interfaz y Visualización
 - **Interfaz gráfica modular** (Tkinter) con paneles de control, visualización, estadísticas y distribuciones

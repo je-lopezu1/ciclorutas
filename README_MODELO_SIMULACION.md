@@ -600,6 +600,203 @@ tiempo_real = tiempo_base * factor_tiempo  # Aplicar factor
 
 **Efecto**: El tiempo de desplazamiento se ajusta según seguridad e iluminación.
 
+### 7. Sistema de Capacidad y Factor de Densidad de Tráfico
+
+**Cuándo ocurre**: Durante el movimiento en cada tramo, considerando la densidad de tráfico en el sentido de circulación.
+
+**⚠️ IMPORTANTE: Diferenciación por Sentido**
+
+El sistema calcula la capacidad y el factor de densidad **de forma independiente para cada sentido de circulación**. Esto significa que un tramo bidireccional tiene dos capacidades separadas:
+
+- **Sentido A→B**: Capacidad y factor calculados independientemente
+- **Sentido B→A**: Capacidad y factor calculados independientemente
+
+Cada sentido se trata como un arco completamente diferente, con su propia capacidad y su propio conteo de bicicletas.
+
+#### 7.1. Cálculo de Capacidad por Sentido
+
+**Fórmula de Capacidad**:
+
+```python
+capacidad_maxima = distancia_real / longitud_bicicleta
+```
+
+Donde:
+- **`distancia_real`**: Distancia del arco en metros (obtenida del grafo)
+- **`longitud_bicicleta`**: Longitud promedio de una bicicleta = **2.5 metros**
+
+**Identificación de Arcos por Sentido**:
+
+Cada arco se identifica con un formato que incluye la dirección:
+
+```python
+arco_str = f"{nodo_actual}->{nodo_siguiente}"
+```
+
+**Ejemplos**:
+- Arco de A hacia B: `"A->B"`
+- Arco de B hacia A: `"B->A"`
+
+Estos son tratados como **arcos completamente diferentes**, incluso si conectan los mismos nodos.
+
+**Ejemplo de Cálculo**:
+
+Si un arco tiene una distancia de **100 metros**:
+- Sentido A→B: `capacidad = 100 / 2.5 = 40 bicicletas` (identificador: `"A->B"`)
+- Sentido B→A: `capacidad = 100 / 2.5 = 40 bicicletas` (identificador: `"B->A"`, calculada independientemente)
+
+**Resultado**: Cada sentido puede tener hasta 40 bicicletas simultáneamente, para un total de 80 bicicletas en el tramo físico completo.
+
+#### 7.2. Rastreo de Bicicletas por Sentido
+
+El simulador mantiene un registro en tiempo real de qué bicicletas están en cada sentido:
+
+```python
+self.bicicletas_en_arco = {}  # Dict[arco_str, set(ciclista_id)]
+```
+
+**Cada sentido tiene su propio conjunto de bicicletas**:
+- `self.bicicletas_en_arco["A->B"]` = bicicletas yendo de A a B
+- `self.bicicletas_en_arco["B->A"]` = bicicletas yendo de B a A
+
+**Flujo de Registro**:
+
+1. **Entrada al arco**: La bicicleta se agrega al conjunto del sentido específico
+2. **Durante el movimiento**: El sistema rastrea cuántas bicicletas hay en cada sentido
+3. **Salida del arco**: La bicicleta se remueve del conjunto del sentido específico
+
+#### 7.3. Cálculo del Factor de Densidad
+
+**Algoritmo**:
+
+```python
+def _calcular_factor_densidad(self, arco_str: str) -> float:
+    # 1. Obtener capacidad máxima del sentido específico
+    capacidad_maxima = self.capacidad_arcos[arco_str]
+    
+    # 2. Contar bicicletas actuales en el sentido específico
+    num_bicicletas = len(self.bicicletas_en_arco.get(arco_str, set()))
+    
+    # 3. Si no hay sobrecarga, no hay reducción
+    if num_bicicletas <= capacidad_maxima:
+        return 1.0  # Factor = 1.0 significa velocidad normal
+    
+    # 4. Si hay sobrecarga, calcular factor de reducción
+    factor = capacidad_maxima / num_bicicletas
+    
+    # 5. Limitar reducción máxima al 90% (factor mínimo = 0.1)
+    return max(0.1, factor)
+```
+
+**Lógica**:
+- Si `bicicletas ≤ capacidad` → factor = 1.0 (sin reducción)
+- Si `bicicletas > capacidad` → factor = `capacidad / bicicletas` (reducción proporcional)
+- Factor mínimo = 0.1 (reducción máxima del 90%)
+
+**Ejemplos Prácticos**:
+
+**Ejemplo 1: Sin Congestión**
+- Capacidad máxima: 40 bicicletas
+- Bicicletas actuales: 30 bicicletas
+- Factor: `1.0` (sin reducción de velocidad)
+
+**Ejemplo 2: Congestión Moderada**
+- Capacidad máxima: 40 bicicletas
+- Bicicletas actuales: 50 bicicletas
+- Factor: `40 / 50 = 0.8` (reducción del 20% de velocidad)
+
+**Ejemplo 3: Congestión Severa**
+- Capacidad máxima: 40 bicicletas
+- Bicicletas actuales: 80 bicicletas
+- Factor: `40 / 80 = 0.5` (reducción del 50% de velocidad)
+
+**Ejemplo 4: Congestión Extrema**
+- Capacidad máxima: 40 bicicletas
+- Bicicletas actuales: 400 bicicletas
+- Factor: `max(0.1, 40/400) = 0.1` (reducción máxima del 90%)
+
+#### 7.4. Aplicación del Factor de Densidad a la Velocidad
+
+**Cuándo ocurre**: Al entrar al arco y durante el movimiento (recalculo periódico).
+
+**Algoritmo**:
+
+```python
+# Al entrar al arco
+factor_densidad = self._calcular_factor_densidad(arco_str)
+velocidad_con_densidad = velocidad * factor_densidad
+
+# Durante el movimiento (recalculo periódico cada 25% del recorrido)
+if i % pasos_entre_actualizaciones == 0:
+    factor_densidad_actual = self._calcular_factor_densidad(arco_str)
+    velocidad_actual = velocidad_base_sin_densidad * factor_densidad_actual
+```
+
+**Efecto**: La velocidad se multiplica por el factor de densidad. Si el factor es menor que 1.0, la velocidad se reduce.
+
+**Ejemplo**:
+- Velocidad base: 10 m/s
+- Factor de densidad: 0.8 (reducción del 20%)
+- Velocidad resultante: `10 * 0.8 = 8 m/s`
+
+#### 7.5. Efecto en el Tiempo de Viaje
+
+El factor de densidad afecta directamente el tiempo de viaje:
+
+```python
+tiempo_base = distancia / velocidad_con_densidad
+tiempo_total = tiempo_base * factor_tiempo
+```
+
+Donde:
+- **`velocidad_con_densidad`** = `velocidad_base * factor_densidad`
+- Si hay congestión, la velocidad baja → el tiempo de viaje aumenta
+
+**Ejemplo**:
+- Distancia: 100 metros
+- Velocidad sin congestión: 10 m/s → Tiempo = 10 segundos
+- Velocidad con congestión (factor 0.8): 8 m/s → Tiempo = 12.5 segundos
+- **Diferencia**: 2.5 segundos adicionales (25% más lento)
+
+#### 7.6. Ejemplo Completo: Tramo Bidireccional con Congestión Asimétrica
+
+**Escenario**: Tramo de 100 metros entre nodos A y B
+
+**Estado**:
+- Sentido A→B: 50 ciclistas
+- Sentido B→A: 20 ciclistas
+
+**Cálculos Independientes**:
+
+**Sentido A→B**:
+- Capacidad: `100 / 2.5 = 40 bicicletas`
+- Bicicletas: 50
+- Factor: `40 / 50 = 0.8` (reducción del 20%)
+- Velocidad: `10 * 0.8 = 8 m/s`
+- Tiempo: `100 / 8 = 12.5 segundos`
+
+**Sentido B→A**:
+- Capacidad: `100 / 2.5 = 40 bicicletas` (calculada independientemente)
+- Bicicletas: 20
+- Factor: `1.0` (20 ≤ 40, sin reducción)
+- Velocidad: `10 * 1.0 = 10 m/s`
+- Tiempo: `100 / 10 = 10 segundos`
+
+**Resultado**:
+- Los ciclistas yendo de A a B circulan a 8 m/s (20% más lento) y tardan 12.5 segundos
+- Los ciclistas yendo de B a A circulan a 10 m/s (velocidad normal) y tardan 10 segundos
+- Cada sentido se gestiona completamente de forma independiente
+
+#### 7.7. Características Importantes
+
+1. **Cálculo Dinámico**: El factor se recalcula periódicamente durante el movimiento (cada 25% del recorrido)
+2. **Límite de Reducción**: Reducción máxima del 90% (factor mínimo = 0.1) para mantener realismo
+3. **Sin Capacidad = Sin Restricción**: Si un arco no tiene capacidad calculada, el factor es `1.0` (sin reducción)
+4. **Efecto Acumulativo**: El factor de densidad se combina con otros factores:
+   - Factor de inclinación (subida/bajada)
+   - Factor de tiempo (seguridad/luminosidad)
+5. **Independencia por Sentido**: La congestión en un sentido no afecta directamente al sentido contrario
+
 ---
 
 ## ⏱️ Gestión del Tiempo
@@ -643,23 +840,28 @@ yield env.timeout(tiempo_arribo)  # Espera tiempo_arribo segundos
 distancia = obtener_distancia_arco(origen, destino)
 velocidad_ajustada = calcular_velocidad_ajustada(velocidad_base, atributos)
 factor_tiempo = calcular_factor_tiempo_desplazamiento(atributos)
+factor_densidad = calcular_factor_densidad(arco_str)  # Nuevo: factor de densidad
 
-tiempo_base = distancia / velocidad_ajustada
+velocidad_con_densidad = velocidad_ajustada * factor_densidad
+tiempo_base = distancia / velocidad_con_densidad
 tiempo_total = tiempo_base * factor_tiempo
 ```
 
 **Cálculo**:
 - **Distancia**: Atributo del arco (metros)
 - **Velocidad**: Configurada por usuario, ajustada por inclinación (m/s)
+- **Factor de densidad**: Multiplicador por congestión de tráfico (nuevo)
 - **Factor de tiempo**: Multiplicador por seguridad/luminosidad
 
 **Ejemplo**:
 ```
 Distancia: 50 metros
 Velocidad ajustada: 12 m/s (reducida por inclinación)
+Factor densidad: 0.8 (reducción del 20% por congestión)
+Velocidad con densidad: 12 * 0.8 = 9.6 m/s
 Factor tiempo: 1.2 (aumentado por baja seguridad)
-Tiempo base: 50 / 12 = 4.17 segundos
-Tiempo total: 4.17 * 1.2 = 5.0 segundos
+Tiempo base: 50 / 9.6 = 5.21 segundos
+Tiempo total: 5.21 * 1.2 = 6.25 segundos
 ```
 
 #### 4. Tiempo de Viaje Total

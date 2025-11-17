@@ -524,6 +524,14 @@ class SimuladorCiclorutas:
             if nodo_origen:
                 # Generar tiempo de arribo para este nodo
                 tiempo_arribo = self.gestor_distribuciones.generar_tiempo_arribo(nodo_origen)
+                
+                # Si el tiempo es infinito, significa que este nodo no genera arribos
+                # Continuar con el siguiente ciclo sin esperar
+                if tiempo_arribo == float('inf') or tiempo_arribo <= 0:
+                    # Esperar un tiempo muy pequeño para no bloquear el proceso
+                    yield self.env.timeout(0.1)
+                    continue
+                
                 yield self.env.timeout(tiempo_arribo)
                 
                 # Crear nuevo ciclista
@@ -607,30 +615,46 @@ class SimuladorCiclorutas:
             params = distribucion.obtener_parametros()
             
             if tipo == 'exponencial':
-                tasas.append(params.get('lambda', 0.5))
+                lambda_val = params.get('lambda', 0.5)
+                # Si lambda es 0, tasa es 0 (no generar arribos)
+                tasas.append(lambda_val if lambda_val > 0 else 0.0)
             elif tipo == 'normal':
                 # Para normal, usar la media como tasa aproximada
-                tasas.append(1.0 / params.get('media', 3.0))
+                desviacion = params.get('desviacion', 1.0)
+                if desviacion == 0:
+                    tasas.append(0.0)  # No generar arribos si desviación es 0
+                else:
+                    media = params.get('media', 3.0)
+                    tasas.append(1.0 / media if media > 0 else 0.0)
             elif tipo == 'lognormal':
                 # Para log-normal, usar la media de la distribución log-normal
-                mu = params.get('mu', 0.0)
                 sigma = params.get('sigma', 1.0)
-                media_lognormal = np.exp(mu + sigma**2 / 2)
-                tasas.append(1.0 / media_lognormal)
+                if sigma == 0:
+                    tasas.append(0.0)  # No generar arribos si sigma es 0
+                else:
+                    mu = params.get('mu', 0.0)
+                    media_lognormal = np.exp(mu + sigma**2 / 2)
+                    tasas.append(1.0 / media_lognormal if media_lognormal > 0 else 0.0)
             elif tipo == 'gamma':
                 # Para gamma, usar la media de la distribución gamma
                 forma = params.get('forma', 2.0)
                 escala = params.get('escala', 1.0)
-                media_gamma = forma * escala
-                tasas.append(1.0 / media_gamma)
+                if forma == 0 or escala == 0:
+                    tasas.append(0.0)  # No generar arribos si forma o escala es 0
+                else:
+                    media_gamma = forma * escala
+                    tasas.append(1.0 / media_gamma if media_gamma > 0 else 0.0)
             elif tipo == 'weibull':
                 # Para Weibull, usar la media de la distribución Weibull
                 forma = params.get('forma', 2.0)
                 escala = params.get('escala', 1.0)
-                # Media de Weibull = escala * Γ(1 + 1/forma)
-                from scipy.special import gamma as gamma_func
-                media_weibull = escala * gamma_func(1 + 1/forma)
-                tasas.append(1.0 / media_weibull)
+                if forma == 0 or escala == 0:
+                    tasas.append(0.0)  # No generar arribos si forma o escala es 0
+                else:
+                    # Media de Weibull = escala * Γ(1 + 1/forma)
+                    from scipy.special import gamma as gamma_func
+                    media_weibull = escala * gamma_func(1 + 1/forma)
+                    tasas.append(1.0 / media_weibull if media_weibull > 0 else 0.0)
             else:
                 # Fallback para distribuciones no reconocidas
                 tasas.append(0.5)
@@ -641,6 +665,36 @@ class SimuladorCiclorutas:
             if total_tasa > 0:
                 probabilidades = [tasa / total_tasa for tasa in tasas]
                 return str(np.random.choice(nodos, p=probabilidades))
+            else:
+                # Si todas las tasas son 0, filtrar nodos activos
+                # Un nodo está activo si su distribución puede generar arribos
+                nodos_activos = []
+                for i, nodo in enumerate(nodos):
+                    distribucion = distribuciones[nodo]
+                    tipo = distribucion.obtener_tipo()
+                    params = distribucion.obtener_parametros()
+                    
+                    # Verificar si el nodo puede generar arribos
+                    es_activo = False
+                    if tipo == 'exponencial':
+                        es_activo = params.get('lambda', 0) > 0
+                    elif tipo == 'normal':
+                        es_activo = params.get('desviacion', 0) > 0
+                    elif tipo == 'lognormal':
+                        es_activo = params.get('sigma', 0) > 0
+                    elif tipo == 'gamma':
+                        es_activo = params.get('forma', 0) > 0 and params.get('escala', 0) > 0
+                    elif tipo == 'weibull':
+                        es_activo = params.get('forma', 0) > 0 and params.get('escala', 0) > 0
+                    
+                    if es_activo:
+                        nodos_activos.append(nodo)
+                
+                # Si hay nodos activos, seleccionar uno aleatoriamente
+                if nodos_activos:
+                    return random.choice(nodos_activos)
+                # Si no hay nodos activos, retornar None (no generar ciclistas)
+                return None
         
         return random.choice(nodos) if nodos else None
     
@@ -810,6 +864,9 @@ class SimuladorCiclorutas:
         
         # Esperar tiempo de arribo basado en la distribución del nodo origen
         tiempo_arribo = self.gestor_distribuciones.generar_tiempo_arribo(origen)
+        # Si el tiempo es infinito o inválido, usar un tiempo mínimo
+        if tiempo_arribo == float('inf') or tiempo_arribo <= 0:
+            tiempo_arribo = 0.1  # Tiempo mínimo para comenzar el movimiento
         yield self.env.timeout(tiempo_arribo)
         
         # Obtener la ruta detallada para este ciclista

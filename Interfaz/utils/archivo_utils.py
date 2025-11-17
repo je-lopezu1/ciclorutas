@@ -236,9 +236,9 @@ class ArchivoUtils:
                     info_arco += f" (peso: {atributos['peso_compuesto']:.3f})"
                 print(f"✅ Arco agregado: {info_arco}")
             
-            # Verificar que el grafo tenga al menos 3 nodos
-            if len(G.nodes()) < 3:
-                return None, None, None, None, "El grafo debe tener al menos 3 nodos para la simulación"
+            # Verificar que el grafo tenga al menos 2 nodos
+            if len(G.nodes()) < 2:
+                return None, None, None, None, "El grafo debe tener al menos 2 nodos para la simulación"
             
             # Calcular posiciones del grafo usando coordenadas si están disponibles
             from Simulador.utils.grafo_utils import GrafoUtils

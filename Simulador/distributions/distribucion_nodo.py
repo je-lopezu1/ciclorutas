@@ -39,12 +39,16 @@ class DistribucionExponencial(DistribucionBase):
     def _validar_parametros(self):
         """Valida parámetros para distribución exponencial"""
         self.parametros.setdefault('lambda', 0.5)
-        if self.parametros['lambda'] <= 0:
+        # Permitir lambda = 0 (significa no generar arribos)
+        if self.parametros['lambda'] < 0:
             self.parametros['lambda'] = 0.5
     
     def generar_tiempo_arribo(self) -> float:
         """Genera tiempo de arribo usando distribución exponencial"""
         try:
+            # Si lambda es 0, retornar tiempo infinito (no generar arribos)
+            if self.parametros['lambda'] == 0:
+                return float('inf')
             return np.random.exponential(1.0 / self.parametros['lambda'])
         except Exception:
             return 1.0  # Fallback
@@ -60,12 +64,16 @@ class DistribucionPoisson(DistribucionBase):
     def _validar_parametros(self):
         """Valida parámetros para distribución de Poisson"""
         self.parametros.setdefault('lambda', 2.0)
-        if self.parametros['lambda'] <= 0:
+        # Permitir lambda = 0 (significa no generar arribos)
+        if self.parametros['lambda'] < 0:
             self.parametros['lambda'] = 2.0
     
     def generar_tiempo_arribo(self) -> float:
         """Genera tiempo de arribo usando distribución de Poisson"""
         try:
+            # Si lambda es 0, retornar tiempo infinito (no generar arribos)
+            if self.parametros['lambda'] == 0:
+                return float('inf')
             eventos = np.random.poisson(self.parametros['lambda'])
             return max(0.1, eventos)  # Mínimo 0.1 segundos
         except Exception:
@@ -106,12 +114,16 @@ class DistribucionNormal(DistribucionBase):
         """Valida parámetros para distribución normal"""
         self.parametros.setdefault('media', 3.0)
         self.parametros.setdefault('desviacion', 1.0)
-        if self.parametros['desviacion'] <= 0:
+        # Permitir desviación = 0 (significa no generar arribos si media también es 0)
+        if self.parametros['desviacion'] < 0:
             self.parametros['desviacion'] = 1.0
     
     def generar_tiempo_arribo(self) -> float:
         """Genera tiempo de arribo usando distribución normal"""
         try:
+            # Si desviación es 0, retornar tiempo infinito (no generar arribos)
+            if self.parametros['desviacion'] == 0:
+                return float('inf')
             tiempo = np.random.normal(self.parametros['media'], self.parametros['desviacion'])
             return max(0.1, tiempo)  # Asegurar valor positivo mínimo
         except Exception:
@@ -129,12 +141,16 @@ class DistribucionLogNormal(DistribucionBase):
         """Valida parámetros para distribución log-normal"""
         self.parametros.setdefault('mu', 0.0)  # Parámetro de localización
         self.parametros.setdefault('sigma', 1.0)  # Parámetro de escala
-        if self.parametros['sigma'] <= 0:
+        # Permitir sigma = 0 (significa no generar arribos)
+        if self.parametros['sigma'] < 0:
             self.parametros['sigma'] = 1.0
     
     def generar_tiempo_arribo(self) -> float:
         """Genera tiempo de arribo usando distribución log-normal"""
         try:
+            # Si sigma es 0, retornar tiempo infinito (no generar arribos)
+            if self.parametros['sigma'] == 0:
+                return float('inf')
             tiempo = np.random.lognormal(self.parametros['mu'], self.parametros['sigma'])
             return max(0.1, tiempo)  # Asegurar valor positivo mínimo
         except Exception:
@@ -152,14 +168,18 @@ class DistribucionGamma(DistribucionBase):
         """Valida parámetros para distribución gamma"""
         self.parametros.setdefault('forma', 2.0)  # Parámetro de forma (alpha)
         self.parametros.setdefault('escala', 1.0)  # Parámetro de escala (beta)
-        if self.parametros['forma'] <= 0:
+        # Permitir forma o escala = 0 (significa no generar arribos)
+        if self.parametros['forma'] < 0:
             self.parametros['forma'] = 2.0
-        if self.parametros['escala'] <= 0:
+        if self.parametros['escala'] < 0:
             self.parametros['escala'] = 1.0
     
     def generar_tiempo_arribo(self) -> float:
         """Genera tiempo de arribo usando distribución gamma"""
         try:
+            # Si forma o escala es 0, retornar tiempo infinito (no generar arribos)
+            if self.parametros['forma'] == 0 or self.parametros['escala'] == 0:
+                return float('inf')
             tiempo = np.random.gamma(self.parametros['forma'], self.parametros['escala'])
             return max(0.1, tiempo)  # Asegurar valor positivo mínimo
         except Exception:
@@ -177,14 +197,18 @@ class DistribucionWeibull(DistribucionBase):
         """Valida parámetros para distribución Weibull"""
         self.parametros.setdefault('forma', 2.0)  # Parámetro de forma (c)
         self.parametros.setdefault('escala', 1.0)  # Parámetro de escala (λ)
-        if self.parametros['forma'] <= 0:
+        # Permitir forma o escala = 0 (significa no generar arribos)
+        if self.parametros['forma'] < 0:
             self.parametros['forma'] = 2.0
-        if self.parametros['escala'] <= 0:
+        if self.parametros['escala'] < 0:
             self.parametros['escala'] = 1.0
     
     def generar_tiempo_arribo(self) -> float:
         """Genera tiempo de arribo usando distribución Weibull"""
         try:
+            # Si forma o escala es 0, retornar tiempo infinito (no generar arribos)
+            if self.parametros['forma'] == 0 or self.parametros['escala'] == 0:
+                return float('inf')
             tiempo = np.random.weibull(self.parametros['forma']) * self.parametros['escala']
             return max(0.1, tiempo)  # Asegurar valor positivo mínimo
         except Exception:

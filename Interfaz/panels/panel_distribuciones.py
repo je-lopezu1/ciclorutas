@@ -485,10 +485,11 @@ class PanelDistribuciones:
                 return valor
             
             # Validar y preparar parámetros según el tipo
+            # Nota: Valores 0 permiten desactivar la generación de entidades en ese nodo
             if tipo == 'exponencial':
                 lambda_val = controles['lambda'].get()
-                if lambda_val <= 0:
-                    messagebox.showerror("Error", f"❌ El parámetro λ debe ser mayor que 0 para {tipo}")
+                if lambda_val < 0:
+                    messagebox.showerror("Error", f"❌ El parámetro λ no puede ser negativo para {tipo}")
                     return
                 # Convertir lambda a segundos
                 lambda_segundos = convertir_a_segundos(lambda_val, unidades)
@@ -496,9 +497,10 @@ class PanelDistribuciones:
             elif tipo == 'normal':
                 media_val = controles['media'].get()
                 desviacion_val = controles['desviacion'].get()
-                if desviacion_val <= 0:
-                    messagebox.showerror("Error", "❌ La desviación estándar debe ser mayor que 0")
+                if desviacion_val < 0:
+                    messagebox.showerror("Error", "❌ La desviación estándar no puede ser negativa")
                     return
+                # Si desviación es 0, permitirlo (no generará arribos)
                 # Convertir a segundos
                 media_segundos = convertir_a_segundos(media_val, unidades)
                 desviacion_segundos = convertir_a_segundos(desviacion_val, unidades)
@@ -509,8 +511,8 @@ class PanelDistribuciones:
             elif tipo == 'lognormal':
                 mu_val = controles['mu'].get()
                 sigma_val = controles['sigma'].get()
-                if sigma_val <= 0:
-                    messagebox.showerror("Error", "❌ El parámetro σ debe ser mayor que 0")
+                if sigma_val < 0:
+                    messagebox.showerror("Error", "❌ El parámetro σ no puede ser negativo")
                     return
                 parametros = {
                     'mu': mu_val,
@@ -519,8 +521,8 @@ class PanelDistribuciones:
             elif tipo == 'gamma':
                 forma_val = controles['forma'].get()
                 escala_val = controles['escala'].get()
-                if forma_val <= 0 or escala_val <= 0:
-                    messagebox.showerror("Error", "❌ Los parámetros de forma y escala deben ser mayores que 0")
+                if forma_val < 0 or escala_val < 0:
+                    messagebox.showerror("Error", "❌ Los parámetros de forma y escala no pueden ser negativos")
                     return
                 # Convertir escala a segundos
                 escala_segundos = convertir_a_segundos(escala_val, unidades)
@@ -531,8 +533,8 @@ class PanelDistribuciones:
             elif tipo == 'weibull':
                 forma_val = controles['forma'].get()
                 escala_val = controles['escala'].get()
-                if forma_val <= 0 or escala_val <= 0:
-                    messagebox.showerror("Error", "❌ Los parámetros de forma y escala deben ser mayores que 0")
+                if forma_val < 0 or escala_val < 0:
+                    messagebox.showerror("Error", "❌ Los parámetros de forma y escala no pueden ser negativos")
                     return
                 # Convertir escala a segundos
                 escala_segundos = convertir_a_segundos(escala_val, unidades)

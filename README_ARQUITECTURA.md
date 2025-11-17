@@ -116,7 +116,14 @@ ciclorutas/
    - Maneja movimiento entre nodos
    - Gestiona estados (activo, completado)
 
-4. **Control de Simulación**:
+4. **Sistema de Capacidad y Congestión**:
+   - `_calcular_factor_densidad()`: Calcula factor de reducción de velocidad por sentido
+   - Calcula capacidad por sentido de circulación (distancia / 2.5m)
+   - Rastrea bicicletas activas por sentido en tiempo real
+   - Aplica reducción dinámica de velocidad cuando se excede la capacidad
+   - Recalcula factor periódicamente durante el movimiento
+
+5. **Control de Simulación**:
    - `ejecutar_paso()`: Avanza la simulación un paso
    - `pausar_simulacion()` / `reanudar_simulacion()`: Control de estado
    - `detener_simulacion()`: Finaliza la simulación
@@ -128,6 +135,9 @@ ciclorutas/
 - coordenadas: lista de posiciones de ciclistas
 - rutas: lista de rutas asignadas
 - colores: lista de colores por ciclista
+- bicicletas_en_arco: Dict[arco_str, set(ciclista_id)]  # Rastreo por sentido
+- capacidad_arcos: Dict[arco_str, capacidad_maxima]      # Capacidad por sentido
+- longitud_bicicleta: 2.5  # Longitud promedio en metros
 ```
 
 #### **ConfiguracionSimulacion** (`Simulador/core/configuracion.py`)

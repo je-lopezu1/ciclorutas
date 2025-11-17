@@ -576,6 +576,8 @@ El Panel de Estadísticas muestra métricas actualizadas en tiempo real:
 - **Velocidad promedio baja**: Ciclistas se mueven lentamente (condiciones adversas o altas inclinaciones)
 - **Gran diferencia min/max**: Alta variabilidad en comportamiento de ciclistas
 
+**Nota sobre Congestión**: El sistema modela automáticamente la congestión de tráfico. Cuando hay más ciclistas que la capacidad de un tramo (calculada como distancia/2.5m), la velocidad se reduce proporcionalmente. Cada sentido de circulación se evalúa independientemente, por lo que un sentido puede estar congestionado mientras el otro fluye normalmente. Esto puede explicar variaciones en velocidades promedio durante períodos de alta demanda.
+
 #### Rutas Utilizadas
 
 - **Muchas rutas diferentes**: Ciclistas distribuyen bien por la red
