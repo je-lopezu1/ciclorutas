@@ -102,6 +102,19 @@ class EstadisticasUtils:
         }
     
     @staticmethod
+    def calcular_ciclistas_por_tramo_tiempo_real(simulador) -> Dict[str, int]:
+        """Calcula cuántos ciclistas están en cada tramo en tiempo real"""
+        if not hasattr(simulador, 'bicicletas_en_arco'):
+            return {}
+        
+        ciclistas_por_tramo = {}
+        for arco_str, conjunto_ciclistas in simulador.bicicletas_en_arco.items():
+            if conjunto_ciclistas:  # Solo incluir tramos con ciclistas
+                ciclistas_por_tramo[arco_str] = len(conjunto_ciclistas)
+        
+        return ciclistas_por_tramo
+    
+    @staticmethod
     def calcular_estadisticas_completas(simulador) -> Dict:
         """Calcula todas las estadísticas del simulador de forma integrada"""
         stats = {}
@@ -145,6 +158,9 @@ class EstadisticasUtils:
         stats.update(EstadisticasUtils.calcular_estadisticas_perfiles(
             simulador.contador_perfiles
         ))
+        
+        # Estadísticas de ciclistas por tramo en tiempo real
+        stats['ciclistas_por_tramo_tiempo_real'] = EstadisticasUtils.calcular_ciclistas_por_tramo_tiempo_real(simulador)
         
         return stats
     

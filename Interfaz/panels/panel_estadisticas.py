@@ -241,6 +241,7 @@ class PanelEstadisticas:
         # Crear secciones de estadísticas organizadas (solo tiempo y ciclistas)
         self._crear_seccion_estado_simulacion()
         self._crear_seccion_estadisticas_basicas()
+        self._crear_seccion_ciclistas_por_tramo()
         self._crear_seccion_estadisticas_rutas()
         self._crear_seccion_estadisticas_adicionales()
         
@@ -286,6 +287,28 @@ class PanelEstadisticas:
             self.scrollable_frame, "0.0 m/s", 'Info.TLabel'
         )
         self.stats_labels['velocidad_max'].grid(row=5, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+    
+    def _crear_seccion_ciclistas_por_tramo(self):
+        """Crea la sección que muestra ciclistas por tramo en tiempo real"""
+        # Título de sección
+        titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        titulo_frame.grid(row=6, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        
+        ttk.Label(titulo_frame, text="CICLISTAS POR TRAMO (EN VIVO)", 
+                 font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
+        
+        # Frame para mostrar la lista de tramos con ciclistas
+        self.frame_ciclistas_tramo = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
+        self.frame_ciclistas_tramo.grid(row=7, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=2)
+        
+        # Label para mostrar la información (se actualizará dinámicamente)
+        self.stats_labels['ciclistas_por_tramo'] = ttk.Label(
+            self.frame_ciclistas_tramo,
+            text="Ningún tramo con ciclistas activos",
+            font=EstiloUtils.FUENTES['normal'],
+            foreground='gray'
+        )
+        self.stats_labels['ciclistas_por_tramo'].pack(anchor=tk.W, padx=5, pady=2)
     
     def _crear_seccion_estadisticas_grafo(self):
         """Crea la sección de estadísticas del grafo"""
@@ -355,65 +378,65 @@ class PanelEstadisticas:
         """Crea la sección de estadísticas de rutas"""
         # Título de sección
         titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
-        titulo_frame.grid(row=5, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        titulo_frame.grid(row=8, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
         
         ttk.Label(titulo_frame, text="🛣️ ESTADÍSTICAS DE RUTAS", 
                  font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
         
         # Fila 1: Rutas utilizadas y total viajes
         ttk.Label(self.scrollable_frame, text="Rutas Utilizadas:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=6, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=9, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['rutas_utilizadas'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['rutas_utilizadas'].grid(row=6, column=1, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['rutas_utilizadas'].grid(row=9, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
         ttk.Label(self.scrollable_frame, text="Total Viajes:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=6, column=2, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=9, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['total_viajes'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0", 'Info.TLabel'
         )
-        self.stats_labels['total_viajes'].grid(row=6, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['total_viajes'].grid(row=9, column=3, sticky=tk.W, padx=(0, 20), pady=2)
         
         # Fila 2: Ruta más usada
         ttk.Label(self.scrollable_frame, text="Ruta Más Usada:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=7, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=10, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['ruta_mas_usada'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "N/A", 'Info.TLabel'
         )
-        self.stats_labels['ruta_mas_usada'].grid(row=7, column=1, columnspan=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['ruta_mas_usada'].grid(row=10, column=1, columnspan=3, sticky=tk.W, padx=(0, 20), pady=2)
         
         # Fila 3: Tramo más concurrido (NUEVA ESTADÍSTICA)
         ttk.Label(self.scrollable_frame, text="Tramo Más Concurrido:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=8, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=11, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['tramo_mas_concurrido'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "N/A", 'Info.TLabel'
         )
-        self.stats_labels['tramo_mas_concurrido'].grid(row=8, column=1, columnspan=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['tramo_mas_concurrido'].grid(row=11, column=1, columnspan=3, sticky=tk.W, padx=(0, 20), pady=2)
     
     def _crear_seccion_estadisticas_adicionales(self):
         """Crea la sección de estadísticas adicionales"""
         # Título de sección
         titulo_frame = EstiloUtils.crear_frame_con_estilo(self.scrollable_frame)
-        titulo_frame.grid(row=9, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
+        titulo_frame.grid(row=12, column=0, columnspan=4, sticky=tk.W+tk.E, padx=5, pady=(15, 5))
         
         ttk.Label(titulo_frame, text="📈 ESTADÍSTICAS ADICIONALES", 
                  font=EstiloUtils.FUENTES['subtitulo']).pack(anchor=tk.W)
         
         # Fila 1: Ciclistas completados y nodo más activo
         ttk.Label(self.scrollable_frame, text="Ciclistas Completados:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=10, column=0, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=13, column=0, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['ciclistas_completados'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "0", 'Success.TLabel'
         )
-        self.stats_labels['ciclistas_completados'].grid(row=10, column=1, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['ciclistas_completados'].grid(row=13, column=1, sticky=tk.W, padx=(0, 20), pady=2)
         
         ttk.Label(self.scrollable_frame, text="Nodo Más Activo:", 
-                 font=EstiloUtils.FUENTES['normal']).grid(row=10, column=2, sticky=tk.W, padx=5, pady=2)
+                 font=EstiloUtils.FUENTES['normal']).grid(row=13, column=2, sticky=tk.W, padx=5, pady=2)
         self.stats_labels['nodo_mas_activo'] = EstiloUtils.crear_label_con_estilo(
             self.scrollable_frame, "N/A", 'Info.TLabel'
         )
-        self.stats_labels['nodo_mas_activo'].grid(row=10, column=3, sticky=tk.W, padx=(0, 20), pady=2)
+        self.stats_labels['nodo_mas_activo'].grid(row=13, column=3, sticky=tk.W, padx=(0, 20), pady=2)
     
     def actualizar_estadisticas(self, stats: Dict[str, Any]):
         """Actualiza las estadísticas mostradas con validación mejorada"""
@@ -466,6 +489,9 @@ class PanelEstadisticas:
             if isinstance(nodo_mas_activo, str) and len(nodo_mas_activo) > 25:
                 nodo_mas_activo = nodo_mas_activo[:22] + "..."
             self._actualizar_estadistica('nodo_mas_activo', str(nodo_mas_activo))
+            
+            # Actualizar ciclistas por tramo en tiempo real
+            self._actualizar_ciclistas_por_tramo(stats.get('ciclistas_por_tramo_tiempo_real', {}))
             
             # No se actualizan atributos ni perfiles (eliminados)
             
@@ -527,6 +553,42 @@ class PanelEstadisticas:
         if key in self.stats_labels:
             EstiloUtils.aplicar_estilo_estadistica(self.stats_labels[key], valor, tipo)
     
+    def _actualizar_ciclistas_por_tramo(self, ciclistas_por_tramo: Dict[str, int]):
+        """Actualiza la información de ciclistas por tramo en tiempo real"""
+        if 'ciclistas_por_tramo' not in self.stats_labels:
+            return
+        
+        if not ciclistas_por_tramo:
+            self.stats_labels['ciclistas_por_tramo'].config(
+                text="Ningún tramo con ciclistas activos",
+                foreground='gray'
+            )
+            return
+        
+        # Ordenar tramos por cantidad de ciclistas (descendente)
+        tramos_ordenados = sorted(
+            ciclistas_por_tramo.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        # Formatear texto: mostrar máximo 10 tramos para no saturar
+        max_tramos = 10
+        texto_lineas = []
+        for arco_str, num_ciclistas in tramos_ordenados[:max_tramos]:
+            texto_lineas.append(f"{arco_str}: {num_ciclistas} ciclista{'s' if num_ciclistas != 1 else ''}")
+        
+        if len(tramos_ordenados) > max_tramos:
+            texto_lineas.append(f"... y {len(tramos_ordenados) - max_tramos} tramo(s) más")
+        
+        texto_final = "\n".join(texto_lineas) if texto_lineas else "Ningún tramo con ciclistas activos"
+        
+        # Actualizar el label
+        self.stats_labels['ciclistas_por_tramo'].config(
+            text=texto_final,
+            foreground='black'
+        )
+    
     
     def limpiar_estadisticas(self):
         """Limpia todas las estadísticas"""
@@ -543,7 +605,8 @@ class PanelEstadisticas:
             'ruta_mas_usada': "N/A",
             'tramo_mas_concurrido': "N/A",
             'ciclistas_completados': "0",
-            'nodo_mas_activo': "N/A"
+            'nodo_mas_activo': "N/A",
+            'ciclistas_por_tramo': "Ningún tramo con ciclistas activos"
         }
         
         for key, valor in valores_por_defecto.items():

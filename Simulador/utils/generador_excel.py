@@ -80,9 +80,9 @@ class GeneradorExcel:
         # Información básica
         datos_info.append(["INFORMACIÓN GENERAL", ""])
         datos_info.append(["Fecha de simulación", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-        datos_info.append(["Duración de simulación", f"{simulador.config.duracion_simulacion} segundos"])
+        datos_info.append(["Duración de simulación (segundos)", simulador.config.duracion_simulacion])
         datos_info.append(["Estado final", simulador.estado])
-        datos_info.append(["Tiempo transcurrido", f"{simulador.tiempo_actual:.2f} segundos"])
+        datos_info.append(["Tiempo transcurrido (segundos)", round(simulador.tiempo_actual, 2)])
         datos_info.append(["", ""])
         
         # Información del grafo
@@ -92,7 +92,7 @@ class GeneradorExcel:
             datos_info.append(["Número de nodos", stats.get('grafo_nodos', 0)])
             datos_info.append(["Número de arcos", stats.get('grafo_arcos', 0)])
             datos_info.append(["Grafo conectado", "Sí" if stats.get('grafo_conectado', False) else "No"])
-            datos_info.append(["Distancia promedio arcos", f"{stats.get('distancia_promedio_arcos', 0):.2f} metros"])
+            datos_info.append(["Distancia promedio arcos (metros)", round(stats.get('distancia_promedio_arcos', 0), 2)])
         else:
             datos_info.append(["Usando grafo real", "No"])
         datos_info.append(["", ""])
@@ -102,9 +102,13 @@ class GeneradorExcel:
         datos_info.append(["Total de ciclistas creados", stats.get('total_ciclistas', 0)])
         datos_info.append(["Ciclistas activos", stats.get('ciclistas_activos', 0)])
         datos_info.append(["Ciclistas completados", stats.get('ciclistas_completados', 0)])
-        datos_info.append(["Velocidad promedio", f"{stats.get('velocidad_promedio', 0):.2f} km/h"])
-        datos_info.append(["Velocidad mínima", f"{stats.get('velocidad_minima', 0):.2f} km/h"])
-        datos_info.append(["Velocidad máxima", f"{stats.get('velocidad_maxima', 0):.2f} km/h"])
+        # Convertir velocidades de m/s a km/h (multiplicar por 3.6)
+        velocidad_promedio_ms = stats.get('velocidad_promedio', 0)
+        velocidad_minima_ms = stats.get('velocidad_minima', 0)
+        velocidad_maxima_ms = stats.get('velocidad_maxima', 0)
+        datos_info.append(["Velocidad promedio (km/h)", round(velocidad_promedio_ms * 3.6, 2)])
+        datos_info.append(["Velocidad mínima (km/h)", round(velocidad_minima_ms * 3.6, 2)])
+        datos_info.append(["Velocidad máxima (km/h)", round(velocidad_maxima_ms * 3.6, 2)])
         datos_info.append(["", ""])
         
         # Estadísticas de rutas
@@ -159,6 +163,14 @@ class GeneradorExcel:
         
         datos_tramos = []
         
+        # Calcular ocupación de arcos una sola vez para optimizar
+        ocupacion_arcos = {}
+        try:
+            ocupacion_arcos = simulador.calcular_ocupacion_arcos_tiempo(intervalo=1.0)
+        except Exception as e:
+            print(f"Advertencia: No se pudo calcular ocupación de arcos: {e}")
+            ocupacion_arcos = {}
+        
         if simulador.usar_grafo_real and simulador.grafo:
             # Obtener atributos reales disponibles en el grafo
             atributos_reales = self._obtener_atributos_reales(simulador.grafo)
@@ -176,19 +188,22 @@ class GeneradorExcel:
                 total_uso = sum(simulador.arcos_utilizados.values())
                 porcentaje_uso = (uso_count / max(1, total_uso)) * 100 if total_uso > 0 else 0
                 
-                # Calcular tiempo promedio de desplazamiento (basado en velocidad promedio)
-                velocidad_promedio = 12.5  # km/h promedio (3.47 m/s)
-                tiempo_promedio = distancia / (velocidad_promedio * 1000 / 3600) if distancia > 0 else 0
+                # Calcular tiempo promedio real de desplazamiento basado en los tiempos reales de los ciclistas
+                tiempo_promedio = self._calcular_tiempo_promedio_tramo(simulador, tramo_id)
+                
+                # Calcular promedio de ciclistas en el tramo a lo largo de toda la simulación
+                promedio_ciclistas = self._calcular_promedio_ciclistas_tramo(simulador, tramo_id, ocupacion_arcos)
                 
                 # Crear fila con datos optimizados
                 fila = [
                     tramo_id,
                     origen,
                     destino,
-                    f"{distancia:.1f}",
+                    round(distancia, 1),
                     uso_count,
-                    f"{porcentaje_uso:.1f}%",
-                    f"{tiempo_promedio:.1f}s"
+                    round(porcentaje_uso, 1),
+                    round(tiempo_promedio, 1),
+                    round(promedio_ciclistas, 2)
                 ]
                 
                 # Agregar TODOS los atributos reales que existen dinámicamente
@@ -209,7 +224,8 @@ class GeneradorExcel:
         # Crear columnas dinámicamente basadas en los datos reales
         columnas = [
             'ID Tramo', 'Nodo Origen', 'Nodo Destino', 'Distancia (m)', 
-            'Ciclistas que lo usaron', 'Porcentaje de uso', 'Tiempo promedio (s)'
+            'Ciclistas que lo usaron', 'Porcentaje de uso (%)', 'Tiempo promedio (s)',
+            'Promedio de ciclistas'
         ]
         
         # Detectar y agregar columnas dinámicamente
@@ -307,9 +323,14 @@ class GeneradorExcel:
                 # Obtener tiempo total real de la simulación
                 tiempo_total = simulador.tiempos_por_ciclista.get(ciclista_id, 0)
                 if tiempo_total == 0:
-                    # Fallback: calcular tiempo estimado si no hay datos reales
-                    velocidad_promedio = 12.5  # km/h promedio
-                    tiempo_total = distancia_total / (velocidad_promedio * 1000 / 3600) if distancia_total > 0 else 0
+                    # Fallback: calcular tiempo estimado usando promedio de velocidades de la configuración
+                    if hasattr(simulador, 'config') and simulador.config:
+                        velocidad_min = simulador.config.velocidad_min  # m/s
+                        velocidad_max = simulador.config.velocidad_max  # m/s
+                        velocidad_promedio = (velocidad_min + velocidad_max) / 2.0  # m/s
+                    else:
+                        velocidad_promedio = 12.5 * 1000 / 3600  # 12.5 km/h = 3.47 m/s (fallback)
+                    tiempo_total = distancia_total / velocidad_promedio if distancia_total > 0 and velocidad_promedio > 0 else 0
                 
                 # Obtener tiempos por tramo
                 tiempos_tramos = simulador.tiempos_por_tramo.get(ciclista_id, [])
@@ -336,10 +357,10 @@ class GeneradorExcel:
                     ruta_detallada,
                     perfil if isinstance(perfil, str) else f"Perfil {perfil}",
                     num_tramos,
-                    f"{distancia_total:.1f}",
-                    f"{tiempo_total:.1f}s",
-                    f"{tiempo_promedio_tramo:.1f}s",
-                    f"{velocidad_promedio_ciclista:.2f} m/s",
+                    round(distancia_total, 1),
+                    round(tiempo_total, 1),
+                    round(tiempo_promedio_tramo, 1),
+                    round(velocidad_promedio_ciclista, 2),
                     tramos_utilizados,
                     estado
                 ]
@@ -352,7 +373,7 @@ class GeneradorExcel:
                         if attr in perfil and perfil[attr] is not None and perfil[attr] != '':
                             pref_valor = perfil.get(attr)
                             if isinstance(pref_valor, (int, float)):
-                                fila.append(f"{pref_valor:.2f}")
+                                fila.append(round(pref_valor, 2))
                             else:
                                 fila.append(str(pref_valor))
                         else:
@@ -443,9 +464,9 @@ class GeneradorExcel:
             
             datos_tiempos.append(["ESTADÍSTICAS GENERALES DE TIEMPOS", ""])
             datos_tiempos.append(["Total de ciclistas con tiempo registrado", len(tiempos_totales)])
-            datos_tiempos.append(["Tiempo promedio de viaje", f"{tiempo_promedio:.2f} segundos"])
-            datos_tiempos.append(["Tiempo mínimo de viaje", f"{tiempo_minimo:.2f} segundos"])
-            datos_tiempos.append(["Tiempo máximo de viaje", f"{tiempo_maximo:.2f} segundos"])
+            datos_tiempos.append(["Tiempo promedio de viaje (segundos)", round(tiempo_promedio, 2)])
+            datos_tiempos.append(["Tiempo mínimo de viaje (segundos)", round(tiempo_minimo, 2)])
+            datos_tiempos.append(["Tiempo máximo de viaje (segundos)", round(tiempo_maximo, 2)])
             datos_tiempos.append(["", ""])
         
         # Detalles por ciclista
@@ -464,16 +485,16 @@ class GeneradorExcel:
             num_tramos = len(tiempos_tramos)
             tiempo_promedio_tramo = sum(tiempos_tramos) / len(tiempos_tramos) if tiempos_tramos else 0
             
-            # Formatear tiempos de tramos
-            tiempos_tramos_str = "; ".join([f"{t:.1f}s" for t in tiempos_tramos[:5]])
+            # Formatear tiempos de tramos (sin unidades en los valores)
+            tiempos_tramos_str = "; ".join([f"{round(t, 1)}" for t in tiempos_tramos[:5]])
             if len(tiempos_tramos) > 5:
                 tiempos_tramos_str += f" (+{len(tiempos_tramos)-5} más)"
             
             datos_tiempos.append([
                 f"Ciclista {ciclista_id} ({origen}→{destino})",
-                f"{tiempo_total:.2f}",
+                round(tiempo_total, 2),
                 num_tramos,
-                f"{tiempo_promedio_tramo:.2f}",
+                round(tiempo_promedio_tramo, 2),
                 tiempos_tramos_str,
                 ruta_detallada
             ])
@@ -506,3 +527,137 @@ class GeneradorExcel:
         
         # Convertir a lista y ordenar
         return sorted(list(atributos_reales))
+    
+    def _calcular_tiempo_promedio_tramo(self, simulador, tramo_id: str) -> float:
+        """
+        Calcula el tiempo promedio real que tardaron todos los ciclistas en un tramo.
+        
+        Args:
+            simulador: Instancia del simulador
+            tramo_id: Identificador del tramo (formato: "origen->destino")
+        
+        Returns:
+            Tiempo promedio en segundos (float). Retorna 0.0 si no hay datos.
+        """
+        try:
+            tiempos_tramo = []
+            
+            # Recorrer todos los ciclistas que pasaron por este tramo
+            # IMPORTANTE: Un ciclista puede pasar múltiples veces por el mismo arco
+            # Necesitamos contar TODAS las veces, no solo la primera
+            if hasattr(simulador, 'arcos_por_ciclista') and hasattr(simulador, 'tiempos_por_tramo'):
+                for ciclista_id, arcos_ciclista in simulador.arcos_por_ciclista.items():
+                    # Verificar si este ciclista pasó por este tramo (puede aparecer múltiples veces)
+                    if tramo_id in arcos_ciclista:
+                        # Obtener TODOS los índices donde aparece este tramo (no solo el primero)
+                        if ciclista_id in simulador.tiempos_por_tramo:
+                            tiempos_ciclista = simulador.tiempos_por_tramo[ciclista_id]
+                            
+                            # Buscar todas las ocurrencias del tramo en la ruta del ciclista
+                            for indice, arco in enumerate(arcos_ciclista):
+                                if arco == tramo_id and indice < len(tiempos_ciclista):
+                                    tiempo_tramo = tiempos_ciclista[indice]
+                                    if tiempo_tramo > 0:  # Solo incluir tiempos válidos
+                                        tiempos_tramo.append(tiempo_tramo)
+            
+            # Calcular el promedio
+            if tiempos_tramo:
+                tiempo_promedio = sum(tiempos_tramo) / len(tiempos_tramo)
+                return tiempo_promedio
+            
+            # Si no hay datos reales, calcular estimado basado en distancia y velocidad promedio
+            # usando el promedio entre velocidad mínima y máxima de la configuración
+            if simulador.usar_grafo_real and simulador.grafo:
+                # Obtener distancia del tramo
+                origen, destino = tramo_id.split('->')
+                if simulador.grafo.has_edge(origen, destino):
+                    atributos = simulador.grafo[origen][destino]
+                    distancia = atributos.get('distancia', atributos.get('distancia_real', 0))
+                    if distancia > 0:
+                        # Calcular velocidad promedio usando el promedio entre velocidad mínima y máxima
+                        # de la configuración de la simulación
+                        if hasattr(simulador, 'config') and simulador.config:
+                            velocidad_min = simulador.config.velocidad_min  # m/s
+                            velocidad_max = simulador.config.velocidad_max  # m/s
+                            velocidad_promedio = (velocidad_min + velocidad_max) / 2.0
+                        else:
+                            # Fallback si no hay configuración (velocidad promedio por defecto)
+                            velocidad_promedio = 12.5 * 1000 / 3600  # 12.5 km/h = 3.47 m/s
+                        
+                        tiempo_estimado = distancia / velocidad_promedio if velocidad_promedio > 0 else 0
+                        return tiempo_estimado
+            
+            return 0.0
+            
+        except Exception as e:
+            print(f"Error al calcular tiempo promedio para tramo {tramo_id}: {e}")
+            return 0.0
+    
+    def _calcular_promedio_ciclistas_tramo(self, simulador, tramo_id: str, ocupacion_arcos: Dict = None) -> float:
+        """
+        Calcula el promedio de ciclistas en un tramo a lo largo de toda la simulación.
+        
+        Args:
+            simulador: Instancia del simulador
+            tramo_id: Identificador del tramo (formato: "origen->destino")
+            ocupacion_arcos: Diccionario con ocupación de arcos (opcional, para optimización)
+        
+        Returns:
+            Promedio de ciclistas en el tramo (float)
+        """
+        try:
+            # Si no se proporciona ocupacion_arcos, calcularla
+            if ocupacion_arcos is None:
+                ocupacion_arcos = simulador.calcular_ocupacion_arcos_tiempo(intervalo=1.0)
+            
+            # Obtener datos de ocupación para este tramo
+            if tramo_id in ocupacion_arcos and ocupacion_arcos[tramo_id]:
+                ocupacion_tiempo = ocupacion_arcos[tramo_id]
+                
+                # Si hay datos de ocupación, calcular el promedio
+                if ocupacion_tiempo:
+                    ocupaciones = [ocupacion for _, ocupacion in ocupacion_tiempo]
+                    promedio = sum(ocupaciones) / len(ocupaciones) if ocupaciones else 0.0
+                    return promedio
+            
+            # Si no hay datos de ocupación calculados, usar el método alternativo
+            # basado en eventos de entrada/salida
+            if hasattr(simulador, 'eventos_arcos') and simulador.eventos_arcos:
+                # Filtrar eventos de este arco
+                eventos_arco = [(t, tipo, ciclista_id) 
+                               for t, a, tipo, ciclista_id in simulador.eventos_arcos 
+                               if a == tramo_id]
+                
+                if eventos_arco:
+                    # Ordenar eventos por tiempo
+                    eventos_arco.sort(key=lambda x: x[0])
+                    
+                    # Calcular ocupación promedio usando método de integración temporal
+                    tiempo_total = simulador.tiempo_actual if simulador.tiempo_actual > 0 else 1.0
+                    tiempo_ocupado_total = 0.0
+                    ocupacion_actual = 0
+                    tiempo_anterior = 0.0
+                    
+                    for tiempo_evento, tipo_evento, _ in eventos_arco:
+                        # Acumular tiempo ocupado desde el último evento
+                        tiempo_ocupado_total += ocupacion_actual * (tiempo_evento - tiempo_anterior)
+                        tiempo_anterior = tiempo_evento
+                        
+                        if tipo_evento == 'entrada':
+                            ocupacion_actual += 1
+                        elif tipo_evento == 'salida':
+                            ocupacion_actual = max(0, ocupacion_actual - 1)
+                    
+                    # Agregar tiempo restante hasta el final
+                    tiempo_ocupado_total += ocupacion_actual * (tiempo_total - tiempo_anterior)
+                    
+                    # Calcular promedio
+                    promedio = tiempo_ocupado_total / tiempo_total if tiempo_total > 0 else 0.0
+                    return promedio
+            
+            # Si no hay datos disponibles, retornar 0
+            return 0.0
+            
+        except Exception as e:
+            print(f"Error al calcular promedio de ciclistas para tramo {tramo_id}: {e}")
+            return 0.0

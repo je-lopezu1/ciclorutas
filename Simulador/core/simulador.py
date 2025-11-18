@@ -862,12 +862,8 @@ class SimuladorCiclorutas:
             print(f"⚠️ Error: Nodos {origen} o {destino} no existen en el grafo")
             return
         
-        # Esperar tiempo de arribo basado en la distribución del nodo origen
-        tiempo_arribo = self.gestor_distribuciones.generar_tiempo_arribo(origen)
-        # Si el tiempo es infinito o inválido, usar un tiempo mínimo
-        if tiempo_arribo == float('inf') or tiempo_arribo <= 0:
-            tiempo_arribo = 0.1  # Tiempo mínimo para comenzar el movimiento
-        yield self.env.timeout(tiempo_arribo)
+        # NOTA: El tiempo de arribo ya se esperó en el generador (_generador_ciclistas_realista)
+        # El ciclista debe empezar a moverse inmediatamente después de ser creado
         
         # Obtener la ruta detallada para este ciclista
         if id in self.rutas_por_ciclista:
