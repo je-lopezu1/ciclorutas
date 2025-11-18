@@ -1213,6 +1213,6 @@ Para soporte adicional o preguntas, consulte la documentación técnica o contac
 
 ---
 
-**Versión del Manual**: 1.0  
+**Versión del Manual**: 2.0  
 **Última actualización**: 2024
 
