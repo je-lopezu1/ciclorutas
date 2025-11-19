@@ -516,91 +516,113 @@ class SimuladorCiclorutas:
         self._generar_resultados_excel()
     
     def _generador_ciclistas_realista(self):
-        """Genera ciclistas de manera realista usando las distribuciones de arribo"""
+        """Genera ciclistas de manera realista usando las distribuciones de arribo.
+        
+        Cada nodo con distribución configurada tiene su propio proceso independiente
+        que genera ciclistas según su propia tasa de arribo (lambda).
+        """
+        distribuciones = self.gestor_distribuciones.distribuciones
+        if not distribuciones:
+            # Si no hay distribuciones, esperar un poco y terminar
+            yield self.env.timeout(0.1)
+            return
+        
+        # Crear un proceso independiente para cada nodo con distribución
+        for nodo_id in distribuciones.keys():
+            # Iniciar proceso independiente para este nodo
+            self.env.process(self._generador_ciclistas_por_nodo(nodo_id))
+    
+    def _generador_ciclistas_por_nodo(self, nodo_origen: str):
+        """Genera ciclistas desde un nodo específico según su distribución de arribo.
+        
+        Cada nodo genera ciclistas independientemente según su propia tasa (lambda).
+        Esto asegura que la tasa de arribo real coincida con la configuración.
+        
+        Args:
+            nodo_origen: ID del nodo desde el cual se generan los ciclistas
+        """
         while self.estado != "completada":
-            # Seleccionar nodo origen basado en las distribuciones
-            nodo_origen = self._seleccionar_nodo_origen()
+            # Generar tiempo de arribo para este nodo específico
+            tiempo_arribo = self.gestor_distribuciones.generar_tiempo_arribo(nodo_origen)
             
-            if nodo_origen:
-                # Generar tiempo de arribo para este nodo
-                tiempo_arribo = self.gestor_distribuciones.generar_tiempo_arribo(nodo_origen)
+            # Si el tiempo es infinito, significa que este nodo no genera arribos
+            if tiempo_arribo == float('inf') or tiempo_arribo <= 0:
+                # Esperar un tiempo muy pequeño y terminar este proceso
+                yield self.env.timeout(0.1)
+                return
+            
+            # Esperar el tiempo de arribo generado por la distribución
+            yield self.env.timeout(tiempo_arribo)
+            
+            # Crear nuevo ciclista desde este nodo
+            ciclista_id = self.ciclista_id_counter
+            self.ciclista_id_counter += 1
+            
+            # Generar ruta usando perfiles y matriz de rutas
+            origen, destino, ruta_nodos = self._asignar_ruta_desde_nodo(nodo_origen, ciclista_id)
+            if origen and destino:
+                velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
                 
-                # Si el tiempo es infinito, significa que este nodo no genera arribos
-                # Continuar con el siguiente ciclo sin esperar
-                if tiempo_arribo == float('inf') or tiempo_arribo <= 0:
-                    # Esperar un tiempo muy pequeño para no bloquear el proceso
-                    yield self.env.timeout(0.1)
-                    continue
+                # Crear representación de la ruta para almacenar
+                ruta_str = f"{origen}->{destino}"
+                ruta_detallada = "->".join(ruta_nodos)
                 
-                yield self.env.timeout(tiempo_arribo)
+                # Rastrear la ruta utilizada
+                if ruta_detallada not in self.rutas_utilizadas:
+                    self.rutas_utilizadas[ruta_detallada] = 0
+                self.rutas_utilizadas[ruta_detallada] += 1
                 
-                # Crear nuevo ciclista
-                ciclista_id = self.ciclista_id_counter
-                self.ciclista_id_counter += 1
+                # Rastrear arcos/tramos utilizados
+                arcos_ciclista = []
+                for i in range(len(ruta_nodos) - 1):
+                    nodo_arco_origen = ruta_nodos[i]
+                    nodo_arco_destino = ruta_nodos[i + 1]
+                    arco_str = f"{nodo_arco_origen}->{nodo_arco_destino}"
+                    
+                    # Actualizar contador de arcos utilizados
+                    if arco_str not in self.arcos_utilizados:
+                        self.arcos_utilizados[arco_str] = 0
+                    self.arcos_utilizados[arco_str] += 1
+                    
+                    arcos_ciclista.append(arco_str)
                 
-                # Generar ruta usando perfiles y matriz de rutas
-                origen, destino, ruta_nodos = self._asignar_ruta_desde_nodo(nodo_origen, ciclista_id)
-                if origen and destino:
-                    velocidad = random.uniform(self.config.velocidad_min, self.config.velocidad_max)
-                    
-                    # Crear representación de la ruta para almacenar
-                    ruta_str = f"{origen}->{destino}"
-                    ruta_detallada = "->".join(ruta_nodos)
-                    
-                    # Rastrear la ruta utilizada
-                    if ruta_detallada not in self.rutas_utilizadas:
-                        self.rutas_utilizadas[ruta_detallada] = 0
-                    self.rutas_utilizadas[ruta_detallada] += 1
-                    
-                    # Rastrear arcos/tramos utilizados
-                    arcos_ciclista = []
-                    for i in range(len(ruta_nodos) - 1):
-                        nodo_origen = ruta_nodos[i]
-                        nodo_destino = ruta_nodos[i + 1]
-                        arco_str = f"{nodo_origen}->{nodo_destino}"
-                        
-                        # Actualizar contador de arcos utilizados
-                        if arco_str not in self.arcos_utilizados:
-                            self.arcos_utilizados[arco_str] = 0
-                        self.arcos_utilizados[arco_str] += 1
-                        
-                        arcos_ciclista.append(arco_str)
-                    
-                    # Almacenar información de la ruta para este ciclista
-                    self.rutas_por_ciclista[ciclista_id] = {
-                        'origen': origen,
-                        'destino': destino,
-                        'ruta_detallada': ruta_detallada,
-                        'ruta_simple': ruta_str
-                    }
-                    
-                    # Almacenar arcos utilizados por este ciclista
-                    self.arcos_por_ciclista[ciclista_id] = arcos_ciclista
-                    
-                    # Marcar ciclista como activo
-                    self.estado_ciclistas[ciclista_id] = 'activo'
-                    
-                    # Rastrear ciclistas por nodo de origen
-                    if nodo_origen not in self.ciclistas_por_nodo:
-                        self.ciclistas_por_nodo[nodo_origen] = 0
-                    self.ciclistas_por_nodo[nodo_origen] += 1
-                    
-                    # Agregar datos del ciclista
-                    self.rutas.append(ruta_str)
-                    self.colores.append(self.colores_nodos.get(nodo_origen, '#6C757D'))
-                    self.velocidades.append(velocidad)
-                    self.coordenadas.append((-1000, -1000))  # Posición inicial invisible
-                    self.trayectorias.append([])
-                    
-                    # Crear proceso del ciclista
-                    proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
-                    self.procesos.append(proceso)
-            else:
-                # Fallback: esperar un poco y reintentar
-                yield self.env.timeout(1.0)
+                # Almacenar información de la ruta para este ciclista
+                self.rutas_por_ciclista[ciclista_id] = {
+                    'origen': origen,
+                    'destino': destino,
+                    'ruta_detallada': ruta_detallada,
+                    'ruta_simple': ruta_str
+                }
+                
+                # Almacenar arcos utilizados por este ciclista
+                self.arcos_por_ciclista[ciclista_id] = arcos_ciclista
+                
+                # Marcar ciclista como activo
+                self.estado_ciclistas[ciclista_id] = 'activo'
+                
+                # Rastrear ciclistas por nodo de origen
+                if nodo_origen not in self.ciclistas_por_nodo:
+                    self.ciclistas_por_nodo[nodo_origen] = 0
+                self.ciclistas_por_nodo[nodo_origen] += 1
+                
+                # Agregar datos del ciclista
+                self.rutas.append(ruta_str)
+                self.colores.append(self.colores_nodos.get(nodo_origen, '#6C757D'))
+                self.velocidades.append(velocidad)
+                self.coordenadas.append((-1000, -1000))  # Posición inicial invisible
+                self.trayectorias.append([])
+                
+                # Crear proceso del ciclista
+                proceso = self.env.process(self._ciclista(ciclista_id, velocidad))
+                self.procesos.append(proceso)
     
     def _seleccionar_nodo_origen(self) -> Optional[str]:
-        """Selecciona un nodo origen basado en las distribuciones configuradas"""
+        """Selecciona un nodo origen basado en las distribuciones configuradas
+        
+        DEPRECADO: Este método ya no se usa. Cada nodo ahora tiene su propio
+        proceso independiente en _generador_ciclistas_por_nodo().
+        Se mantiene por compatibilidad pero no se recomienda su uso.
+        """
         distribuciones = self.gestor_distribuciones.distribuciones
         if not distribuciones:
             return None
