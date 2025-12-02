@@ -15,6 +15,7 @@
 - [Interpretación del Excel de Estadísticas](#interpretación-del-excel-de-estadísticas)
 - [Ejemplos Prácticos](#ejemplos-prácticos)
 - [Preguntas Frecuentes](#preguntas-frecuentes)
+- [Compartir Resultados y Uso Académico](#compartir-resultados-y-uso-académico)
 
 ---
 
@@ -1210,6 +1211,63 @@ Este manual proporciona una guía completa para utilizar el Simulador de Cicloru
 - **Modelo de simulación**: Consulte **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)**
 
 Para soporte adicional o preguntas, consulte la documentación técnica o contacte a los desarrolladores.
+
+---
+
+## 📤 Compartir Resultados y Uso Académico
+
+### Exportar y Compartir Resultados
+
+Los archivos Excel generados pueden ser compartidos con:
+
+- **Colegas investigadores**: Para análisis colaborativo
+- **Supervisores académicos**: Para revisión y validación
+- **Publicaciones**: Como datos suplementarios de investigación
+- **Presentaciones**: Para visualización en conferencias
+
+**Formato recomendado para compartir**:
+- Incluye el archivo Excel completo con todas las hojas
+- Proporciona contexto sobre los parámetros de simulación
+- Menciona la versión del simulador utilizada
+- Incluye información sobre el grafo utilizado
+
+### Uso en Investigación Académica
+
+Esta herramienta está diseñada para investigación académica. Al usar los resultados:
+
+1. **Cita el simulador**: Incluye la cita apropiada (ver `README.md`)
+2. **Documenta parámetros**: Registra todos los parámetros de simulación utilizados
+3. **Valida resultados**: Compara con datos reales cuando sea posible
+4. **Comparte metodología**: Describe cómo se utilizó la herramienta en tu investigación
+
+### Análisis de Resultados para Publicación
+
+**Para análisis cuantitativo**:
+- Usa la hoja "Ciclistas" para análisis estadísticos
+- La hoja "Tramos" proporciona datos de infraestructura
+- La hoja "Tiempos" permite análisis de eficiencia
+
+**Para visualizaciones**:
+- Los datos pueden importarse a herramientas como R, Python (pandas), o Excel
+- Las estadísticas agregadas están en "Info Simulación"
+- Los datos individuales permiten análisis detallados
+
+### Reproducibilidad
+
+Para asegurar reproducibilidad de resultados:
+
+1. **Guarda configuración**: Documenta todos los parámetros utilizados
+2. **Guarda archivo Excel de entrada**: El grafo utilizado
+3. **Registra versión**: Anota la versión del simulador (v2.0)
+4. **Documenta distribuciones**: Si modificaste distribuciones, documenta los cambios
+
+### Compartir Configuraciones
+
+Si desarrollas configuraciones útiles:
+
+- **Comparte archivos Excel**: Los archivos de entrada pueden ser reutilizados
+- **Documenta parámetros**: Crea un documento con parámetros recomendados
+- **Comparte resultados**: Los resultados pueden servir como casos de estudio
 
 ---
 

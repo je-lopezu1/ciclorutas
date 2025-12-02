@@ -12,7 +12,9 @@
 - [Generación de Simulaciones](#generación-de-simulaciones)
 - [Sistema de Eventos y Calendario](#sistema-de-eventos-y-calendario)
 - [Patrones de Diseño](#patrones-de-diseño)
-- [Extensibilidad](#extensibilidad)
+- [Extensibilidad y Modificación del Código](#extensibilidad-y-modificación-del-código)
+- [Referencias](#referencias)
+- [Documentación Relacionada](#documentación-relacionada)
 
 ---
 
@@ -878,51 +880,304 @@ Tiempo | Evento
 
 ---
 
-## 🔌 Extensibilidad
+## 🔌 Extensibilidad y Modificación del Código
+
+Esta sección proporciona guías detalladas para modificar y extender el código del simulador.
+
+### 📋 Guía General para Modificar el Código
+
+#### Antes de Modificar
+
+1. **Entender la estructura**: Lee `README.md` y este documento para entender la arquitectura
+2. **Revisar el modelo**: Consulta `README_MODELO_SIMULACION.md` para entender la lógica
+3. **Crear backup**: Guarda una copia del código original
+4. **Usar control de versiones**: Usa Git para rastrear cambios
+
+#### Estructura de Modificaciones Recomendadas
+
+1. **Hacer cambios incrementales**: Modifica una cosa a la vez
+2. **Probar después de cada cambio**: Verifica que todo funciona
+3. **Documentar cambios**: Actualiza la documentación relevante
+4. **Mantener compatibilidad**: No rompas el formato Excel existente
 
 ### Agregar Nuevas Distribuciones
 
-1. Crear clase en `Simulador/distributions/distribucion_nodo.py`:
+**Ubicación**: `Simulador/distributions/distribucion_nodo.py`
+
+**Pasos**:
+
+1. Crear clase heredando de `DistribucionBase`:
 ```python
 class DistribucionNueva(DistribucionBase):
+    def __init__(self, tipo, parametros):
+        super().__init__(tipo, parametros)
+        self._validar_parametros()
+    
     def _validar_parametros(self):
         # Validar parámetros específicos
+        if 'parametro1' not in self.parametros:
+            raise ValueError("Falta parámetro requerido")
     
     def generar_tiempo_arribo(self):
-        # Implementar generación
+        # Implementar generación usando numpy o scipy
+        import numpy as np
+        return np.random.nueva_distribucion(**self.parametros)
 ```
 
 2. Registrar en `DistribucionNodo._crear_distribucion()`:
 ```python
-if tipo == 'nueva':
-    return DistribucionNueva(parametros)
+def _crear_distribucion(tipo, parametros):
+    if tipo == 'nueva':
+        return DistribucionNueva(parametros)
+    # ... otros tipos existentes
 ```
+
+3. Actualizar la interfaz: Agregar opción en `PanelDistribuciones` si es necesario
+
+**Ejemplo completo**: Ver cómo están implementadas las distribuciones existentes (exponencial, normal, etc.)
 
 ### Agregar Nuevos Atributos
 
-1. Agregar columna en hoja ARCOS del Excel
-2. El sistema detecta automáticamente atributos nuevos
-3. Se pueden usar en perfiles (hoja PERFILES)
+**Ubicación**: Archivo Excel (hoja ARCOS) y código relacionado
+
+**Pasos**:
+
+1. **Agregar columna en Excel**: 
+   - Agrega una nueva columna en la hoja ARCOS (ej: `CALIDAD_AIRE`)
+   - El sistema detecta automáticamente atributos nuevos
+
+2. **Usar en perfiles** (opcional):
+   - Agrega la columna en la hoja PERFILES con pesos
+   - El sistema la incluirá en el cálculo de rutas
+
+3. **Acceder en código** (si necesitas lógica especial):
+```python
+# En Simulador/utils/rutas_utils.py
+atributos = grafo[origen][destino]
+calidad_aire = atributos.get('calidad_aire', 5.0)  # Valor por defecto
+```
+
+**Nota**: El sistema normaliza automáticamente los atributos para el cálculo de rutas.
 
 ### Agregar Nuevos Paneles
 
-1. Crear clase en `Interfaz/panels/`:
+**Ubicación**: `Interfaz/panels/`
+
+**Pasos**:
+
+1. Crear nueva clase de panel:
 ```python
+# Interfaz/panels/panel_nuevo.py
+import tkinter as tk
+from tkinter import ttk
+
 class PanelNuevo:
     def __init__(self, parent, simulador):
-        # Inicializar panel
+        self.simulador = simulador
+        self.frame = ttk.Frame(parent)
+        self._crear_widgets()
+    
+    def _crear_widgets(self):
+        # Crear widgets de la interfaz
+        label = ttk.Label(self.frame, text="Nuevo Panel")
+        label.pack()
+    
+    def actualizar(self):
+        # Método llamado para actualizar el panel
+        pass
+    
+    def obtener_frame(self):
+        return self.frame
 ```
 
-2. Agregar a `InterfazSimulacion`:
+2. Agregar a la aplicación principal (`Interfaz/components/app_principal.py`):
 ```python
-self.panel_nuevo = PanelNuevo(self.frame, self.simulador)
+from Interfaz.panels.panel_nuevo import PanelNuevo
+
+class InterfazSimulacion:
+    def __init__(self, root):
+        # ... código existente ...
+        
+        # Agregar nuevo panel
+        self.panel_nuevo = PanelNuevo(self.frame_principal, self.simulador)
+        self.panel_nuevo.obtener_frame().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+```
+
+3. Conectar con el simulador si es necesario:
+```python
+# En el panel, puedes acceder a datos del simulador:
+estadisticas = self.simulador.obtener_estadisticas_tiempo_real()
 ```
 
 ### Modificar Algoritmo de Rutas
 
-1. Modificar `RutasUtils.calcular_ruta_optima()`
-2. Cambiar función de peso en `_calcular_pesos_compuestos()`
-3. Cambiar algoritmo (Dijkstra → A*, etc.)
+**Ubicación**: `Simulador/utils/rutas_utils.py`
+
+**Pasos**:
+
+1. **Modificar función de peso**:
+```python
+def _calcular_pesos_compuestos(grafo, perfil, rangos_atributos):
+    # Modificar la lógica de cálculo de pesos
+    # Ejemplo: cambiar la normalización
+    peso_compuesto = nuevo_calculo(atributos, perfil)
+    return peso_compuesto
+```
+
+2. **Cambiar algoritmo de búsqueda**:
+```python
+def calcular_ruta_optima(grafo, origen, destino, perfil, rangos_atributos):
+    # Cambiar de Dijkstra a A* u otro algoritmo
+    import networkx as nx
+    
+    # Opción 1: Usar A* de NetworkX
+    ruta = nx.astar_path(grafo, origen, destino, weight='weight')
+    
+    # Opción 2: Implementar algoritmo personalizado
+    ruta = algoritmo_personalizado(grafo, origen, destino)
+    
+    return ruta
+```
+
+3. **Agregar nuevas métricas de optimización**:
+```python
+# Modificar qué se optimiza (tiempo, distancia, seguridad, etc.)
+def calcular_ruta_optima_por_tiempo(grafo, origen, destino, velocidad):
+    # Optimizar específicamente por tiempo
+    pass
+```
+
+### Modificar Sistema de Congestión
+
+**Ubicación**: `Simulador/core/simulador.py`
+
+**Funciones clave**:
+- `_calcular_factor_densidad()`: Calcula el factor de reducción por congestión
+- `_interpolar_movimiento()`: Aplica el factor durante el movimiento
+
+**Ejemplo de modificación**:
+```python
+def _calcular_factor_densidad(self, arco_str: str) -> float:
+    # Modificar la fórmula de cálculo
+    capacidad = self.capacidad_arcos[arco_str]
+    num_bicicletas = len(self.bicicletas_en_arco.get(arco_str, set()))
+    
+    # Nueva fórmula personalizada
+    if num_bicicletas <= capacidad:
+        return 1.0
+    else:
+        # Cambiar la función de reducción
+        factor = capacidad / (num_bicicletas ** 1.5)  # Reducción más agresiva
+        return max(0.1, factor)
+```
+
+### Agregar Nuevas Estadísticas
+
+**Ubicación**: `Simulador/utils/estadisticas_utils.py` y `Interfaz/panels/panel_estadisticas.py`
+
+**Pasos**:
+
+1. Agregar cálculo en `estadisticas_utils.py`:
+```python
+def calcular_nueva_estadistica(simulador):
+    # Calcular nueva métrica
+    return valor
+```
+
+2. Agregar visualización en `panel_estadisticas.py`:
+```python
+def actualizar(self):
+    # ... código existente ...
+    
+    # Agregar nueva estadística
+    nueva_estad = calcular_nueva_estadistica(self.simulador)
+    self.label_nueva_estad.config(text=f"Nueva Estadística: {nueva_estad}")
+```
+
+### Modificar Formato de Exportación Excel
+
+**Ubicación**: `Simulador/utils/generador_excel.py`
+
+**Pasos**:
+
+1. Agregar nueva hoja:
+```python
+def generar_excel(self, nombre_archivo):
+    # ... código existente ...
+    
+    # Agregar nueva hoja
+    nueva_hoja = workbook.create_sheet("Nueva Hoja")
+    nueva_hoja.append(["Columna1", "Columna2"])
+    # ... agregar datos ...
+```
+
+2. Modificar formato existente:
+```python
+# Modificar cómo se formatean los datos en hojas existentes
+def _formatear_hoja_tramos(self, worksheet):
+    # Cambiar formato, agregar columnas, etc.
+    pass
+```
+
+### Mejores Prácticas para Modificaciones
+
+1. **Mantener la estructura modular**: No mezcles responsabilidades
+2. **Documentar cambios**: Agrega comentarios explicando modificaciones
+3. **Probar exhaustivamente**: Prueba con diferentes configuraciones
+4. **Mantener compatibilidad**: No rompas el formato Excel existente
+5. **Seguir convenciones**: Usa el mismo estilo de código que el proyecto
+6. **Actualizar documentación**: Actualiza los README relevantes
+
+### Ejemplos de Modificaciones Comunes
+
+#### Ejemplo 1: Agregar Nuevo Tipo de Ciclista
+
+```python
+# En Simulador/models/ciclista.py
+class CiclistaTurista(Ciclista):
+    def __init__(self, id, velocidad):
+        super().__init__(id, velocidad)
+        self.tipo = 'turista'
+        self.velocidad *= 0.8  # Más lento
+```
+
+#### Ejemplo 2: Agregar Nuevo Atributo Visual
+
+```python
+# En Interfaz/panels/panel_visualizacion.py
+def _dibujar_ciclistas(self):
+    # ... código existente ...
+    
+    # Agregar etiquetas con información adicional
+    for i, (coords, color) in enumerate(zip(coordenadas, colores)):
+        self.ax.annotate(f"C{i}", coords, fontsize=8)
+```
+
+#### Ejemplo 3: Modificar Parámetros por Defecto
+
+```python
+# En config.py
+VELOCIDAD_MINIMA_DEFECTO = 8.0  # Cambiar de 10.0
+VELOCIDAD_MAXIMA_DEFECTO = 18.0  # Cambiar de 15.0
+DURACION_DEFECTO = 600  # Cambiar de 300 segundos
+```
+
+### Recursos para Modificaciones
+
+- **Documentación de SimPy**: https://simpy.readthedocs.io/
+- **Documentación de NetworkX**: https://networkx.org/
+- **Documentación de matplotlib**: https://matplotlib.org/
+- **Documentación de Tkinter**: https://docs.python.org/3/library/tkinter.html
+
+### Compartir Modificaciones
+
+Si realizas modificaciones útiles:
+
+1. Documenta claramente qué cambiaste y por qué
+2. Incluye ejemplos de uso
+3. Actualiza la documentación relevante
+4. Considera crear un fork del repositorio para compartir
+5. Mantén compatibilidad con el formato Excel estándar
 
 ---
 

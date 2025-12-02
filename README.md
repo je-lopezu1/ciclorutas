@@ -2,6 +2,21 @@
 
 Sistema completo de simulación de redes de ciclorutas con interfaz gráfica modular y control avanzado.
 
+## Tabla de Contenidos
+
+- [¿Qué es esta Herramienta?](#qué-es-esta-herramienta)
+- [Documentación Disponible](#documentación-disponible)
+- [Características Principales](#características-principales)
+- [Inicio Rápido](#inicio-rápido)
+- [Autores y Contexto](#autores-y-contexto)
+- [Cómo Compartir y Contribuir](#cómo-compartir-y-contribuir)
+- [Citación y Uso Académico](#citación-y-uso-académico)
+- [Soporte y Contacto](#soporte-y-contacto)
+- [Notas de Versión](#notas-de-versión)
+- [Documentación Adicional](#documentación-adicional)
+
+---
+
 ## ¿Qué es esta Herramienta?
 
 El **Simulador de Ciclorutas** es una herramienta de simulación discreta desarrollada como parte de una investigación académica para **representar y analizar redes de desplazamiento de ciclistas en contextos urbanos**. Esta herramienta fue creada en el marco de una tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, con el objetivo de evaluar la aplicabilidad de modelos analíticos (redes de colas de Jackson) mediante comparación con enfoques de simulación basados en eventos discretos.
@@ -35,7 +50,11 @@ La investigación contribuye al campo de modelado de tráfico ciclista mediante:
 
 ## Documentación Disponible
 
-Este proyecto incluye documentación completa organizada en cuatro documentos especializados:
+Este proyecto incluye documentación completa organizada en múltiples formatos:
+
+### Documentación en Markdown (.md)
+
+Documentación técnica detallada en formato Markdown, ideal para lectura en GitHub o editores de texto:
 
 ### 1. **README_INSTALACION.md** - Guía de Instalación y Configuración
 
@@ -127,6 +146,22 @@ Guía práctica paso a paso para utilizar la herramienta desde la perspectiva de
 
 **Ideal para**: Usuarios finales que necesitan preparar datos y utilizar la herramienta para análisis y planificación.
 
+### Documentación en Word (.docx)
+
+Adicionalmente, el proyecto incluye manuales en formato Word para facilitar la lectura y distribución:
+
+- **`User_Manual.docx`**: Manual de usuario completo en formato Word
+  - Mismo contenido que `README_MANUAL_USUARIO.md`
+  - Formato optimizado para impresión y distribución
+  - Ideal para compartir con usuarios no técnicos
+
+- **`Developer_Manual.docx`**: Manual de desarrollador en formato Word
+  - Información técnica sobre arquitectura y desarrollo
+  - Guías para modificaciones y extensiones
+  - Ideal para desarrolladores que prefieren formato Word
+
+**Nota**: Los archivos `.docx` contienen la misma información que los archivos `.md` correspondientes, pero en formato Word para mayor flexibilidad de uso.
+
 ### Cómo Usar Esta Documentación
 
 - **¿Eres nuevo?** → Comienza con `README_INSTALACION.md` para instalar y ejecutar la herramienta
@@ -134,17 +169,6 @@ Guía práctica paso a paso para utilizar la herramienta desde la perspectiva de
 - **¿Quieres entender el código?** → Consulta `README_ARQUITECTURA.md` para ver cómo funciona internamente
 - **¿Estudias el modelo de simulación?** → Revisa `README_MODELO_SIMULACION.md` para detalles del modelo matemático y lógico
 - **¿Necesitas referencia rápida?** → Este `README.md` proporciona un resumen y guía de inicio rápido
-
----
-
-## Tabla de Contenidos
-
-- [¿Qué es esta Herramienta?](#qué-es-esta-herramienta)
-- [Documentación Disponible](#documentación-disponible)
-- [Características Principales](#características-principales)
-- [Inicio Rápido](#inicio-rápido)
-- [Autores y Contexto](#autores-y-contexto)
-- [Documentación Adicional](#documentación-adicional)
 
 ## Características Principales
 
@@ -224,3 +248,137 @@ Este README proporciona una visión general del sistema. Para información más 
 - **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)** - Documentación detallada del modelo de simulación, entidades, eventos y decisiones
 
 Cada documento está diseñado para diferentes niveles de profundidad según tus necesidades.
+
+---
+
+## 📚 Cómo Compartir y Contribuir
+
+### Compartir este Recurso
+
+Este proyecto está diseñado para ser compartido con la comunidad académica y de investigación. Puedes:
+
+- **Compartir el repositorio**: Comparte el enlace del repositorio con colegas e investigadores
+- **Usar en investigaciones**: Utiliza la herramienta como base para tus propias investigaciones
+- **Citar en publicaciones**: Si usas esta herramienta en una publicación, por favor cita el proyecto (ver sección de Citación)
+- **Fork y mejoras**: Haz un fork del repositorio y contribuye con mejoras
+
+### Cómo Modificar el Código
+
+Si deseas modificar o extender la herramienta:
+
+1. **Lee la documentación técnica**: Consulta `README_ARQUITECTURA.md` para entender la estructura del código
+2. **Revisa el modelo**: Consulta `README_MODELO_SIMULACION.md` para entender la lógica de simulación
+3. **Explora los módulos**: El código está organizado en módulos (`Simulador/` e `Interfaz/`)
+4. **Sigue las convenciones**: Mantén la estructura modular y documenta tus cambios
+
+**Guía rápida para modificaciones**:
+- **Agregar nuevas distribuciones**: Ver `Simulador/distributions/distribucion_nodo.py`
+- **Agregar nuevos atributos**: Agrega columnas en Excel y el sistema las detectará automáticamente
+- **Modificar interfaz**: Ver `Interfaz/panels/` para agregar nuevos paneles
+- **Cambiar algoritmo de rutas**: Ver `Simulador/utils/rutas_utils.py`
+
+### Contribuciones
+
+Las contribuciones son bienvenidas. Si realizas mejoras significativas:
+
+1. Documenta tus cambios claramente
+2. Actualiza la documentación relevante
+3. Mantén la compatibilidad con el formato de Excel existente
+4. Prueba tus cambios antes de compartir
+
+---
+
+## 📖 Citación y Uso Académico
+
+### Cómo Citar este Proyecto
+
+Si utilizas este simulador en una investigación académica, por favor cita:
+
+```
+Vargas Rendón, J., & López Ulloa, J. E. (2024). Simulador de Ciclorutas v2.0: 
+Simulating Urban Bicycle Lanes with SimPy. Universidad de los Andes, 
+Departamento de Ingeniería de Sistemas y Computación.
+```
+
+**Formato BibTeX**:
+```bibtex
+@software{ciclorutas_simulator_2024,
+  title = {Simulador de Ciclorutas v2.0: Simulating Urban Bicycle Lanes with SimPy},
+  author = {Vargas Rendón, Jerónimo and López Ulloa, Juan Esteban},
+  year = {2024},
+  institution = {Universidad de los Andes},
+  department = {Departamento de Ingeniería de Sistemas y Computación},
+  note = {Tesis de Pregrado}
+}
+```
+
+### Uso en Investigación
+
+Esta herramienta fue desarrollada como parte de una investigación académica que busca:
+
+- Evaluar la aplicabilidad de modelos analíticos (redes de Jackson) mediante simulación
+- Comparar modelos analíticos con simulaciones de eventos discretos
+- Contribuir al campo de modelado de tráfico ciclista urbano
+
+**Áreas de aplicación**:
+- Planificación urbana y diseño de infraestructura ciclista
+- Análisis de comportamiento de ciclistas
+- Optimización de redes de ciclorutas
+- Investigación en transporte sostenible
+- Validación de modelos de teoría de colas
+
+### Licencia
+
+Este proyecto está disponible para uso académico y de investigación. Al utilizar esta herramienta, reconoces que:
+
+- El código puede ser usado para fines académicos y de investigación
+- Las mejoras y contribuciones son bienvenidas
+- Se debe dar crédito apropiado a los autores originales
+- El uso comercial requiere permiso de los autores
+
+---
+
+## 🆘 Soporte y Contacto
+
+### Problemas Comunes
+
+Si encuentras problemas:
+
+1. **Consulta la documentación**: Revisa `README_INSTALACION.md` para problemas de instalación
+2. **Revisa el manual**: Consulta `README_MANUAL_USUARIO.md` para problemas de uso
+3. **Verifica requisitos**: Asegúrate de tener Python 3.7+ y todas las dependencias instaladas
+
+### Recursos Adicionales
+
+- **Documentación técnica**: `README_ARQUITECTURA.md`
+- **Modelo de simulación**: `README_MODELO_SIMULACION.md`
+- **Lista de eventos**: `LISTA_EVENTOS_DES.md`
+- **Manuales en Word**: `User_Manual.docx` y `Developer_Manual.docx`
+
+---
+
+## 📝 Notas de Versión
+
+### Versión 2.0 (Actual)
+
+- Arquitectura completamente refactorizada con separación modular
+- Sistema de capacidad y congestión por sentido de circulación
+- Mejoras en visualización y estadísticas
+- Documentación completa y detallada
+- Optimizaciones de rendimiento
+
+### Características Principales
+
+- Simulación de eventos discretos con SimPy
+- Interfaz gráfica modular con Tkinter
+- Carga de redes desde archivos Excel
+- Distribuciones probabilísticas configurables
+- Perfiles heterogéneos de ciclistas
+- Visualización en tiempo real
+- Exportación de resultados a Excel
+
+---
+
+**Última actualización**: 2024  
+**Versión**: 2.0  
+**Estado**: Activo - Listo para uso académico y de investigación

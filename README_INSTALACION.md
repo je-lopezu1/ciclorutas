@@ -11,6 +11,10 @@
 - [Primera Configuración](#primera-configuración)
 - [Pruebas Básicas](#pruebas-básicas)
 - [Solución de Problemas Comunes](#solución-de-problemas-comunes)
+- [Compartir el Proyecto](#compartir-el-proyecto)
+- [Modificar el Proyecto](#modificar-el-proyecto)
+- [Uso Académico](#uso-académico)
+- [Siguiente Paso](#siguiente-paso)
 
 ---
 
@@ -548,4 +552,109 @@ Una vez completada la instalación, consulte:
 - **[README_MODELO_SIMULACION.md](README_MODELO_SIMULACION.md)** - Para entender el modelo de simulación, entidades y eventos
 
 Listo para usar el Simulador de Ciclorutas.
+
+---
+
+## 🔄 Compartir el Proyecto
+
+### Para Compartir con Otros Usuarios
+
+Si deseas compartir este proyecto con otros investigadores o usuarios:
+
+1. **Comparte el repositorio completo**: Incluye todos los archivos del proyecto
+2. **Incluye la documentación**: Asegúrate de incluir todos los archivos `.md` y `.docx`
+3. **Proporciona instrucciones**: Comparte el enlace a `README_INSTALACION.md`
+4. **Incluye archivos de ejemplo**: Los archivos `Libro2.xlsx` y `Libro2_actualizado.xlsx` son útiles para pruebas
+
+### Estructura Mínima para Compartir
+
+Cuando compartas el proyecto, asegúrate de incluir:
+
+```
+ciclorutas/
+├── main.py
+├── config.py
+├── requirements.txt
+├── README.md
+├── README_INSTALACION.md
+├── README_MANUAL_USUARIO.md
+├── README_ARQUITECTURA.md
+├── README_MODELO_SIMULACION.md
+├── Simulador/
+├── Interfaz/
+├── Libro2.xlsx (ejemplo)
+└── User_Manual.docx
+```
+
+### Instrucciones para el Receptor
+
+Cuando compartas el proyecto, proporciona estas instrucciones al receptor:
+
+1. Leer `README.md` para entender qué es el proyecto
+2. Seguir `README_INSTALACION.md` para instalar
+3. Consultar `README_MANUAL_USUARIO.md` para usar la herramienta
+4. Revisar `README_ARQUITECTURA.md` si desea modificar el código
+
+---
+
+## 🛠️ Modificar el Proyecto
+
+### Requisitos para Modificaciones
+
+Para modificar el código, necesitas:
+
+- Python 3.7+ instalado
+- Editor de código (VS Code, PyCharm, etc.)
+- Conocimiento básico de Python
+- Entender la estructura del proyecto (ver `README_ARQUITECTURA.md`)
+
+### Pasos para Modificar
+
+1. **Clonar o descargar el proyecto**
+2. **Crear un entorno virtual** (recomendado):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/macOS
+   venv\Scripts\activate     # Windows
+   ```
+3. **Instalar dependencias**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Explorar el código**:
+   - `Simulador/` - Motor de simulación
+   - `Interfaz/` - Interfaz gráfica
+   - `main.py` - Punto de entrada
+5. **Hacer modificaciones** siguiendo la estructura existente
+6. **Probar cambios** antes de compartir
+
+### Áreas Comunes para Modificar
+
+- **Agregar nuevas distribuciones**: `Simulador/distributions/distribucion_nodo.py`
+- **Modificar algoritmo de rutas**: `Simulador/utils/rutas_utils.py`
+- **Agregar nuevos paneles**: `Interfaz/panels/`
+- **Cambiar parámetros por defecto**: `config.py`
+- **Modificar visualización**: `Interfaz/panels/panel_visualizacion.py`
+
+### Documentar Cambios
+
+Si realizas modificaciones importantes:
+
+1. Actualiza la documentación relevante
+2. Agrega comentarios en el código
+3. Mantén la compatibilidad con el formato Excel existente
+4. Prueba tus cambios exhaustivamente
+
+---
+
+## 📚 Uso Académico
+
+Este proyecto está diseñado para uso académico y de investigación. Al utilizarlo:
+
+- **Cita el proyecto** en tus publicaciones (ver `README.md` para formato de citación)
+- **Comparte mejoras** con la comunidad académica
+- **Respeta la autoría** original del proyecto
+- **Usa responsablemente** para investigación y educación
+
+Para más información sobre citación y uso académico, consulta la sección correspondiente en `README.md`.
 
