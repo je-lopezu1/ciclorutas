@@ -1,4 +1,4 @@
-# Simulador de Ciclorutas v2.0
+# Simulador de Ciclorutas v1.0
 
 Sistema completo de simulación de redes de ciclorutas con interfaz gráfica modular y control avanzado.
 
