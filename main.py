@@ -5,8 +5,12 @@
 Este es el archivo principal para ejecutar el simulador completo de ciclorutas
 con interfaz gráfica y control avanzado.
 
+Desarrollado como herramienta para tesis de pregrado en Ingeniería de Sistemas y Computación
+de la Universidad de los Andes, Colombia (2025).
+
 Autor: Sistema de Simulación de Ciclorutas
-Versión: 2.0 (Refactorizado)
+Versión: 2.0.0 (Refactorizado)
+Versión inicial: 1.0.0 (Tesis de Pregrado, Universidad de los Andes, Colombia, 2025)
 """
 
 import sys

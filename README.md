@@ -2,6 +2,8 @@
 
 Sistema completo de simulación de redes de ciclorutas con interfaz gráfica modular y control avanzado.
 
+**Desarrollado como herramienta para tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, Colombia (2025)**
+
 ## Tabla de Contenidos
 
 - [¿Qué es esta Herramienta?](#qué-es-esta-herramienta)
@@ -19,7 +21,7 @@ Sistema completo de simulación de redes de ciclorutas con interfaz gráfica mod
 
 ## ¿Qué es esta Herramienta?
 
-El **Simulador de Ciclorutas** es una herramienta de simulación discreta desarrollada como parte de una investigación académica para **representar y analizar redes de desplazamiento de ciclistas en contextos urbanos**. Esta herramienta fue creada en el marco de una tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, con el objetivo de evaluar la aplicabilidad de modelos analíticos (redes de colas de Jackson) mediante comparación con enfoques de simulación basados en eventos discretos.
+El **Simulador de Ciclorutas** es una herramienta de simulación discreta desarrollada como parte de una investigación académica para **representar y analizar redes de desplazamiento de ciclistas en contextos urbanos**. Esta herramienta fue creada específicamente como **herramienta de investigación para una tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, Colombia (2025)**, con el objetivo de evaluar la aplicabilidad de modelos analíticos (redes de colas de Jackson) mediante comparación con enfoques de simulación basados en eventos discretos.
 
 La herramienta permite modelar, analizar y visualizar el comportamiento de ciclistas en redes urbanas de ciclorutas, considerando múltiples factores como:
 
@@ -32,7 +34,9 @@ La herramienta permite modelar, analizar y visualizar el comportamiento de cicli
 
 ### Contexto de Investigación
 
-Esta herramienta es el resultado de la investigación académica titulada **"Simulating Urban Bicycle Lanes with SimPy: Assessing the Applicability of Jackson Queueing Networks"** (Tesis de Pregrado en Ingeniería de Sistemas y Computación, Universidad de los Andes). El trabajo busca cerrar la brecha entre modelos analíticos matemáticamente elegantes (como las redes de Jackson basadas en teoría de colas) y métodos de simulación flexibles basados en eventos discretos.
+Esta herramienta fue desarrollada como parte de una **tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, Colombia (2025)**, titulada **"Simulating Urban Bicycle Lanes with SimPy: Assessing the Applicability of Jackson Queueing Networks"**. 
+
+El trabajo busca cerrar la brecha entre modelos analíticos matemáticamente elegantes (como las redes de Jackson basadas en teoría de colas) y métodos de simulación flexibles basados en eventos discretos. La herramienta fue creada específicamente para apoyar esta investigación académica y facilitar el análisis comparativo entre modelos analíticos y simulaciones.
 
 La investigación contribuye al campo de modelado de tráfico ciclista mediante:
 - **Comparación metodológica**: Validación de modelos analíticos contra simulaciones discretas
@@ -232,11 +236,13 @@ Para instrucciones completas de instalación, consulte **[README_INSTALACION.md]
 - Jerónimo Vargas Rendón (202113305)
 - Juan Esteban López Ulloa (202021417)
 
-**Universidad de los Andes**  
+**Universidad de los Andes, Colombia**  
 **Departamento de Ingeniería de Sistemas y Computación**  
-**Tesis de Pregrado: "Simulating Urban Bicycle Lanes with SimPy: Assessing the Applicability of Jackson Queueing Networks"**
+**Tesis de Pregrado 2025: "Simulating Urban Bicycle Lanes with SimPy: Assessing the Applicability of Jackson Queueing Networks"**
 
-Este proyecto es parte de una investigación académica que busca evaluar la aplicabilidad de modelos analíticos de teoría de colas (redes de Jackson) mediante comparación con simulaciones de eventos discretos. La herramienta está diseñada para ser extensible y servir como base para futuras investigaciones en modelado de tráfico ciclista urbano.
+Este proyecto fue desarrollado como **herramienta de investigación para una tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, Colombia, en el año 2025**. El trabajo busca evaluar la aplicabilidad de modelos analíticos de teoría de colas (redes de Jackson) mediante comparación con simulaciones de eventos discretos. 
+
+La herramienta está diseñada para ser extensible y servir como base para futuras investigaciones en modelado de tráfico ciclista urbano, contribuyendo al campo académico de planificación urbana y transporte sostenible.
 
 ## Documentación Adicional
 
@@ -295,20 +301,22 @@ Las contribuciones son bienvenidas. Si realizas mejoras significativas:
 Si utilizas este simulador en una investigación académica, por favor cita:
 
 ```
-Vargas Rendón, J., & López Ulloa, J. E. (2024). Simulador de Ciclorutas v2.0: 
-Simulating Urban Bicycle Lanes with SimPy. Universidad de los Andes, 
-Departamento de Ingeniería de Sistemas y Computación.
+Vargas Rendón, J., & López Ulloa, J. E. (2025). Simulador de Ciclorutas v2.0: 
+Simulating Urban Bicycle Lanes with SimPy. Universidad de los Andes, Colombia, 
+Departamento de Ingeniería de Sistemas y Computación. Tesis de Pregrado.
 ```
 
 **Formato BibTeX**:
 ```bibtex
-@software{ciclorutas_simulator_2024,
+@software{ciclorutas_simulator_2025,
   title = {Simulador de Ciclorutas v2.0: Simulating Urban Bicycle Lanes with SimPy},
   author = {Vargas Rendón, Jerónimo and López Ulloa, Juan Esteban},
-  year = {2024},
+  year = {2025},
   institution = {Universidad de los Andes},
+  address = {Colombia},
   department = {Departamento de Ingeniería de Sistemas y Computación},
-  note = {Tesis de Pregrado}
+  note = {Tesis de Pregrado},
+  version = {2.0.0}
 }
 ```
 
@@ -359,13 +367,29 @@ Si encuentras problemas:
 
 ## 📝 Notas de Versión
 
-### Versión 2.0 (Actual)
+### Versión 1.0.0 (Inicial)
+
+La versión 1.0.0 fue la versión inicial del simulador desarrollada como parte de una **tesis de pregrado en Ingeniería de Sistemas y Computación de la Universidad de los Andes, Colombia (2025)**. Esta versión estableció las bases del sistema de simulación de eventos discretos para redes de ciclorutas urbanas.
+
+**Características principales de la v1.0.0**:
+- Implementación inicial del motor de simulación con SimPy
+- Sistema básico de modelado de ciclistas y redes
+- Interfaz gráfica inicial con Tkinter
+- Carga de grafos desde archivos Excel
+- Distribuciones probabilísticas básicas
+- Visualización en tiempo real
+
+### Versión 2.0.0 (Actual)
+
+La versión 2.0.0 representa una refactorización completa del sistema, mejorando significativamente la arquitectura y funcionalidades:
 
 - Arquitectura completamente refactorizada con separación modular
 - Sistema de capacidad y congestión por sentido de circulación
 - Mejoras en visualización y estadísticas
 - Documentación completa y detallada
 - Optimizaciones de rendimiento
+- Sistema de perfiles de ciclistas mejorado
+- Exportación avanzada de resultados a Excel
 
 ### Características Principales
 
@@ -379,6 +403,7 @@ Si encuentras problemas:
 
 ---
 
-**Última actualización**: 2024  
-**Versión**: 2.0  
+**Última actualización**: 2025  
+**Versión**: 2.0.0  
+**Versión inicial**: 1.0.0 (Tesis de Pregrado, Universidad de los Andes, Colombia, 2025)  
 **Estado**: Activo - Listo para uso académico y de investigación

@@ -17,8 +17,12 @@ from typing import Dict, Any, List
 SISTEMA_INFO = {
     'nombre': 'Simulador de Ciclorutas',
     'version': '2.0.0',
+    'version_inicial': '1.0.0',
     'autor': 'Sistema de Simulación de Ciclorutas',
-    'descripcion': 'Sistema completo de simulación de redes de ciclorutas'
+    'descripcion': 'Sistema completo de simulación de redes de ciclorutas',
+    'institucion': 'Universidad de los Andes, Colombia',
+    'contexto': 'Tesis de Pregrado en Ingeniería de Sistemas y Computación (2025)',
+    'ano': 2025
 }
 
 # Configuración de la aplicación
